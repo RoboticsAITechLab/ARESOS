@@ -13,7 +13,7 @@ interface TodoItem {
   completed: boolean;
 }
 
-export default function TodoApp({ pid }: TodoAppProps) {
+export default function TodoApp({ pid: _pid }: TodoAppProps) {
   const { addNotification } = useOS();
   const [todos, setTodos] = useState<TodoItem[]>([
     { id: "1", text: "Create high-fidelity landing page layouts", completed: true },

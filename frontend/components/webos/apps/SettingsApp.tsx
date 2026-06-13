@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useOS } from "@/hooks/webos/useOS";
 import { useFileSystem } from "@/hooks/webos/useFileSystem";
+import { FSNode } from "@/types/webos/fs";
 
 interface SettingsAppProps {
   pid: string;
@@ -10,7 +11,7 @@ interface SettingsAppProps {
 
 type SettingsTab = "appearance" | "wallpaper" | "profile" | "storage" | "about";
 
-export default function SettingsApp({ pid }: SettingsAppProps) {
+export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
   const { settings, updateSettings, currentUser, updateUser, addNotification } = useOS();
   const { root } = useFileSystem();
   
@@ -21,7 +22,7 @@ export default function SettingsApp({ pid }: SettingsAppProps) {
   // Recalculate VFS size dynamically
   useEffect(() => {
     let bytes = 0;
-    const traverse = (node: any) => {
+    const traverse = (node: FSNode) => {
       if (node.type === "file") {
         bytes += typeof node.content === "string" ? node.content.length : 0;
       } else if (node.type === "directory" && node.children) {
@@ -29,7 +30,10 @@ export default function SettingsApp({ pid }: SettingsAppProps) {
       }
     };
     traverse(root);
-    setVfsBytes(bytes);
+    const timer = setTimeout(() => {
+      setVfsBytes(bytes);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [root]);
 
   // Expanded Wallpapers matching mockup: Aurora, Space, Ocean, Neon, Mountain, Abstract

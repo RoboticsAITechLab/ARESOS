@@ -8,9 +8,9 @@ interface TextEditorProps {
   pid: string;
 }
 
-export default function TextEditor({ pid }: TextEditorProps) {
+export default function TextEditor({ pid: _pid }: TextEditorProps) {
   const { addNotification } = useOS();
-  const { currentPath, listDirectory, readFile, writeFile, deleteNode } = useFileSystem();
+  const { listDirectory, readFile, writeFile, deleteNode } = useFileSystem();
 
   const [notesList, setNotesList] = useState<string[]>([]);
   const [selectedNote, setSelectedNote] = useState<string>("Physics.txt");
@@ -61,7 +61,11 @@ export default function TextEditor({ pid }: TextEditorProps) {
   // Setup files list on mount
   useEffect(() => {
     initDefaultNotes();
-    loadNotesCatalog();
+    const timer = setTimeout(() => {
+      loadNotesCatalog();
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load note contents when selection changes
@@ -71,9 +75,13 @@ export default function TextEditor({ pid }: TextEditorProps) {
     const path = `${notesDir}/${selectedNote}`;
     const file = readFile(path);
     if (file) {
-      setContent(file.content);
-      setIsModified(false);
+      const timer = setTimeout(() => {
+        setContent(file.content);
+        setIsModified(false);
+      }, 0);
+      return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNote]);
 
   const handleSave = () => {
@@ -128,8 +136,8 @@ export default function TextEditor({ pid }: TextEditorProps) {
   };
 
   // Cursor coordinates selector monitor
-  const handleTextareaSelection = (e: any) => {
-    const textarea = e.target;
+  const handleTextareaSelection = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    const textarea = e.target as HTMLTextAreaElement;
     const text = textarea.value;
     const selectionIndex = textarea.selectionStart;
 

@@ -27,11 +27,8 @@ const BOOT_LOGS = [
 export const BootScreen: React.FC<BootScreenProps> = ({ onComplete }) => {
   const { settings } = useOS();
   const [progress, setProgress] = useState(0);
-  const [activeLogs, setActiveLogs] = useState<typeof BOOT_LOGS>([]);
   const [glitch, setGlitch] = useState(false);
-  const [systemLogsIdx, setSystemLogsIdx] = useState(0);
   
-  const audioLinkMock = useRef("LINK ACTIVE");
   const bootSoundPlayed = useRef(false);
 
   // Trigger boot chime
@@ -69,19 +66,13 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onComplete }) => {
     return () => clearInterval(timer);
   }, [onComplete]);
 
-  // Dynamic logs output sequence based on progress
-  useEffect(() => {
-    const progressThresholds = [0, 8, 18, 28, 38, 48, 58, 65, 72, 80, 88, 93, 98];
-    const logIdx = progressThresholds.findIndex((th, i) => {
-      const nextTh = progressThresholds[i + 1] || 101;
-      return progress >= th && progress < nextTh;
-    });
-
-    if (logIdx !== -1 && logIdx >= systemLogsIdx) {
-      setActiveLogs(BOOT_LOGS.slice(0, logIdx + 1));
-      setSystemLogsIdx(logIdx + 1);
-    }
-  }, [progress, systemLogsIdx]);
+  // Derived logs calculation to prevent setState in effect rules
+  const progressThresholds = [0, 8, 18, 28, 38, 48, 58, 65, 72, 80, 88, 93, 98];
+  const logIdx = progressThresholds.findIndex((th, i) => {
+    const nextTh = progressThresholds[i + 1] || 101;
+    return progress >= th && progress < nextTh;
+  });
+  const activeLogs = logIdx !== -1 ? BOOT_LOGS.slice(0, logIdx + 1) : [];
 
   // Intermittent minor aesthetic glitch flicker
   useEffect(() => {
@@ -163,7 +154,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onComplete }) => {
         </div>
 
         <div className="flex gap-4 text-[10px] text-cyan-500">
-          <div>LINK: <span className="text-emerald-400">{audioLinkMock.current}</span></div>
+          <div>LINK: <span className="text-emerald-400">LINK ACTIVE</span></div>
           <div>VOLTAGE: <span className="text-white">1.28V [STABLE]</span></div>
           <div>SECURE CORE: <span className="text-white">LEVEL-5</span></div>
         </div>

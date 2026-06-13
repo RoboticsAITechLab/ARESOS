@@ -17,5 +17,5 @@ export interface Process {
   appId: string; // Maps to AppConfig.id
   title: string; // Can be customized dynamically (e.g. Terminal - home)
   state: ProcessState;
-  args?: Record<string, any>; // Launch arguments
+  args?: Record<string, unknown>; // Launch arguments
 }

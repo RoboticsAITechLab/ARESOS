@@ -9,8 +9,8 @@ interface TerminalProps {
   pid: string;
 }
 
-export default function Terminal({ pid }: TerminalProps) {
-  const { currentPath, listDirectory, changeDirectory, readFile, writeFile, createDirectory, deleteNode } = useFileSystem();
+export default function Terminal({ pid: _pid }: TerminalProps) {
+  const { currentPath, listDirectory, changeDirectory, readFile, createDirectory, deleteNode } = useFileSystem();
   const { updateSettings, addNotification, currentUser, settings } = useOS();
 
   const [input, setInput] = useState("");
@@ -77,7 +77,7 @@ export default function Terminal({ pid }: TerminalProps) {
               (n) => `${n.node.type === "directory" ? "📁" : "📄"}  ${n.name}`
             );
           }
-        } catch (err) {
+        } catch {
           output = ["ls: failed to list contents."];
         }
         break;
@@ -147,7 +147,7 @@ export default function Terminal({ pid }: TerminalProps) {
       case "theme":
         const reqTheme = args[1];
         if (reqTheme === "light" || reqTheme === "dark" || reqTheme === "midnight" || reqTheme === "aurora") {
-          updateSettings({ theme: reqTheme as any });
+          updateSettings({ theme: reqTheme as "light" | "dark" | "midnight" | "aurora" });
           output = [`System theme updated to '${reqTheme}'`];
           addNotification("System Command", `Theme set to ${reqTheme}`, "info");
         } else {

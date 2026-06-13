@@ -79,9 +79,12 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   // Handle Focus Timer completion side effects
   useEffect(() => {
     if (focusSeconds <= 0) {
-      setFocusActive(false);
-      setFocusSeconds(1500);
-      addNotification("Focus Session", "Focus Session Finished", "success");
+      const timer = setTimeout(() => {
+        setFocusActive(false);
+        setFocusSeconds(1500);
+        addNotification("Focus Session", "Focus Session Finished", "success");
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [focusSeconds, addNotification]);
 

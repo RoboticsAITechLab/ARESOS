@@ -19,7 +19,7 @@ export const Desktop: React.FC = () => {
   });
 
   // Load files from virtual desktop directory
-  const refreshDesktopFiles = () => {
+  const refreshDesktopFiles = React.useCallback(() => {
     try {
       const files = listDirectory("/home/user/Desktop");
       setDesktopFiles(
@@ -31,14 +31,19 @@ export const Desktop: React.FC = () => {
     } catch (e) {
       console.error("Failed to load desktop files", e);
     }
-  };
+  }, [listDirectory]);
 
   useEffect(() => {
-    refreshDesktopFiles();
+    const timer = setTimeout(() => {
+      refreshDesktopFiles();
+    }, 0);
     // Refresh desktop icons every time a filesystem change might occur
     const interval = setInterval(refreshDesktopFiles, 1500);
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, [refreshDesktopFiles]);
 
   // Handle Desktop Right-Click
   const handleContextMenu = (e: React.MouseEvent) => {

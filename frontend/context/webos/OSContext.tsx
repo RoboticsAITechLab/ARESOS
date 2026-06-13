@@ -1,9 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { Process, AppConfig } from "@/types/webos/process";
+import React, { createContext, useState, ReactNode } from "react";
+import { Process } from "@/types/webos/process";
 import { WindowInstance } from "@/types/webos/window";
-import { SystemNotification, SystemSettings, SystemTheme, SystemUser } from "@/types/webos/system";
+import { SystemNotification, SystemSettings, SystemUser } from "@/types/webos/system";
 import { getAppConfig } from "@/config/webos/apps.config";
 
 interface OSContextType {
@@ -17,7 +17,7 @@ interface OSContextType {
   setStartMenuOpen: (open: boolean) => void;
   
   // Process / App Management
-  launchApp: (appId: string, args?: Record<string, any>) => string | null;
+  launchApp: (appId: string, args?: Record<string, unknown>) => string | null;
   terminateApp: (pid: string) => void;
   
   // Window Management
@@ -33,6 +33,10 @@ interface OSContextType {
   addNotification: (title: string, message: string, type?: SystemNotification["type"]) => void;
   markNotificationAsRead: (id: string) => void;
   clearNotifications: () => void;
+}
+
+function generatePid(appId: string): string {
+  return `${appId}-${Date.now()}`;
 }
 
 export const OSContext = createContext<OSContextType | undefined>(undefined);
@@ -88,7 +92,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   // Launch dynamic process & map it to a window
-  const launchApp = (appId: string, args?: Record<string, any>) => {
+  const launchApp = (appId: string, args?: Record<string, unknown>) => {
     const config = getAppConfig(appId);
     if (!config) {
       addNotification("Launch Error", `Application '${appId}' not found.`, "error");
@@ -105,7 +109,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       }
     }
 
-    const pid = `${appId}-${Date.now()}`;
+    const pid = generatePid(appId);
     const newProcess: Process = {
       pid,
       appId,

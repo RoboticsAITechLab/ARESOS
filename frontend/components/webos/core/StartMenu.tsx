@@ -38,8 +38,8 @@ export const StartMenu: React.FC = () => {
   // Focus input when Launchpad is toggled open
   useEffect(() => {
     if (isStartMenuOpen) {
-      setSearch("");
       setTimeout(() => {
+        setSearch("");
         inputRef.current?.focus();
       }, 50);
     }

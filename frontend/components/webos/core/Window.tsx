@@ -73,7 +73,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
         const deltaX = e.clientX - dragStart.current.x;
         const deltaY = e.clientY - dragStart.current.y;
         
-        let newX = dragStart.current.winX + deltaX;
+        const newX = dragStart.current.winX + deltaX;
         let newY = dragStart.current.winY + deltaY;
 
         // Prevent dragging above top bar (Y = 0)

@@ -13,7 +13,7 @@ interface Event {
   text: string;
 }
 
-export default function CalendarApp({ pid }: CalendarAppProps) {
+export default function CalendarApp({ pid: _pid }: CalendarAppProps) {
   const { addNotification } = useOS();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<Event[]>([
