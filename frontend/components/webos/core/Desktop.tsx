@@ -62,6 +62,15 @@ export const Desktop: React.FC = () => {
   // Actions for Context Menu
   const contextMenuItems: ContextMenuItem[] = [
     {
+      label: "Refresh",
+      icon: "🔄",
+      divider: true,
+      action: () => {
+        refreshDesktopFiles();
+        addNotification("System", "Desktop refreshed.", "info");
+      },
+    },
+    {
       label: "Create New Text File",
       icon: "📄",
       action: () => {
