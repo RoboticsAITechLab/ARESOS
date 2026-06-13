@@ -19,6 +19,11 @@ export default function CalendarApp({ pid }: CalendarAppProps) {
   const [events, setEvents] = useState<Event[]>([
     { id: "1", dateStr: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`, text: "ARESOS OS Launch Party 🎉" },
     { id: "2", dateStr: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-15`, text: "Check VFS localStorage sync" },
+    {
+  id: "3",
+  dateStr: `${new Date().getFullYear()}-06-14`,
+  text: "🎂 Ankit Birthday",
+}
   ]);
   const [newEventText, setNewEventText] = useState("");
   const [selectedDay, setSelectedDay] = useState<number | null>(new Date().getDate());
