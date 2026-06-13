@@ -24,8 +24,31 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
 
   // Command history logs (for Up/Down arrows scroll)
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isFocused, setIsFocused] = useState(true);
+
+  // Load terminal command history from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("aresos_terminal_history");
+      if (saved) {
+        try {
+          setCommandHistory(JSON.parse(saved));
+        } catch (e) {
+          console.error("Failed to parse terminal history", e);
+        }
+      }
+      setIsHistoryLoaded(true);
+    }
+  }, []);
+
+  // Save terminal command history to localStorage on change
+  useEffect(() => {
+    if (isHistoryLoaded && typeof window !== "undefined") {
+      localStorage.setItem("aresos_terminal_history", JSON.stringify(commandHistory));
+    }
+  }, [commandHistory, isHistoryLoaded]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const hiddenInputRef = useRef<HTMLTextAreaElement>(null);

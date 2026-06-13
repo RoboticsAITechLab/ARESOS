@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useOS } from "@/hooks/webos/useOS";
 
 interface CalendarAppProps {
@@ -16,17 +16,45 @@ interface Event {
 export default function CalendarApp({ pid: _pid }: CalendarAppProps) {
   const { addNotification } = useOS();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [events, setEvents] = useState<Event[]>([
+  const [events, setEvents] = useState<Event[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [newEventText, setNewEventText] = useState("");
+  const [selectedDay, setSelectedDay] = useState<number | null>(new Date().getDate());
+
+  const defaultEvents: Event[] = [
     { id: "1", dateStr: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`, text: "ARESOS OS Launch Party 🎉" },
     { id: "2", dateStr: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-15`, text: "Check VFS localStorage sync" },
     {
-  id: "3",
-  dateStr: `${new Date().getFullYear()}-06-14`,
-  text: "🎂 Ankit Birthday",
-}
-  ]);
-  const [newEventText, setNewEventText] = useState("");
-  const [selectedDay, setSelectedDay] = useState<number | null>(new Date().getDate());
+      id: "3",
+      dateStr: `${new Date().getFullYear()}-06-14`,
+      text: "🎂 Ankit Birthday",
+    }
+  ];
+
+  // Load from localStorage on client-side mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("aresos_calendar_events");
+      if (saved) {
+        try {
+          setEvents(JSON.parse(saved));
+        } catch (e) {
+          console.error("Failed to parse calendar events", e);
+          setEvents(defaultEvents);
+        }
+      } else {
+        setEvents(defaultEvents);
+      }
+      setIsLoaded(true);
+    }
+  }, []);
+
+  // Save to localStorage on changes
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("aresos_calendar_events", JSON.stringify(events));
+    }
+  }, [events, isLoaded]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();

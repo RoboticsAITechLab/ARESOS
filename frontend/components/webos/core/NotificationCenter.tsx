@@ -34,11 +34,39 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const [focusActive, setFocusActive] = useState(false);
   
   // Goals Widget State
-  const [goals, setGoals] = useState<MiniGoal[]>([
+  const [goals, setGoals] = useState<MiniGoal[]>([]);
+  const [isGoalsLoaded, setIsGoalsLoaded] = useState(false);
+  const [newGoalText, setNewGoalText] = useState("");
+
+  const defaultGoals: MiniGoal[] = [
     { id: "g1", text: "Design clean layouts", completed: true },
     { id: "g2", text: "Test VFS system logs", completed: false },
-  ]);
-  const [newGoalText, setNewGoalText] = useState("");
+  ];
+
+  // Load goals from localStorage on client-side mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("aresos_notification_goals");
+      if (saved) {
+        try {
+          setGoals(JSON.parse(saved));
+        } catch (e) {
+          console.error("Failed to parse goals checklist", e);
+          setGoals(defaultGoals);
+        }
+      } else {
+        setGoals(defaultGoals);
+      }
+      setIsGoalsLoaded(true);
+    }
+  }, []);
+
+  // Save goals to localStorage on changes
+  useEffect(() => {
+    if (isGoalsLoaded && typeof window !== "undefined") {
+      localStorage.setItem("aresos_notification_goals", JSON.stringify(goals));
+    }
+  }, [goals, isGoalsLoaded]);
 
   // Close when clicked outside
   useEffect(() => {

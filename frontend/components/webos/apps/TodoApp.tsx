@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useOS } from "@/hooks/webos/useOS";
 
 interface TodoAppProps {
@@ -15,13 +15,41 @@ interface TodoItem {
 
 export default function TodoApp({ pid: _pid }: TodoAppProps) {
   const { addNotification } = useOS();
-  const [todos, setTodos] = useState<TodoItem[]>([
+  const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [inputText, setInputText] = useState("");
+
+  const defaultTodos: TodoItem[] = [
     { id: "1", text: "Create high-fidelity landing page layouts", completed: true },
     { id: "2", text: "Setup local workspace Git integration", completed: true },
     { id: "3", text: "Customize glassmorphic desktop shortcuts", completed: false },
     { id: "4", text: "Configure interactive terminal CLI features", completed: false },
-  ]);
-  const [inputText, setInputText] = useState("");
+  ];
+
+  // Load from localStorage on client-side mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("aresos_todo_items");
+      if (saved) {
+        try {
+          setTodos(JSON.parse(saved));
+        } catch (e) {
+          console.error("Failed to parse todo items", e);
+          setTodos(defaultTodos);
+        }
+      } else {
+        setTodos(defaultTodos);
+      }
+      setIsLoaded(true);
+    }
+  }, []);
+
+  // Save to localStorage on changes
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("aresos_todo_items", JSON.stringify(todos));
+    }
+  }, [todos, isLoaded]);
 
   const handleAddTodo = (e: React.FormEvent) => {
     e.preventDefault();

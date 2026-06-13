@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useState, ReactNode } from "react";
+import React, { createContext, useState, useEffect, ReactNode } from "react";
 import { Process } from "@/types/webos/process";
 import { WindowInstance } from "@/types/webos/window";
 import { SystemNotification, SystemSettings, SystemUser } from "@/types/webos/system";
@@ -60,6 +60,62 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     role: "SYSTEM ADMINISTRATOR",
     avatarUrl: "",
   });
+
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load settings, user, and notifications on client-side mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedSettings = localStorage.getItem("aresos_system_settings");
+      if (savedSettings) {
+        try {
+          setSettings(JSON.parse(savedSettings));
+        } catch (e) {
+          console.error("Failed to parse settings", e);
+        }
+      }
+
+      const savedUser = localStorage.getItem("aresos_system_user");
+      if (savedUser) {
+        try {
+          setCurrentUser(JSON.parse(savedUser));
+        } catch (e) {
+          console.error("Failed to parse user details", e);
+        }
+      }
+
+      const savedNotifs = localStorage.getItem("aresos_system_notifications");
+      if (savedNotifs) {
+        try {
+          setNotifications(JSON.parse(savedNotifs));
+        } catch (e) {
+          console.error("Failed to parse notifications", e);
+        }
+      }
+      setIsLoaded(true);
+    }
+  }, []);
+
+  // Save settings on changes
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("aresos_system_settings", JSON.stringify(settings));
+    }
+  }, [settings, isLoaded]);
+
+  // Save user details on changes
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("aresos_system_user", JSON.stringify(currentUser));
+    }
+  }, [currentUser, isLoaded]);
+
+  // Save notifications list on changes
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("aresos_system_notifications", JSON.stringify(notifications));
+    }
+  }, [notifications, isLoaded]);
 
   const updateUser = (newUser: Partial<SystemUser>) => {
     setCurrentUser((prev) => ({ ...prev, ...newUser }));
