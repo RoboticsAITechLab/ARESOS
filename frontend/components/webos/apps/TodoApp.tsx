@@ -118,8 +118,12 @@ export default function TodoApp({ pid: _pid }: TodoAppProps) {
 
       {/* Checklist display */}
       <div className="flex-1 overflow-y-auto space-y-2 mb-4 scrollbar-thin">
-        {(todos || []).length > 0 ? (
-          (todos || []).map((todo) => (
+        {todos === null ? (
+          <div className="text-center text-xs text-zinc-600 py-16 font-mono animate-pulse">
+            LOADING DATA MATRIX...
+          </div>
+        ) : todos.length > 0 ? (
+          todos.map((todo) => (
             <div
               key={todo.id}
               onClick={() => toggleTodo(todo.id)}

@@ -265,7 +265,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           </span>
           
           <div className="space-y-1.5 max-h-28 overflow-y-auto scrollbar-thin">
-            {(goals || []).map((g) => (
+            {goals === null ? (
+              <div className="text-center text-[10px] text-zinc-600 py-4 font-mono animate-pulse">
+                LOADING TARGETS...
+              </div>
+            ) : goals.map((g) => (
               <div
                 key={g.id}
                 onClick={() => handleToggleGoal(g.id)}

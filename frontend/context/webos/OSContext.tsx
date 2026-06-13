@@ -53,6 +53,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     wallpaperUrlOrGradient: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)",
     volume: 80,
     brightness: 90,
+    maxStorageAllocation: 64,
   });
 
   const [currentUser, setCurrentUser] = useState<SystemUser>({

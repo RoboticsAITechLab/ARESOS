@@ -195,7 +195,11 @@ export default function CalendarApp({ pid: _pid }: CalendarAppProps) {
           <div className="flex-1 flex flex-col min-h-0">
             {/* Event list */}
             <div className="flex-1 overflow-y-auto space-y-2 mb-4 scrollbar-thin">
-              {selectedDayEvents.length > 0 ? (
+              {events === null ? (
+                <div className="text-center text-xs text-zinc-600 py-16 font-mono animate-pulse">
+                  SYNCING CHRONO LOGS...
+                </div>
+              ) : selectedDayEvents.length > 0 ? (
                 selectedDayEvents.map((ev) => (
                   <div
                     key={ev.id}
