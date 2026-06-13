@@ -5,29 +5,45 @@ import { useOS } from "@/hooks/webos/useOS";
 import { REGISTERED_APPS } from "@/config/webos/apps.config";
 
 export const StartMenu: React.FC = () => {
-  const { isStartMenuOpen, setStartMenuOpen, launchApp, currentUser } = useOS();
+  const { isStartMenuOpen, setStartMenuOpen, launchApp } = useOS();
   const [search, setSearch] = useState("");
-  const menuRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Close when clicked outside
+  // Close on ESC key, auto-focus search input on load/typing
   useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      // Ignore click if clicking the start button itself
-      const target = e.target as HTMLElement;
-      if (target.closest("button")?.textContent?.includes("ARESOS")) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isStartMenuOpen) return;
 
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (e.key === "Escape") {
         setStartMenuOpen(false);
+      } else {
+        // Auto focus input if user starts typing letters
+        if (
+          inputRef.current &&
+          document.activeElement !== inputRef.current &&
+          e.key.length === 1 &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          !e.altKey
+        ) {
+          inputRef.current.focus();
+        }
       }
     };
 
-    if (isStartMenuOpen) {
-      document.addEventListener("mousedown", handleOutsideClick);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isStartMenuOpen, setStartMenuOpen]);
+
+  // Focus input when Launchpad is toggled open
+  useEffect(() => {
+    if (isStartMenuOpen) {
+      setSearch("");
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+    }
+  }, [isStartMenuOpen]);
 
   if (!isStartMenuOpen) return null;
 
@@ -35,102 +51,89 @@ export const StartMenu: React.FC = () => {
     app.title.toLowerCase().includes(search.toLowerCase())
   );
 
+  const handleLaunch = (appId: string) => {
+    launchApp(appId);
+    setStartMenuOpen(false);
+  };
+
   return (
     <div
-      ref={menuRef}
-      className="absolute bottom-14 left-3 w-[420px] h-[500px] bg-zinc-950/90 backdrop-blur-2xl border border-zinc-800/80 rounded-2xl shadow-2xl flex z-[9999] overflow-hidden select-none animate-in slide-in-from-bottom-6 duration-200"
+      onClick={() => setStartMenuOpen(false)}
+      className="fixed inset-0 w-screen h-screen bg-zinc-950/75 backdrop-blur-3xl z-[9999] flex flex-col p-8 md:p-16 select-none animate-in fade-in duration-200"
     >
-      {/* Sidebar: Profile & Quick Controls */}
-      <div className="w-16 bg-zinc-900/60 border-r border-zinc-800/40 flex flex-col justify-between items-center py-5">
-        <div className="flex flex-col items-center gap-6">
-          {/* Avatar Icon */}
-          <div className="w-9 h-9 rounded-full bg-indigo-600 border border-indigo-400 flex items-center justify-center font-bold text-white shadow-md">
-            {currentUser.username.substring(0, 2).toUpperCase()}
-          </div>
-        </div>
+      <style>{`
+        @keyframes launchpad-pop {
+          0% { transform: scale(0.9) translateY(20px); opacity: 0; }
+          100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .app-icon-stagger {
+          animation: launchpad-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          opacity: 0;
+        }
+      `}</style>
 
-        {/* Quick Power Actions */}
-        <div className="flex flex-col items-center gap-4 text-zinc-400">
-          <button
-            onClick={() => {
-              if (confirm("Restart ARESOS? All unsaved data will be cleared.")) {
-                window.location.reload();
-              }
-            }}
-            className="hover:text-indigo-400 transition cursor-pointer p-1.5 rounded-lg hover:bg-zinc-800/40"
-            title="Restart System"
-          >
-            🔄
-          </button>
-          <button
-            onClick={() => {
-              if (confirm("Shut down WebOS?")) {
-                document.body.innerHTML = `
-                  <div style="background:#000;color:#333;width:100vw;height:100vh;display:flex;align-items:center;justify-center:center;font-family:sans-serif;font-weight:bold;font-size:24px;">
-                    It is now safe to close your browser tab.
-                  </div>
-                `;
-              }
-            }}
-            className="hover:text-red-400 transition cursor-pointer p-1.5 rounded-lg hover:bg-zinc-800/40"
-            title="Shut Down"
-          >
-            🔌
-          </button>
+      {/* Centered Top Floating Search Bar */}
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm mx-auto mb-12 flex-shrink-0 animate-in slide-in-from-top-4 duration-300"
+      >
+        <div className="relative group">
+          <span className="absolute left-4 top-3 text-sm text-zinc-500">🔍</span>
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Search Applications..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-zinc-900/60 border border-zinc-800/80 focus:border-zinc-700/80 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-semibold text-zinc-100 placeholder-zinc-500 outline-none transition-all shadow-xl group-hover:border-zinc-800/90"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-4 top-3 text-xs text-zinc-500 hover:text-zinc-300 font-bold transition"
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Main Apps Layout Panel */}
-      <div className="flex-1 flex flex-col p-5">
-        {/* Search Input */}
-        <div className="relative mb-5">
-          <input
-            autoFocus
-            type="text"
-            placeholder="Search apps..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-zinc-900/80 border border-zinc-800 focus:border-zinc-700 rounded-xl px-4 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition"
-          />
-        </div>
-
-        {/* Apps Header */}
-        <div className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider mb-2">
-          Registered Applications
-        </div>
-
-        {/* List of Apps */}
-        <div className="flex-1 overflow-y-auto space-y-1.5 scrollbar-thin">
-          {filteredApps.length > 0 ? (
-            filteredApps.map((app) => (
-              <button
+      {/* Main Apps Layout Grid */}
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="flex-1 w-full max-w-4xl mx-auto overflow-y-auto px-4 scrollbar-none"
+      >
+        {filteredApps.length > 0 ? (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-8 py-4 justify-items-center">
+            {filteredApps.map((app, index) => (
+              <div
                 key={app.id}
-                onClick={() => launchApp(app.id)}
-                className="w-full text-left flex items-center gap-3.5 px-3 py-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition duration-150 cursor-pointer select-none"
+                onClick={() => handleLaunch(app.id)}
+                style={{ animationDelay: `${index * 20}ms` }}
+                className="app-icon-stagger flex flex-col items-center justify-center p-3 rounded-2xl w-24 hover:bg-white/10 active:bg-white/20 transition-all duration-150 cursor-pointer text-center group"
               >
-                <span className="text-2xl filter drop-shadow">{app.icon}</span>
-                <div className="flex flex-col">
-                  <span className="text-xs font-semibold text-zinc-100">
-                    {app.title}
-                  </span>
-                  <span className="text-[10px] text-zinc-500">
-                    System Application
+                {/* Visual Icon Grid representation */}
+                <div className="w-16 h-16 rounded-2xl bg-zinc-900/50 border border-zinc-800/40 flex items-center justify-center text-4.5xl mb-2.5 shadow-lg group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(255,255,255,0.05)] transition-all duration-200">
+                  <span className="filter drop-shadow group-hover:scale-105 transition-transform duration-200 leading-none">
+                    {app.icon}
                   </span>
                 </div>
-              </button>
-            ))
-          ) : (
-            <div className="text-center text-xs text-zinc-600 py-10">
-              No matching applications found.
-            </div>
-          )}
-        </div>
+                <span className="text-xs font-semibold text-zinc-300 group-hover:text-white truncate w-full tracking-wide">
+                  {app.title}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center text-sm text-zinc-500 font-mono py-24">
+            No system applications matching &quot;{search}&quot; found.
+          </div>
+        )}
+      </div>
 
-        {/* System Info footer */}
-        <div className="border-t border-zinc-900 pt-3 flex items-center justify-between text-[10px] text-zinc-500">
-          <span>Username: {currentUser.username}</span>
-          <span>Build v1.0.0</span>
-        </div>
+      {/* Footer shortcut instructions */}
+      <div className="text-center text-[10px] text-zinc-600 font-bold uppercase tracking-wider mt-8 flex-shrink-0">
+        Press <span className="text-zinc-500 font-mono">ESC</span> to exit launchpad // Start typing to search instantly
       </div>
     </div>
   );
