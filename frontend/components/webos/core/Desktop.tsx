@@ -133,7 +133,7 @@ export const Desktop: React.FC = () => {
       id="desktop-backdrop"
       onContextMenu={handleContextMenu}
       style={{
-        background: settings.wallpaperUrlOrGradient,
+        backgroundImage: settings.wallpaperUrlOrGradient,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
