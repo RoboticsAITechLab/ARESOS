@@ -15,8 +15,7 @@ interface TodoItem {
 
 export default function TodoApp({ pid: _pid }: TodoAppProps) {
   const { addNotification } = useOS();
-  const [todos, setTodos] = useState<TodoItem[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [todos, setTodos] = useState<TodoItem[] | null>(null);
   const [inputText, setInputText] = useState("");
 
   const defaultTodos: TodoItem[] = [
@@ -40,16 +39,15 @@ export default function TodoApp({ pid: _pid }: TodoAppProps) {
       } else {
         setTodos(defaultTodos);
       }
-      setIsLoaded(true);
     }
   }, []);
 
   // Save to localStorage on changes
   useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
+    if (todos !== null && typeof window !== "undefined") {
       localStorage.setItem("aresos_todo_items", JSON.stringify(todos));
     }
-  }, [todos, isLoaded]);
+  }, [todos]);
 
   const handleAddTodo = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,14 +60,14 @@ export default function TodoApp({ pid: _pid }: TodoAppProps) {
       completed: false,
     };
 
-    setTodos((prev) => [...prev, newTodo]);
+    setTodos((prev) => [...(prev || []), newTodo]);
     setInputText("");
     addNotification("Task Tracker", `Added task: "${text}"`, "success");
   };
 
   const toggleTodo = (id: string) => {
     setTodos((prev) =>
-      prev.map((todo) => {
+      (prev || []).map((todo) => {
         if (todo.id === id) {
           const nextCompleted = !todo.completed;
           if (nextCompleted) {
@@ -84,16 +82,16 @@ export default function TodoApp({ pid: _pid }: TodoAppProps) {
 
   const deleteTodo = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setTodos((prev) => prev.filter((todo) => todo.id !== id));
+    setTodos((prev) => (prev || []).filter((todo) => todo.id !== id));
   };
 
   const clearCompleted = () => {
-    setTodos((prev) => prev.filter((todo) => !todo.completed));
+    setTodos((prev) => (prev || []).filter((todo) => !todo.completed));
     addNotification("Task Tracker", "Cleared all completed tasks.", "info");
   };
 
-  const completedCount = todos.filter((todo) => todo.completed).length;
-  const totalCount = todos.length;
+  const completedCount = (todos || []).filter((todo) => todo.completed).length;
+  const totalCount = (todos || []).length;
 
   return (
     <div className="w-full h-full flex flex-col bg-zinc-900 text-zinc-100 select-none p-5">
@@ -120,8 +118,8 @@ export default function TodoApp({ pid: _pid }: TodoAppProps) {
 
       {/* Checklist display */}
       <div className="flex-1 overflow-y-auto space-y-2 mb-4 scrollbar-thin">
-        {todos.length > 0 ? (
-          todos.map((todo) => (
+        {(todos || []).length > 0 ? (
+          (todos || []).map((todo) => (
             <div
               key={todo.id}
               onClick={() => toggleTodo(todo.id)}

@@ -34,8 +34,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const [focusActive, setFocusActive] = useState(false);
   
   // Goals Widget State
-  const [goals, setGoals] = useState<MiniGoal[]>([]);
-  const [isGoalsLoaded, setIsGoalsLoaded] = useState(false);
+  const [goals, setGoals] = useState<MiniGoal[] | null>(null);
   const [newGoalText, setNewGoalText] = useState("");
 
   const defaultGoals: MiniGoal[] = [
@@ -57,16 +56,15 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       } else {
         setGoals(defaultGoals);
       }
-      setIsGoalsLoaded(true);
     }
   }, []);
 
   // Save goals to localStorage on changes
   useEffect(() => {
-    if (isGoalsLoaded && typeof window !== "undefined") {
+    if (goals !== null && typeof window !== "undefined") {
       localStorage.setItem("aresos_notification_goals", JSON.stringify(goals));
     }
-  }, [goals, isGoalsLoaded]);
+  }, [goals]);
 
   // Close when clicked outside
   useEffect(() => {
@@ -134,16 +132,16 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       text: newGoalText.trim(),
       completed: false,
     };
-    setGoals((prev) => [...prev, nGoal]);
+    setGoals((prev) => [...(prev || []), nGoal]);
     setNewGoalText("");
   };
 
   const handleToggleGoal = (id: string) => {
-    const targetGoal = goals.find((g) => g.id === id);
+    const targetGoal = (goals || []).find((g) => g.id === id);
     if (targetGoal) {
       const nextVal = !targetGoal.completed;
       setGoals((prev) =>
-        prev.map((g) => (g.id === id ? { ...g, completed: nextVal } : g))
+        (prev || []).map((g) => (g.id === id ? { ...g, completed: nextVal } : g))
       );
       if (nextVal) {
         addNotification("Goal Updated", `Goal Completed: "${targetGoal.text}"`, "success");
@@ -267,7 +265,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           </span>
           
           <div className="space-y-1.5 max-h-28 overflow-y-auto scrollbar-thin">
-            {goals.map((g) => (
+            {(goals || []).map((g) => (
               <div
                 key={g.id}
                 onClick={() => handleToggleGoal(g.id)}

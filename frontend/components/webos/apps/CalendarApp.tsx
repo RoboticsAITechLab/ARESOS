@@ -16,8 +16,7 @@ interface Event {
 export default function CalendarApp({ pid: _pid }: CalendarAppProps) {
   const { addNotification } = useOS();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [events, setEvents] = useState<Event[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [events, setEvents] = useState<Event[] | null>(null);
   const [newEventText, setNewEventText] = useState("");
   const [selectedDay, setSelectedDay] = useState<number | null>(new Date().getDate());
 
@@ -45,16 +44,15 @@ export default function CalendarApp({ pid: _pid }: CalendarAppProps) {
       } else {
         setEvents(defaultEvents);
       }
-      setIsLoaded(true);
     }
   }, []);
 
   // Save to localStorage on changes
   useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
+    if (events !== null && typeof window !== "undefined") {
       localStorage.setItem("aresos_calendar_events", JSON.stringify(events));
     }
-  }, [events, isLoaded]);
+  }, [events]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -95,16 +93,21 @@ export default function CalendarApp({ pid: _pid }: CalendarAppProps) {
       text: newEventText.trim(),
     };
 
-    setEvents((prev) => [...prev, newEvent]);
+    setEvents((prev) => [...(prev || []), newEvent]);
     setNewEventText("");
     addNotification("Calendar Reminder", `Added task for ${monthName} ${selectedDay}: "${newEvent.text}"`, "success");
+  };
+
+  const handleDeleteEvent = (id: string) => {
+    setEvents((prev) => (prev ? prev.filter((ev) => ev.id !== id) : []));
+    addNotification("Calendar Reminder", "Reminder deleted.", "info");
   };
 
   // Get events on selected date
   const selectedDateStr = selectedDay 
     ? `${year}-${String(month + 1).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}` 
     : "";
-  const selectedDayEvents = events.filter((ev) => ev.dateStr === selectedDateStr);
+  const selectedDayEvents = (events || []).filter((ev) => ev.dateStr === selectedDateStr);
 
   return (
     <div className="w-full h-full flex bg-zinc-900 text-zinc-100 select-none">
@@ -154,7 +157,7 @@ export default function CalendarApp({ pid: _pid }: CalendarAppProps) {
 
             // Check if day has events
             const dateStr = day ? `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "";
-            const hasEvents = day && events.some((ev) => ev.dateStr === dateStr);
+            const hasEvents = day && events && events.some((ev) => ev.dateStr === dateStr);
 
             if (day === null) {
               return <div key={`empty-${idx}`} className="bg-transparent" />;
@@ -196,9 +199,16 @@ export default function CalendarApp({ pid: _pid }: CalendarAppProps) {
                 selectedDayEvents.map((ev) => (
                   <div
                     key={ev.id}
-                    className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-850 text-[11px] text-zinc-200"
+                    className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-850 text-[11px] text-zinc-200 flex justify-between items-center gap-2"
                   >
-                    {ev.text}
+                    <span className="break-all">{ev.text}</span>
+                    <button
+                      onClick={() => handleDeleteEvent(ev.id)}
+                      className="text-zinc-500 hover:text-red-400 p-0.5 transition cursor-pointer text-xs"
+                      title="Delete event"
+                    >
+                      ✕
+                    </button>
                   </div>
                 ))
               ) : (
