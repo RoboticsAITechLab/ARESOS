@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useOS } from "@/hooks/webos/useOS";
-import { REGISTERED_APPS } from "@/config/webos/apps.config";
 
 interface TaskbarProps {
   onToggleNotifications: () => void;
@@ -15,151 +14,105 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     activePid,
     focusWindow,
     minimizeWindow,
+    launchApp,
     isStartMenuOpen,
     setStartMenuOpen,
-    settings,
-    updateSettings,
   } = useOS();
 
-  const [time, setTime] = useState("");
-  const [date, setDate] = useState("");
+  // App catalog map for Dock icons
+  const dockApps = [
+    { id: "start", title: "ARES Menu", icon: "🏠" },
+    { id: "file-manager", title: "File Explorer", icon: "📁" },
+    { id: "browser", title: "Web Browser", icon: "🌐" },
+    { id: "text-editor", title: "Notepad", icon: "📒" },
+    { id: "calendar", title: "Calendar", icon: "📅" },
+    { id: "todo", title: "Todo checklist", icon: "✅" },
+    { id: "terminal", title: "Command Shell", icon: "💻" },
+    { id: "calculator", title: "Calculator", icon: "🧮" },
+    { id: "clock", title: "System Clock", icon: "⏰" },
+    { id: "settings", title: "Settings", icon: "⚙️" },
+  ];
 
-  // Clock Update
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setTime(
-        now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      );
-      setDate(
-        now.toLocaleDateString([], { month: "short", day: "numeric" })
-      );
-    };
+  const handleIconClick = (appId: string) => {
+    if (appId === "start") {
+      setStartMenuOpen(!isStartMenuOpen);
+      return;
+    }
 
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleStartClick = () => {
-    setStartMenuOpen(!isStartMenuOpen);
-  };
-
-  const handleTaskClick = (pid: string) => {
-    const win = windows.find((w) => w.pid === pid);
-    if (!win) return;
-
-    if (win.isMinimized) {
-      minimizeWindow(pid);
-    } else if (win.isFocused) {
-      minimizeWindow(pid);
+    // Check if app is running
+    const runningProc = processes.find((p) => p.appId === appId);
+    if (runningProc) {
+      const win = windows.find((w) => w.pid === runningProc.pid);
+      if (win) {
+        if (win.isMinimized || !win.isFocused) {
+          focusWindow(runningProc.pid);
+        } else {
+          minimizeWindow(runningProc.pid);
+        }
+      }
     } else {
-      focusWindow(pid);
+      launchApp(appId);
     }
   };
 
   return (
-    <div className="h-12 w-full bg-zinc-950/80 backdrop-blur-md border-t border-zinc-800/60 flex items-center justify-between px-3 select-none z-[999]">
-      {/* Left Area: Start Menu Launcher */}
-      <div className="flex items-center">
-        <button
-          onClick={handleStartClick}
-          className={`h-9 px-4 rounded-lg flex items-center justify-center font-bold text-xs gap-2 transition duration-200 cursor-pointer ${
-            isStartMenuOpen
-              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
-              : "bg-white/5 hover:bg-white/10 active:bg-white/15 text-zinc-100"
-          }`}
-        >
-          <span className="text-base">🌌</span>
-          <span>ARESOS</span>
-        </button>
-      </div>
-
-      {/* Middle Area: Active Application Tasks */}
-      <div className="flex-1 flex items-center justify-center gap-1.5 px-4 overflow-x-auto scrollbar-none">
-        {processes.map((proc) => {
-          const config = REGISTERED_APPS.find((app) => app.id === proc.appId);
-          const win = windows.find((w) => w.pid === proc.pid);
-          const isActive = activePid === proc.pid && win && !win.isMinimized;
-
-          if (!config) return null;
+    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[999] select-none pointer-events-auto">
+      {/* Floating glassmorphic Dock container */}
+      <div className="flex items-end gap-3 px-4 py-2.5 bg-zinc-950/40 border border-zinc-800/40 rounded-2xl shadow-2xl backdrop-blur-xl max-w-max">
+        {dockApps.map((app) => {
+          // Check if process of this app is running
+          const isRunning = processes.some((p) => p.appId === app.id);
+          const isFocused = processes.some((p) => p.appId === app.id && activePid === p.pid);
 
           return (
-            <button
-              key={proc.pid}
-              onClick={() => handleTaskClick(proc.pid)}
-              className={`h-9 px-3 max-w-[140px] rounded-lg flex items-center gap-2 transition duration-150 cursor-pointer select-none text-left relative ${
-                isActive
-                  ? "bg-zinc-800 text-zinc-50 border border-zinc-700/50"
-                  : "bg-zinc-900/40 hover:bg-zinc-900/80 text-zinc-400 border border-transparent"
-              }`}
+            <div
+              key={app.id}
+              className="flex flex-col items-center justify-end relative group"
             >
-              <span className="text-base flex-shrink-0">{config.icon}</span>
-              <span className="text-xs truncate font-medium">{proc.title}</span>
+              {/* App Title tooltip on hover */}
+              <div className="absolute bottom-16 bg-zinc-950/90 text-white border border-zinc-850 px-2.5 py-1 rounded-lg text-[10px] font-semibold tracking-wide shadow-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none select-none">
+                {app.title}
+              </div>
 
-              {/* Status indicator line */}
-              <div
-                className={`absolute bottom-0 left-3 right-3 h-0.5 rounded-full transition-all duration-300 ${
-                  isActive
-                    ? "bg-indigo-500"
-                    : win?.isMinimized
-                    ? "bg-zinc-600 w-2.5"
-                    : "bg-zinc-500 w-1.5"
+              {/* Dock Icon Button */}
+              <button
+                onClick={() => handleIconClick(app.id)}
+                className={`w-12 h-12 rounded-xl flex items-center justify-center text-3.5xl cursor-pointer select-none transition-all duration-200 hover:scale-120 hover:-translate-y-1.5 active:scale-105 active:translate-y-0 ${
+                  isFocused 
+                    ? "bg-indigo-600/25 border border-indigo-500/30" 
+                    : "hover:bg-white/10"
                 }`}
-              />
-            </button>
+              >
+                <span className="filter drop-shadow select-none leading-none">
+                  {app.icon}
+                </span>
+              </button>
+
+              {/* Bottom status dot indicator (macOS style) */}
+              {isRunning && (
+                <div
+                  className={`w-1.5 h-1.5 rounded-full absolute -bottom-1 transition-all duration-200 ${
+                    isFocused
+                      ? "bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)] scale-110"
+                      : "bg-zinc-500"
+                  }`}
+                />
+              )}
+            </div>
           );
         })}
-      </div>
 
-      {/* Right Area: System Settings Tray + Clock */}
-      <div className="flex items-center gap-4 text-zinc-300">
-        {/* Simple settings controls */}
-        <div className="hidden md:flex items-center gap-3 bg-zinc-900/60 py-1 px-3.5 rounded-lg border border-zinc-800/40 text-xs">
-          {/* Theme Switcher Toggle */}
-          <button
-            onClick={() => {
-              const themes: ("light" | "dark" | "glassmorphism")[] = ["light", "dark", "glassmorphism"];
-              const currentIdx = themes.indexOf(settings.theme);
-              const nextIdx = (currentIdx + 1) % themes.length;
-              updateSettings({ theme: themes[nextIdx] });
-            }}
-            className="hover:text-zinc-100 transition cursor-pointer"
-            title="Cycle theme mode"
-          >
-            {settings.theme === "glassmorphism" ? "✨" : settings.theme === "dark" ? "🌙" : "☀️"}
-          </button>
+        {/* Divider separator */}
+        <div className="w-[1px] h-10 bg-zinc-850 self-center" />
 
-          {/* Audio Slider Toggle representation */}
-          <div className="flex items-center gap-1">
-            <span
-              onClick={() => updateSettings({ volume: settings.volume === 0 ? 80 : 0 })}
-              className="cursor-pointer hover:text-white"
-            >
-              {settings.volume === 0 ? "🔇" : settings.volume < 40 ? "🔈" : "🔊"}
-            </span>
-            <span className="text-[10px] font-mono text-zinc-500">{settings.volume}%</span>
-          </div>
-        </div>
-
-        {/* Notifications toggle */}
+        {/* Notifications Tray Icon */}
         <button
           onClick={onToggleNotifications}
-          className="hover:bg-zinc-800/60 p-1.5 rounded-lg transition text-base relative cursor-pointer"
+          className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl hover:bg-white/10 cursor-pointer transition-all duration-200 hover:scale-120 hover:-translate-y-1.5 active:scale-105 active:translate-y-0"
           title="Notification Center"
         >
           🔔
         </button>
-
-        {/* Date Time Display */}
-        <div className="text-right flex flex-col justify-center border-l border-zinc-800/60 pl-4 h-8 min-w-[70px]">
-          <span className="text-xs font-semibold tracking-wide text-zinc-100">
-            {time}
-          </span>
-          <span className="text-[10px] text-zinc-500 font-medium">
-            {date}
-          </span>
-        </div>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import { StartMenu } from "@/components/webos/core/StartMenu";
 import { NotificationCenter } from "@/components/webos/core/NotificationCenter";
 import { BootScreen } from "@/components/webos/core/BootScreen";
 import { LoginScreen } from "@/components/webos/core/LoginScreen";
+import { MenuBar } from "@/components/webos/core/MenuBar";
 
 export default function Home() {
   return (
@@ -35,6 +36,9 @@ function WebOSLayout() {
 
   return (
     <main className="flex flex-col w-screen h-screen overflow-hidden select-none relative font-sans animate-in fade-in duration-500">
+      {/* macOS Top Menu Bar */}
+      <MenuBar />
+
       {/* Desktop Workspace (contains wallpapers, shortcuts, open windows) */}
       <div className="flex-1 w-full h-full relative overflow-hidden flex flex-col">
         <Desktop />

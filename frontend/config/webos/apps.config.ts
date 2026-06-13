@@ -58,6 +58,50 @@ export const REGISTERED_APPS: AppConfig[] = [
     defaultHeight: 400,
     isSingleInstance: false,
   },
+  {
+    id: "calendar",
+    title: "Calendar",
+    icon: "📅",
+    component: dynamic(() => import("@/components/webos/apps/CalendarApp"), {
+      ssr: false,
+    }),
+    defaultWidth: 650,
+    defaultHeight: 420,
+    isSingleInstance: false,
+  },
+  {
+    id: "todo",
+    title: "Todo checklist",
+    icon: "✅",
+    component: dynamic(() => import("@/components/webos/apps/TodoApp"), {
+      ssr: false,
+    }),
+    defaultWidth: 460,
+    defaultHeight: 400,
+    isSingleInstance: false,
+  },
+  {
+    id: "calculator",
+    title: "Calculator",
+    icon: "🧮",
+    component: dynamic(() => import("@/components/webos/apps/Calculator"), {
+      ssr: false,
+    }),
+    defaultWidth: 320,
+    defaultHeight: 460,
+    isSingleInstance: false,
+  },
+  {
+    id: "clock",
+    title: "System Clock",
+    icon: "⏰",
+    component: dynamic(() => import("@/components/webos/apps/ClockApp"), {
+      ssr: false,
+    }),
+    defaultWidth: 500,
+    defaultHeight: 380,
+    isSingleInstance: false,
+  },
 ];
 
 export const getAppConfig = (id: string): AppConfig | undefined => {
