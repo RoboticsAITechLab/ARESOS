@@ -29,6 +29,7 @@ interface OSContextType {
   
   // System Controls
   updateSettings: (newSettings: Partial<SystemSettings>) => void;
+  updateUser: (newUser: Partial<SystemUser>) => void;
   addNotification: (title: string, message: string, type?: SystemNotification["type"]) => void;
   markNotificationAsRead: (id: string) => void;
   clearNotifications: () => void;
@@ -50,11 +51,15 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     brightness: 90,
   });
 
-  const [currentUser] = useState<SystemUser>({
-    username: "ares_user",
-    role: "Administrator",
+  const [currentUser, setCurrentUser] = useState<SystemUser>({
+    username: "Ankit",
+    role: "SYSTEM ADMINISTRATOR",
     avatarUrl: "",
   });
+
+  const updateUser = (newUser: Partial<SystemUser>) => {
+    setCurrentUser((prev) => ({ ...prev, ...newUser }));
+  };
 
   // Track the highest z-index to bring focused windows to front
   const [maxZIndex, setMaxZIndex] = useState(10);
@@ -281,6 +286,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         updateWindowPosition,
         updateWindowDimensions,
         updateSettings,
+        updateUser,
         addNotification,
         markNotificationAsRead,
         clearNotifications,

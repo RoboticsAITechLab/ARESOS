@@ -183,6 +183,7 @@ export const Desktop: React.FC = () => {
         if (!config) return null;
         
         const AppComponent = config.component;
+  
         return (
           <Window key={win.id} windowState={win}>
             <AppComponent pid={win.pid} />
