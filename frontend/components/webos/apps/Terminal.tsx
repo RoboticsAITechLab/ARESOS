@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useFileSystem } from "@/hooks/webos/useFileSystem";
 import { useOS } from "@/hooks/webos/useOS";
+import { playClickSound } from "@/utils/webos/audio";
 
 interface TerminalProps {
   pid: string;
@@ -10,7 +11,7 @@ interface TerminalProps {
 
 export default function Terminal({ pid }: TerminalProps) {
   const { currentPath, listDirectory, changeDirectory, readFile, writeFile, createDirectory, deleteNode } = useFileSystem();
-  const { updateSettings, addNotification, currentUser } = useOS();
+  const { updateSettings, addNotification, currentUser, settings } = useOS();
 
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<string[]>([
@@ -185,6 +186,7 @@ export default function Terminal({ pid }: TerminalProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
+      playClickSound((settings?.volume ?? 80) / 100);
       const command = input;
       setInput("");
       setHistoryIndex(-1);

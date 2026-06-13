@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useOS } from "@/hooks/webos/useOS";
+import { playClickSound } from "@/utils/webos/audio";
 
 interface TaskbarProps {
   onToggleNotifications: () => void;
@@ -17,7 +18,10 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     launchApp,
     isStartMenuOpen,
     setStartMenuOpen,
+    settings,
   } = useOS();
+
+  const [bouncingAppId, setBouncingAppId] = useState<string | null>(null);
 
   // App catalog map for Dock icons
   const dockApps = [
@@ -34,6 +38,9 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
   ];
 
   const handleIconClick = (appId: string) => {
+    // Play subtle click audio beep
+    playClickSound((settings?.volume ?? 80) / 100);
+
     if (appId === "start") {
       setStartMenuOpen(!isStartMenuOpen);
       return;
@@ -51,12 +58,33 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
         }
       }
     } else {
+      // Trigger bouncing icon animation for 1 second
+      setBouncingAppId(appId);
+      setTimeout(() => {
+        setBouncingAppId((current) => (current === appId ? null : current));
+      }, 1000);
+
       launchApp(appId);
     }
   };
 
+
   return (
     <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[999] select-none pointer-events-auto">
+      {/* Sci-fi macOS Bouncing Dock Animation Keyframes */}
+      <style>{`
+        @keyframes dock-bounce {
+          0%, 100% { transform: translateY(0) scaleY(1); }
+          30% { transform: translateY(-18px) scaleY(1.15); }
+          50% { transform: translateY(3px) scaleY(0.9); }
+          70% { transform: translateY(-7px) scaleY(1.05); }
+          90% { transform: translateY(0) scaleY(0.98); }
+        }
+        .dock-bounce {
+          animation: dock-bounce 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+      `}</style>
+
       {/* Floating glassmorphic Dock container */}
       <div className="flex items-end gap-3 px-4 py-2.5 bg-zinc-950/40 border border-zinc-800/40 rounded-2xl shadow-2xl backdrop-blur-xl max-w-max">
         {dockApps.map((app) => {
@@ -74,19 +102,22 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
                 {app.title}
               </div>
 
-              {/* Dock Icon Button */}
-              <button
-                onClick={() => handleIconClick(app.id)}
-                className={`w-12 h-12 rounded-xl flex items-center justify-center text-3.5xl cursor-pointer select-none transition-all duration-200 hover:scale-120 hover:-translate-y-1.5 active:scale-105 active:translate-y-0 ${
-                  isFocused 
-                    ? "bg-indigo-600/25 border border-indigo-500/30" 
-                    : "hover:bg-white/10"
-                }`}
-              >
-                <span className="filter drop-shadow select-none leading-none">
-                  {app.icon}
-                </span>
-              </button>
+              {/* Bouncing wrapper for the button */}
+              <div className={bouncingAppId === app.id ? "dock-bounce" : ""}>
+                {/* Dock Icon Button */}
+                <button
+                  onClick={() => handleIconClick(app.id)}
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center text-3.5xl cursor-pointer select-none transition-all duration-200 hover:scale-120 hover:-translate-y-1.5 active:scale-105 active:translate-y-0 ${
+                    isFocused 
+                      ? "bg-indigo-600/25 border border-indigo-500/30" 
+                      : "hover:bg-white/10"
+                  }`}
+                >
+                  <span className="filter drop-shadow select-none leading-none">
+                    {app.icon}
+                  </span>
+                </button>
+              </div>
 
               {/* Bottom status dot indicator (macOS style) */}
               {isRunning && (
@@ -107,7 +138,10 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
 
         {/* Notifications Tray Icon */}
         <button
-          onClick={onToggleNotifications}
+          onClick={() => {
+            playClickSound((settings?.volume ?? 80) / 100);
+            onToggleNotifications();
+          }}
           className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl hover:bg-white/10 cursor-pointer transition-all duration-200 hover:scale-120 hover:-translate-y-1.5 active:scale-105 active:translate-y-0"
           title="Notification Center"
         >

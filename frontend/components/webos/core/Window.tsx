@@ -108,7 +108,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
     };
   }, [isDragging, isResizing, windowState.pid, updateWindowPosition, updateWindowDimensions, windowState.x, windowState.y, windowState.width, windowState.height]);
 
-  if (windowState.isMinimized) return null;
+  const isTransitioning = !isDragging && !isResizing;
 
   const style: React.CSSProperties = windowState.isMaximized
     ? {
@@ -118,6 +118,13 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
         right: 0,
         bottom: "48px", // taskbar height
         zIndex: windowState.zIndex,
+        transformOrigin: "bottom center",
+        transition: isTransitioning
+          ? "transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease-out"
+          : "none",
+        transform: windowState.isMinimized ? "scale(0.01) translateY(800px)" : "scale(1) translateY(0)",
+        opacity: windowState.isMinimized ? 0 : 1,
+        pointerEvents: windowState.isMinimized ? "none" : "auto",
       }
     : {
         position: "absolute",
@@ -126,6 +133,13 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
         width: `${windowState.width}px`,
         height: `${windowState.height}px`,
         zIndex: windowState.zIndex,
+        transformOrigin: "bottom center",
+        transition: isTransitioning
+          ? "transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease-out, left 0.2s ease-out, top 0.2s ease-out, width 0.2s ease-out, height 0.2s ease-out"
+          : "none",
+        transform: windowState.isMinimized ? "scale(0.01) translateY(800px)" : "scale(1) translateY(0)",
+        opacity: windowState.isMinimized ? 0 : 1,
+        pointerEvents: windowState.isMinimized ? "none" : "auto",
       };
 
   return (

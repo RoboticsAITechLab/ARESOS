@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useOS } from "@/hooks/webos/useOS";
+import { playBootSound } from "@/utils/webos/audio";
 
 interface BootScreenProps {
   onComplete: () => void;
@@ -23,12 +25,23 @@ const BOOT_LOGS = [
 ];
 
 export const BootScreen: React.FC<BootScreenProps> = ({ onComplete }) => {
+  const { settings } = useOS();
   const [progress, setProgress] = useState(0);
   const [activeLogs, setActiveLogs] = useState<typeof BOOT_LOGS>([]);
   const [glitch, setGlitch] = useState(false);
   const [systemLogsIdx, setSystemLogsIdx] = useState(0);
   
   const audioLinkMock = useRef("LINK ACTIVE");
+  const bootSoundPlayed = useRef(false);
+
+  // Trigger boot chime
+  useEffect(() => {
+    if (progress >= 82 && !bootSoundPlayed.current) {
+      bootSoundPlayed.current = true;
+      playBootSound((settings?.volume ?? 80) / 100);
+    }
+  }, [progress, settings?.volume]);
+
 
   // Dynamic progress increment
   useEffect(() => {

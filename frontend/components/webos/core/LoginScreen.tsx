@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useOS } from "@/hooks/webos/useOS";
+import { playScanSound, playSuccessSound } from "@/utils/webos/audio";
 
 interface LoginScreenProps {
   onSuccess: () => void;
@@ -39,9 +40,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
     const interval = setInterval(() => {
       setScanProgress((prev) => {
         const next = prev + 5;
+        playScanSound((settings?.volume ?? 80) / 100);
         if (next >= 100) {
           clearInterval(interval);
           setScanState("success");
+          playSuccessSound((settings?.volume ?? 80) / 100);
           return 100;
         }
         return next;
@@ -63,6 +66,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
     // We will show a 1.2s authenticating state then succeed
     setScanState("scanning");
     setScanProgress(90);
+    playSuccessSound((settings?.volume ?? 80) / 100);
     
     setTimeout(() => {
       onSuccess();
