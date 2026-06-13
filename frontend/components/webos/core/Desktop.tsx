@@ -177,9 +177,10 @@ export const Desktop: React.FC = () => {
         ))}
       </div>
 
-      {/* Render open process windows */}
       {windows.map((win) => {
-        const config = REGISTERED_APPS.find((app) => app.id === win.pid.split("-")[0]);
+        const parts = win.pid.split("-");
+        const appId = parts.slice(0, -1).join("-");
+        const config = REGISTERED_APPS.find((app) => app.id === appId);
         if (!config) return null;
         
         const AppComponent = config.component;
