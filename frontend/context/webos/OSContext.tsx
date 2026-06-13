@@ -45,7 +45,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   
   const [settings, setSettings] = useState<SystemSettings>({
-    theme: "glassmorphism",
+    theme: "dark",
     wallpaperUrlOrGradient: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)",
     volume: 80,
     brightness: 90,

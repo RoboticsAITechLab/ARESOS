@@ -140,14 +140,14 @@ export default function Terminal({ pid }: TerminalProps) {
 
       case "theme":
         const reqTheme = args[1];
-        if (reqTheme === "light" || reqTheme === "dark" || reqTheme === "glassmorphism") {
-          updateSettings({ theme: reqTheme });
+        if (reqTheme === "light" || reqTheme === "dark" || reqTheme === "midnight" || reqTheme === "aurora") {
+          updateSettings({ theme: reqTheme as any });
           setHistory((prev) => [...prev, `System theme updated to '${reqTheme}'`]);
           addNotification("System Command", `Theme set to ${reqTheme}`, "info");
         } else {
           setHistory((prev) => [
             ...prev,
-            "theme: invalid argument. Select 'light', 'dark', or 'glassmorphism'.",
+            "theme: invalid argument. Select 'light', 'dark', 'midnight', or 'aurora'.",
           ]);
         }
         break;

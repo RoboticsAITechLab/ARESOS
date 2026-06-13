@@ -32,22 +32,31 @@ export default function SettingsApp({ pid }: SettingsAppProps) {
     setVfsBytes(bytes);
   }, [root]);
 
+  // Expanded Wallpapers matching mockup: Aurora, Space, Ocean, Neon, Mountain, Abstract
   const wallpapers = [
     {
-      name: "Aurora (Green)",
+      name: "Aurora",
       value: "linear-gradient(135deg, #022c22 0%, #059669 45%, #0d9488 80%, #0f172a 100%)",
     },
     {
-      name: "Nebula (Dark)",
-      value: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)",
+      name: "Space",
+      value: "linear-gradient(135deg, #020617 0%, #0f172a 50%, #1e1b4b 100%)",
     },
     {
-      name: "Cyber Sunset",
-      value: "linear-gradient(135deg, #180828 0%, #280818 50%, #081828 100%)",
+      name: "Ocean",
+      value: "linear-gradient(135deg, #082f49 0%, #0369a1 50%, #075985 100%)",
     },
     {
-      name: "Obsidian",
-      value: "linear-gradient(135deg, #020617 0%, #0f172a 100%)",
+      name: "Neon",
+      value: "linear-gradient(135deg, #3b0764 0%, #701a75 50%, #4c1d95 100%)",
+    },
+    {
+      name: "Mountain",
+      value: "linear-gradient(135deg, #18181b 0%, #27272a 50%, #3f3f46 100%)",
+    },
+    {
+      name: "Abstract",
+      value: "linear-gradient(135deg, #2e1065 0%, #3b0764 50%, #180828 100%)",
     },
   ];
 
@@ -59,17 +68,16 @@ export default function SettingsApp({ pid }: SettingsAppProps) {
     addNotification("Profile Sync", `Username updated to ${usernameInput.trim()}`, "success");
   };
 
-  // Sidebar link details
   const tabs = [
-    { id: "appearance" as const, label: "🎨 Appearance" },
-    { id: "wallpaper" as const, label: "🖼️ Wallpaper" },
+    { id: "appearance" as const, label: "🎨 Themes" },
+    { id: "wallpaper" as const, label: "🖼️ Wallpapers" },
     { id: "profile" as const, label: "👤 Profile" },
     { id: "storage" as const, label: "💾 Storage" },
     { id: "about" as const, label: "ℹ️ About" },
   ];
 
   return (
-    <div className="w-full h-full flex bg-zinc-900 text-zinc-100 select-none font-sans">
+    <div className="w-full h-full flex bg-zinc-900 text-zinc-300 select-none font-sans">
       {/* Left Sidebar Menu */}
       <div className="w-40 bg-zinc-950/40 border-r border-zinc-800/60 p-4 space-y-1.5 flex-shrink-0">
         <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider block px-3 mb-2.5">
@@ -93,49 +101,51 @@ export default function SettingsApp({ pid }: SettingsAppProps) {
       {/* Right Content display Panel */}
       <div className="flex-1 p-5 overflow-y-auto min-w-0">
         
-        {/* Appearance Tab */}
+        {/* Appearance Tab: Theme Manager (Dark, Light, Midnight, Aurora) */}
         {activeTab === "appearance" && (
           <div className="space-y-4">
             <h3 className="text-sm font-bold border-b border-zinc-850 pb-2 text-zinc-200">
-              Appearance Settings
+              Theme Manager
             </h3>
             
-            <div className="bg-zinc-950/30 border border-zinc-850 p-4 rounded-xl space-y-4">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-zinc-400">Current Theme:</span>
-                <span className="font-bold text-white capitalize">{settings.theme}</span>
-              </div>
-
-              {/* Segmented Selection Buttons */}
-              <div className="grid grid-cols-3 gap-2 pt-1">
-                {(["light", "dark", "glassmorphism"] as const).map((themeType) => (
+            <div className="bg-zinc-950/30 border border-zinc-850 p-4 rounded-xl space-y-3">
+              {(["dark", "light", "midnight", "aurora"] as const).map((t) => {
+                const isActive = settings.theme === t;
+                return (
                   <button
-                    key={themeType}
+                    key={t}
                     onClick={() => {
-                      updateSettings({ theme: themeType });
-                      addNotification("Appearance", `Theme toggled to ${themeType}`, "info");
+                      updateSettings({ theme: t });
+                      addNotification("Theme Manager", `System theme updated to '${t}'`, "info");
                     }}
-                    className={`py-2 text-[10px] uppercase font-bold tracking-wider rounded-xl border text-center transition cursor-pointer ${
-                      settings.theme === themeType
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-xs font-semibold tracking-wide capitalize transition cursor-pointer ${
+                      isActive
                         ? "bg-indigo-600/20 border-indigo-500 text-indigo-200"
                         : "bg-zinc-950/40 border-zinc-800 hover:border-zinc-700 text-zinc-400"
                     }`}
                   >
-                    {themeType.substring(0, 5)}
+                    <span className="flex items-center gap-3">
+                      <span className={isActive ? "text-indigo-400" : "text-zinc-600"}>
+                        {isActive ? "●" : "○"}
+                      </span>
+                      <span>{t}</span>
+                    </span>
+                    {isActive && <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Active</span>}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* Wallpaper Tab */}
+        {/* Wallpaper Tab: Wallpaper Manager */}
         {activeTab === "wallpaper" && (
           <div className="space-y-4">
             <h3 className="text-sm font-bold border-b border-zinc-850 pb-2 text-zinc-200">
-              Wallpaper Presets
+              Wallpaper Manager
             </h3>
 
+            {/* Grid display layout */}
             <div className="grid grid-cols-2 gap-3.5">
               {wallpapers.map((wp) => {
                 const isActive = settings.wallpaperUrlOrGradient === wp.value;
@@ -144,7 +154,7 @@ export default function SettingsApp({ pid }: SettingsAppProps) {
                     key={wp.name}
                     onClick={() => {
                       updateSettings({ wallpaperUrlOrGradient: wp.value });
-                      addNotification("Appearance", `Wallpaper set to ${wp.name.split(" ")[0]}`, "info");
+                      addNotification("Wallpaper Manager", `Desktop wallpaper set to '${wp.name}'`, "info");
                     }}
                     style={{ background: wp.value }}
                     className={`h-16 rounded-xl border relative transition-all overflow-hidden cursor-pointer ${
@@ -154,7 +164,7 @@ export default function SettingsApp({ pid }: SettingsAppProps) {
                     }`}
                   >
                     <span className="absolute bottom-1.5 left-2.5 text-[9px] font-bold text-white bg-black/60 py-0.5 px-2 rounded backdrop-blur">
-                      {wp.name}
+                      [ {wp.name} ]
                     </span>
                   </button>
                 );
@@ -217,12 +227,10 @@ export default function SettingsApp({ pid }: SettingsAppProps) {
               <div className="space-y-1">
                 <div className="flex justify-between text-xs font-semibold text-zinc-200">
                   <span>Virtual Disk Size (VFS)</span>
-                  {/* Mock 12MB base requested, combined with actual filesystem text contents bytes */}
                   <span className="font-mono text-zinc-400">
                     Used: {(12 + vfsBytes / (1024 * 1024)).toFixed(4)} MB
                   </span>
                 </div>
-                {/* Progress load slider */}
                 <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
                   <div
                     style={{ width: "32.4%" }}
@@ -242,34 +250,44 @@ export default function SettingsApp({ pid }: SettingsAppProps) {
           </div>
         )}
 
-        {/* About Tab */}
+        {/* About Tab: About ARES OS */}
         {activeTab === "about" && (
           <div className="space-y-4">
             <h3 className="text-sm font-bold border-b border-zinc-850 pb-2 text-zinc-200">
-              System Specifications
+              About ARES OS
             </h3>
 
-            <div className="bg-zinc-950/30 border border-zinc-850 p-4 rounded-xl space-y-3 font-mono text-[11px] text-zinc-300">
-              <div className="flex justify-between border-b border-zinc-850/30 pb-1.5">
-                <span className="text-zinc-500">System Name:</span>
-                <span className="text-white font-bold">ARES OS</span>
+            <div className="bg-zinc-950/30 border border-zinc-850 p-5 rounded-2xl flex flex-col items-center justify-center text-center relative overflow-hidden">
+              {/* Holographic glowing lines decor */}
+              <div className="w-16 h-16 rounded-full bg-indigo-600/15 border border-indigo-500/25 flex items-center justify-center text-4xl mb-4 shadow-lg shadow-indigo-500/5 animate-pulse">
+                ▲
               </div>
-              <div className="flex justify-between border-b border-zinc-850/30 pb-1.5">
-                <span className="text-zinc-500">System Version:</span>
-                <span className="text-white font-bold">1.0</span>
+
+              <h2 className="text-base font-extrabold text-white tracking-widest uppercase">
+                ARES OS
+              </h2>
+              <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider mt-1.5">
+                Version: 1.0
+              </span>
+
+              <div className="h-[1px] w-full bg-zinc-850/50 my-4" />
+
+              <div className="space-y-2.5 font-mono text-[11px] text-zinc-400 w-full text-left max-w-xs mx-auto">
+                <div className="flex justify-between">
+                  <span>Build:</span>
+                  <span className="text-white font-semibold">WebOS Mission Edition</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Developer:</span>
+                  <span className="text-white font-semibold">Ankit Kumar</span>
+                </div>
               </div>
-              <div className="flex justify-between border-b border-zinc-850/30 pb-1.5">
-                <span className="text-zinc-500">Environment Kernel:</span>
-                <span className="text-zinc-400">Next.js Client Runtime</span>
-              </div>
-              <div className="flex justify-between border-b border-zinc-850/30 pb-1.5">
-                <span className="text-zinc-500">Authorization Host:</span>
-                <span className="text-zinc-400">Ankit (ALPHA-1)</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Build Channel:</span>
-                <span className="text-emerald-400 font-semibold">STABLE RELEASE</span>
-              </div>
+
+              <div className="h-[1px] w-full bg-zinc-850/50 my-4" />
+
+              <p className="text-[11px] italic font-semibold text-zinc-200 font-serif">
+                &ldquo;Mission Control For Students&rdquo;
+              </p>
             </div>
           </div>
         )}

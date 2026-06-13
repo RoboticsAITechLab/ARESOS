@@ -1,4 +1,4 @@
-export type SystemTheme = "light" | "dark" | "glassmorphism";
+export type SystemTheme = "light" | "dark" | "midnight" | "aurora";
 
 export interface SystemUser {
   username: string;
