@@ -7,6 +7,7 @@ import { Desktop } from "@/components/webos/core/Desktop";
 import { Taskbar } from "@/components/webos/core/Taskbar";
 import { StartMenu } from "@/components/webos/core/StartMenu";
 import { NotificationCenter } from "@/components/webos/core/NotificationCenter";
+import { BootScreen } from "@/components/webos/core/BootScreen";
 
 export default function Home() {
   return (
@@ -19,10 +20,15 @@ export default function Home() {
 }
 
 function WebOSLayout() {
+  const [isBooting, setIsBooting] = useState(true);
   const [isNotifOpen, setNotifOpen] = useState(false);
 
+  if (isBooting) {
+    return <BootScreen onComplete={() => setIsBooting(false)} />;
+  }
+
   return (
-    <main className="flex flex-col w-screen h-screen overflow-hidden select-none relative font-sans">
+    <main className="flex flex-col w-screen h-screen overflow-hidden select-none relative font-sans animate-in fade-in duration-500">
       {/* Desktop Workspace (contains wallpapers, shortcuts, open windows) */}
       <div className="flex-1 w-full h-full relative overflow-hidden flex flex-col">
         <Desktop />
