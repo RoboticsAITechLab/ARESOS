@@ -68,20 +68,22 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     let timer: NodeJS.Timeout | null = null;
     if (focusActive && focusSeconds > 0) {
       timer = setInterval(() => {
-        setFocusSeconds((prev) => {
-          if (prev <= 1) {
-            setFocusActive(false);
-            addNotification("Focus Session", "Focus Session Finished", "success");
-            return 1500;
-          }
-          return prev - 1;
-        });
+        setFocusSeconds((prev) => prev - 1);
       }, 1000);
     }
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [focusActive, focusSeconds, addNotification]);
+  }, [focusActive, focusSeconds]);
+
+  // Handle Focus Timer completion side effects
+  useEffect(() => {
+    if (focusSeconds <= 0) {
+      setFocusActive(false);
+      setFocusSeconds(1500);
+      addNotification("Focus Session", "Focus Session Finished", "success");
+    }
+  }, [focusSeconds, addNotification]);
 
   if (!isOpen) return null;
 
@@ -106,18 +108,16 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   };
 
   const handleToggleGoal = (id: string) => {
-    setGoals((prev) =>
-      prev.map((g) => {
-        if (g.id === id) {
-          const nextVal = !g.completed;
-          if (nextVal) {
-            addNotification("Goal Updated", `Goal Completed: "${g.text}"`, "success");
-          }
-          return { ...g, completed: nextVal };
-        }
-        return g;
-      })
-    );
+    const targetGoal = goals.find((g) => g.id === id);
+    if (targetGoal) {
+      const nextVal = !targetGoal.completed;
+      setGoals((prev) =>
+        prev.map((g) => (g.id === id ? { ...g, completed: nextVal } : g))
+      );
+      if (nextVal) {
+        addNotification("Goal Updated", `Goal Completed: "${targetGoal.text}"`, "success");
+      }
+    }
   };
 
   return (
