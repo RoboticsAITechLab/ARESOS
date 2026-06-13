@@ -5,7 +5,7 @@ import { useOS } from "@/hooks/webos/useOS";
 import { REGISTERED_APPS } from "@/config/webos/apps.config";
 
 export const StartMenu: React.FC = () => {
-  const { isStartMenuOpen, setStartMenuOpen, launchApp } = useOS();
+  const { isStartMenuOpen, setStartMenuOpen, launchApp, settings } = useOS();
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -56,10 +56,45 @@ export const StartMenu: React.FC = () => {
     setStartMenuOpen(false);
   };
 
+  const theme = settings?.theme || "dark";
+
+  let bgOverlayClasses = "";
+  let searchInputClasses = "";
+  let iconCardClasses = "";
+  let textTitleClasses = "";
+  let footerClasses = "";
+
+  if (theme === "light") {
+    bgOverlayClasses = "bg-white/80 backdrop-blur-3xl";
+    searchInputClasses = "bg-slate-100 border border-slate-350 focus:border-slate-400 text-slate-800 placeholder-slate-400";
+    iconCardClasses = "bg-slate-100/60 border border-slate-200 shadow-sm group-hover:bg-slate-200/50 group-hover:border-slate-300";
+    textTitleClasses = "text-slate-750 group-hover:text-slate-900";
+    footerClasses = "text-slate-500";
+  } else if (theme === "midnight") {
+    bgOverlayClasses = "bg-slate-950/80 backdrop-blur-3xl";
+    searchInputClasses = "bg-indigo-950/40 border border-indigo-900/40 focus:border-indigo-800 text-indigo-100 placeholder-indigo-500";
+    iconCardClasses = "bg-indigo-950/30 border border-indigo-900/20 group-hover:bg-indigo-900/10 group-hover:border-indigo-800/40";
+    textTitleClasses = "text-indigo-200 group-hover:text-white";
+    footerClasses = "text-indigo-400/80";
+  } else if (theme === "aurora") {
+    bgOverlayClasses = "bg-zinc-950/80 backdrop-blur-3xl";
+    searchInputClasses = "bg-teal-950/40 border border-teal-900/40 focus:border-teal-800 text-teal-100 placeholder-teal-500";
+    iconCardClasses = "bg-teal-950/30 border border-teal-900/20 group-hover:bg-teal-900/10 group-hover:border-teal-800/40";
+    textTitleClasses = "text-teal-200 group-hover:text-white";
+    footerClasses = "text-teal-500/80";
+  } else {
+    // dark
+    bgOverlayClasses = "bg-zinc-950/75 backdrop-blur-3xl";
+    searchInputClasses = "bg-zinc-900/60 border border-zinc-800/80 focus:border-zinc-700/80 text-zinc-100 placeholder-zinc-500";
+    iconCardClasses = "bg-zinc-900/50 border border-zinc-800/40 group-hover:bg-white/10 group-hover:border-zinc-700/50";
+    textTitleClasses = "text-zinc-300 group-hover:text-white";
+    footerClasses = "text-zinc-600";
+  }
+
   return (
     <div
       onClick={() => setStartMenuOpen(false)}
-      className="fixed inset-0 w-screen h-screen bg-zinc-950/75 backdrop-blur-3xl z-[9999] flex flex-col p-8 md:p-16 select-none animate-in fade-in duration-200"
+      className={`fixed inset-0 w-screen h-screen z-[9999] flex flex-col p-8 md:p-16 select-none animate-in fade-in duration-200 ${bgOverlayClasses}`}
     >
       <style>{`
         @keyframes launchpad-pop {
@@ -85,12 +120,12 @@ export const StartMenu: React.FC = () => {
             placeholder="Search Applications..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-zinc-900/60 border border-zinc-800/80 focus:border-zinc-700/80 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-semibold text-zinc-100 placeholder-zinc-500 outline-none transition-all shadow-xl group-hover:border-zinc-800/90"
+            className={`w-full rounded-2xl py-2.5 pl-10 pr-4 text-xs font-semibold outline-none transition-all shadow-xl ${searchInputClasses}`}
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-4 top-3 text-xs text-zinc-500 hover:text-zinc-300 font-bold transition"
+              className="absolute right-4 top-3 text-xs text-zinc-500 hover:text-zinc-350 font-bold transition"
             >
               ✕
             </button>
@@ -110,15 +145,15 @@ export const StartMenu: React.FC = () => {
                 key={app.id}
                 onClick={() => handleLaunch(app.id)}
                 style={{ animationDelay: `${index * 20}ms` }}
-                className="app-icon-stagger flex flex-col items-center justify-center p-3 rounded-2xl w-24 hover:bg-white/10 active:bg-white/20 transition-all duration-150 cursor-pointer text-center group"
+                className="app-icon-stagger flex flex-col items-center justify-center p-3 rounded-2xl w-24 hover:bg-black/5 active:bg-black/10 transition-all duration-150 cursor-pointer text-center group"
               >
                 {/* Visual Icon Grid representation */}
-                <div className="w-16 h-16 rounded-2xl bg-zinc-900/50 border border-zinc-800/40 flex items-center justify-center text-4.5xl mb-2.5 shadow-lg group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(255,255,255,0.05)] transition-all duration-200">
+                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-4.5xl mb-2.5 shadow-lg group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(255,255,255,0.05)] transition-all duration-200 ${iconCardClasses}`}>
                   <span className="filter drop-shadow group-hover:scale-105 transition-transform duration-200 leading-none">
                     {app.icon}
                   </span>
                 </div>
-                <span className="text-xs font-semibold text-zinc-300 group-hover:text-white truncate w-full tracking-wide">
+                <span className={`text-xs font-semibold truncate w-full tracking-wide ${textTitleClasses}`}>
                   {app.title}
                 </span>
               </div>
@@ -132,8 +167,8 @@ export const StartMenu: React.FC = () => {
       </div>
 
       {/* Footer shortcut instructions */}
-      <div className="text-center text-[10px] text-zinc-600 font-bold uppercase tracking-wider mt-8 flex-shrink-0">
-        Press <span className="text-zinc-500 font-mono">ESC</span> to exit launchpad // Start typing to search instantly
+      <div className={`text-center text-[10px] font-bold uppercase tracking-wider mt-8 flex-shrink-0 ${footerClasses}`}>
+        Press <span className={theme === 'light' ? 'text-slate-650' : 'text-zinc-500'}>ESC</span> to exit launchpad // Start typing to search instantly
       </div>
     </div>
   );

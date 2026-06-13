@@ -18,6 +18,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
     maximizeWindow,
     updateWindowPosition,
     updateWindowDimensions,
+    settings,
   } = useOS();
 
   const windowRef = useRef<HTMLDivElement>(null);
@@ -142,26 +143,54 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
         pointerEvents: windowState.isMinimized ? "none" : "auto",
       };
 
+  const theme = settings?.theme || "dark";
+
+  let windowThemeClasses = "";
+  let headerThemeClasses = "";
+
+  if (theme === "light") {
+    windowThemeClasses = isActive
+      ? "border-slate-350 shadow-slate-200/50 bg-slate-100/90 backdrop-blur-xl text-slate-800"
+      : "border-slate-200 shadow-black/5 bg-slate-200/70 backdrop-blur-md text-slate-500";
+    headerThemeClasses = isActive
+      ? "bg-slate-200/60 border-slate-350/50"
+      : "bg-slate-300/30 border-slate-200/35";
+  } else if (theme === "midnight") {
+    windowThemeClasses = isActive
+      ? "border-indigo-500/40 shadow-indigo-950/40 bg-slate-900/85 backdrop-blur-xl text-indigo-100"
+      : "border-indigo-900/20 shadow-black/25 bg-slate-950/75 backdrop-blur-md text-indigo-400";
+    headerThemeClasses = isActive
+      ? "bg-indigo-950/40 border-indigo-850"
+      : "bg-indigo-950/20 border-indigo-950/35";
+  } else if (theme === "aurora") {
+    windowThemeClasses = isActive
+      ? "border-teal-500/40 shadow-emerald-950/40 bg-zinc-900/85 backdrop-blur-xl text-teal-100"
+      : "border-teal-900/20 shadow-black/25 bg-zinc-950/75 backdrop-blur-md text-teal-500/80";
+    headerThemeClasses = isActive
+      ? "bg-teal-950/40 border-teal-800"
+      : "bg-teal-950/20 border-teal-950/35";
+  } else {
+    // dark theme (default)
+    windowThemeClasses = isActive
+      ? "border-zinc-500/50 shadow-zinc-950/40 bg-zinc-900/85 backdrop-blur-xl text-zinc-50"
+      : "border-zinc-700/30 shadow-black/20 bg-zinc-950/75 backdrop-blur-md text-zinc-400";
+    headerThemeClasses = isActive
+      ? "bg-zinc-800/40 border-zinc-700/50"
+      : "bg-zinc-900/20 border-zinc-800/35";
+  }
+
   return (
     <div
       ref={windowRef}
       style={style}
       onClick={() => focusWindow(windowState.pid)}
-      className={`flex flex-col rounded-t-lg shadow-2xl border transition-shadow duration-200 overflow-hidden ${
-        isActive
-          ? "border-zinc-500/50 shadow-zinc-950/40 bg-zinc-900/85 backdrop-blur-xl text-zinc-50"
-          : "border-zinc-700/30 shadow-black/20 bg-zinc-950/75 backdrop-blur-md text-zinc-400"
-      }`}
+      className={`flex flex-col rounded-t-lg shadow-2xl border transition-shadow duration-200 overflow-hidden ${windowThemeClasses}`}
     >
       {/* Window Header (Title Bar) */}
       <div
         onMouseDown={handleHeaderMouseDown}
         onDoubleClick={() => maximizeWindow(windowState.pid)}
-        className={`flex items-center justify-between h-10 px-4 select-none cursor-default border-b ${
-          isActive
-            ? "bg-zinc-800/40 border-zinc-700/50"
-            : "bg-zinc-900/20 border-zinc-800/35"
-        }`}
+        className={`flex items-center justify-between h-10 px-4 select-none cursor-default border-b ${headerThemeClasses}`}
       >
         <span className="text-sm font-semibold truncate select-none">
           {windowState.title}
@@ -199,7 +228,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
       </div>
 
       {/* Window Content */}
-      <div className="flex-1 overflow-auto bg-zinc-900/60 p-0 relative">
+      <div className={`flex-1 overflow-auto p-0 relative ${theme === "light" ? "bg-white/70" : "bg-zinc-900/60"}`}>
         {children}
       </div>
 

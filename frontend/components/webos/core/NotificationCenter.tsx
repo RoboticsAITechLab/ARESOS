@@ -120,25 +120,65 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     }
   };
 
+  const theme = settings?.theme || "dark";
+  
+  let outerThemeClasses = "bg-zinc-950/65 border-zinc-800/40 text-zinc-300";
+  let widgetThemeClasses = "bg-zinc-900/45 border-zinc-850";
+  let labelThemeClasses = "text-zinc-500";
+  let valueThemeClasses = "text-white";
+  let inputThemeClasses = "bg-zinc-950 border-zinc-850 text-zinc-200 placeholder-zinc-500 focus:border-zinc-800";
+  let btnThemeClasses = "bg-indigo-600/30 border border-indigo-500/30 text-indigo-200 hover:bg-indigo-600/40";
+  let itemThemeClasses = "bg-zinc-950/40 border border-zinc-850/50 hover:bg-zinc-950/60 text-zinc-400";
+  let titleThemeClasses = "text-white";
+
+  if (theme === "light") {
+    outerThemeClasses = "bg-white/90 border-slate-200/80 text-slate-800";
+    widgetThemeClasses = "bg-slate-100/70 border-slate-200";
+    labelThemeClasses = "text-slate-500 font-semibold";
+    valueThemeClasses = "text-slate-900";
+    inputThemeClasses = "bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:border-slate-400";
+    btnThemeClasses = "bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300";
+    itemThemeClasses = "bg-slate-50 border border-slate-200/60 hover:bg-slate-100/80 text-slate-650";
+    titleThemeClasses = "text-slate-800";
+  } else if (theme === "midnight") {
+    outerThemeClasses = "bg-slate-950/75 border-indigo-950/40 text-indigo-200";
+    widgetThemeClasses = "bg-indigo-950/30 border-indigo-900/30";
+    labelThemeClasses = "text-indigo-400/80";
+    valueThemeClasses = "text-white";
+    inputThemeClasses = "bg-indigo-950 border border-indigo-900 text-indigo-100 placeholder-indigo-500 focus:border-indigo-850";
+    btnThemeClasses = "bg-indigo-600/30 border border-indigo-500/30 text-indigo-200 hover:bg-indigo-600/40";
+    itemThemeClasses = "bg-indigo-950/40 border border-indigo-900/20 hover:bg-indigo-900/10 text-indigo-200";
+    titleThemeClasses = "text-white";
+  } else if (theme === "aurora") {
+    outerThemeClasses = "bg-zinc-950/65 border-teal-950/40 text-teal-100";
+    widgetThemeClasses = "bg-teal-950/30 border-teal-900/30";
+    labelThemeClasses = "text-teal-500/80";
+    valueThemeClasses = "text-white";
+    inputThemeClasses = "bg-teal-950 border border-teal-900 text-teal-100 placeholder-teal-500 focus:border-teal-850";
+    btnThemeClasses = "bg-teal-600/30 border border-teal-500/30 text-teal-200 hover:bg-teal-600/40";
+    itemThemeClasses = "bg-teal-950/40 border border-teal-900/20 hover:bg-teal-900/10 text-teal-200";
+    titleThemeClasses = "text-white";
+  }
+
   return (
     <div
       ref={centerRef}
-      className="fixed top-7 right-0 bottom-0 w-80 bg-zinc-950/65 border-l border-zinc-800/40 backdrop-blur-2xl shadow-2xl z-[999] overflow-hidden flex flex-col p-4 select-none animate-in slide-in-from-right-6 duration-300"
+      className={`fixed top-7 right-0 bottom-0 w-80 backdrop-blur-2xl shadow-2xl z-[999] overflow-hidden flex flex-col p-4 select-none animate-in slide-in-from-right-6 duration-300 border-l ${outerThemeClasses}`}
     >
       {/* Sidebar Scrollable Widgets Panels */}
       <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-none">
         
         {/* Widget 1: System Control Center sliders */}
-        <div className="bg-zinc-900/45 border border-zinc-850 p-3.5 rounded-xl space-y-3">
-          <div className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">
+        <div className={`p-3.5 rounded-xl space-y-3 border ${widgetThemeClasses}`}>
+          <div className={`text-[10px] uppercase font-bold tracking-wider mb-1 ${labelThemeClasses}`}>
             Control Center
           </div>
 
           {/* Volume Slider */}
           <div className="space-y-1">
-            <div className="flex justify-between text-[11px] font-medium text-zinc-300">
+            <div className={`flex justify-between text-[11px] font-medium ${theme === 'light' ? 'text-slate-700' : 'text-zinc-300'}`}>
               <span>System Volume</span>
-              <span className="font-mono text-zinc-500">{settings.volume}%</span>
+              <span className={`font-mono ${labelThemeClasses}`}>{settings.volume}%</span>
             </div>
             <input
               type="range"
@@ -152,9 +192,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
           {/* Brightness Slider */}
           <div className="space-y-1">
-            <div className="flex justify-between text-[11px] font-medium text-zinc-300">
+            <div className={`flex justify-between text-[11px] font-medium ${theme === 'light' ? 'text-slate-700' : 'text-zinc-300'}`}>
               <span>Display Brightness</span>
-              <span className="font-mono text-zinc-500">{settings.brightness}%</span>
+              <span className={`font-mono ${labelThemeClasses}`}>{settings.brightness}%</span>
             </div>
             <input
               type="range"
@@ -168,12 +208,12 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         </div>
 
         {/* Widget 2: Focus Timer (Pomodoro Widget) */}
-        <div className="bg-zinc-900/45 border border-zinc-850 p-3.5 rounded-xl flex items-center justify-between">
+        <div className={`p-3.5 rounded-xl flex items-center justify-between border ${widgetThemeClasses}`}>
           <div className="flex flex-col min-w-0">
-            <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">
+            <span className={`text-[10px] uppercase font-bold tracking-wider ${labelThemeClasses}`}>
               Focus Session
             </span>
-            <span className="text-xl font-extrabold text-white tracking-tight font-mono mt-1">
+            <span className={`text-xl font-extrabold tracking-tight font-mono mt-1 ${valueThemeClasses}`}>
               {formatFocusTimer()}
             </span>
           </div>
@@ -182,7 +222,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             className={`px-3 py-1.5 rounded-lg text-xxs font-bold tracking-wide uppercase transition cursor-pointer ${
               focusActive
                 ? "bg-red-500/20 border border-red-500/30 text-red-200"
-                : "bg-indigo-600/30 border border-indigo-500/30 text-indigo-200 hover:bg-indigo-600/40"
+                : btnThemeClasses
             }`}
           >
             {focusActive ? "Pause" : "Start"}
@@ -190,8 +230,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         </div>
 
         {/* Widget 3: Goals Checklist Planner */}
-        <div className="bg-zinc-900/45 border border-zinc-850 p-3.5 rounded-xl space-y-2.5">
-          <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">
+        <div className={`p-3.5 rounded-xl space-y-2.5 border ${widgetThemeClasses}`}>
+          <span className={`text-[10px] uppercase font-bold tracking-wider ${labelThemeClasses}`}>
             Active Targets
           </span>
           
@@ -207,7 +247,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 }`}>
                   {g.completed && <span className="text-[7px]">✓</span>}
                 </div>
-                <span className={`truncate text-zinc-300 group-hover:text-white ${g.completed ? "line-through text-zinc-600" : ""}`}>
+                <span className={`truncate group-hover:text-white ${g.completed ? "line-through text-zinc-650" : (theme === 'light' ? 'text-slate-700' : 'text-zinc-305')}`}>
                   {g.text}
                 </span>
               </div>
@@ -220,7 +260,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               placeholder="Target..."
               value={newGoalText}
               onChange={(e) => setNewGoalText(e.target.value)}
-              className="flex-1 bg-zinc-950 border border-zinc-850 focus:border-zinc-800 rounded-lg px-2 py-1 text-[10px] text-zinc-200 outline-none transition"
+              className={`flex-1 rounded-lg px-2 py-1 text-[10px] outline-none transition ${inputThemeClasses}`}
             />
             <button
               type="submit"
@@ -234,14 +274,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
         {/* Alerts / Notifications pane */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between border-b border-zinc-900 pb-1.5">
-            <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">
+          <div className={`flex items-center justify-between border-b pb-1.5 ${theme === 'light' ? 'border-slate-200' : 'border-zinc-900'}`}>
+            <span className={`text-[10px] uppercase font-bold tracking-wider ${labelThemeClasses}`}>
               Alerts Drawer
             </span>
             {notifications.length > 0 && (
               <button
                 onClick={clearNotifications}
-                className="text-[9px] text-zinc-500 hover:text-zinc-300 font-semibold cursor-pointer"
+                className={`text-[9px] font-semibold cursor-pointer ${labelThemeClasses} hover:text-white`}
               >
                 Clear
               </button>
@@ -259,21 +299,21 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   <div
                     key={notif.id}
                     onClick={() => markNotificationAsRead(notif.id)}
-                    className={`p-3 rounded-xl border border-zinc-850/50 bg-zinc-950/40 flex items-start gap-2.5 cursor-pointer hover:bg-zinc-950/60 transition ${
+                    className={`p-3 rounded-xl flex items-start gap-2.5 cursor-pointer transition ${
                       notif.read ? "opacity-55" : "opacity-100"
-                    }`}
+                    } ${itemThemeClasses}`}
                   >
                     <span className="text-emerald-400 font-bold select-none text-xs flex-shrink-0">✓</span>
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-white truncate pr-1">
+                        <span className={`text-xs font-bold truncate pr-1 ${titleThemeClasses}`}>
                           {notif.title}
                         </span>
-                        <span className="text-[8px] text-zinc-600 font-mono flex-shrink-0">
+                        <span className={`text-[8px] font-mono flex-shrink-0 ${labelThemeClasses}`}>
                           {dateStr}
                         </span>
                       </div>
-                      <p className="text-[10px] text-zinc-400 leading-normal">
+                      <p className={`text-[10px] leading-normal ${theme === 'light' ? 'text-slate-600' : 'text-zinc-400'}`}>
                         {notif.message}
                       </p>
                     </div>
@@ -290,14 +330,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 ].map((item, idx) => (
                   <div
                     key={idx}
-                    className="p-3 rounded-xl border border-zinc-850/50 bg-zinc-950/40 flex items-start gap-2.5 hover:bg-zinc-950/60 transition"
+                    className={`p-3 rounded-xl flex items-start gap-2.5 transition ${itemThemeClasses}`}
                   >
                     <span className="text-emerald-400 font-bold select-none text-xs flex-shrink-0">✓</span>
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                      <span className="text-xs font-bold text-white truncate pr-1">
+                      <span className={`text-xs font-bold truncate pr-1 ${titleThemeClasses}`}>
                         {item.title}
                       </span>
-                      <p className="text-[10px] text-zinc-400 leading-normal">
+                      <p className={`text-[10px] leading-normal ${theme === 'light' ? 'text-slate-600' : 'text-zinc-400'}`}>
                         {item.desc}
                       </p>
                     </div>
@@ -313,7 +353,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       {/* Slide-out close drawer trigger */}
       <button
         onClick={onClose}
-        className="w-full py-2 bg-zinc-900 border border-zinc-850 hover:bg-zinc-800 text-[10px] font-bold text-zinc-400 uppercase tracking-wider rounded-xl transition mt-4 cursor-pointer"
+        className={`w-full py-2 text-[10px] font-bold uppercase tracking-wider rounded-xl transition mt-4 cursor-pointer ${
+          theme === "light"
+            ? "bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-350"
+            : "bg-zinc-900 border border-zinc-850 hover:bg-zinc-800 text-zinc-400"
+        }`}
       >
         Close Drawer
       </button>

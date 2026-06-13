@@ -115,4 +115,7 @@ ARESOS includes built-in desktop backdrop themes that can be selected in the Set
 *   **Neon Neon:** High contrast violet gradients.
 
 ---
-Developed by **Ankit Kumar** // *Mission Control for Students*
+Developed by **Ankit Kumar** 
+
+
+

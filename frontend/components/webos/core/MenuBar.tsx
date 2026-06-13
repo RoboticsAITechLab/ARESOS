@@ -29,8 +29,43 @@ export const MenuBar: React.FC = () => {
     return () => clearInterval(batteryTimer);
   }, []);
 
+  const theme = settings?.theme || "dark";
+  
+  let barClasses = "h-7 w-full flex items-center justify-between px-4 select-none z-[999] text-xs font-semibold backdrop-blur-md border-b ";
+  let brandTextClasses = "font-extrabold tracking-wider cursor-pointer transition-colors ";
+  let submenuClasses = "hidden md:flex items-center gap-4 font-medium ";
+  let statusClasses = "flex items-center gap-4 font-medium ";
+  let clockClasses = "font-bold pl-2 border-l ";
+
+  if (theme === "light") {
+    barClasses += "bg-white/75 border-slate-200 text-slate-700";
+    brandTextClasses += "text-slate-900 hover:text-indigo-600";
+    submenuClasses += "text-slate-500";
+    statusClasses += "text-slate-500";
+    clockClasses += "text-slate-900 border-slate-200";
+  } else if (theme === "midnight") {
+    barClasses += "bg-slate-950/75 border-indigo-950/40 text-indigo-200";
+    brandTextClasses += "text-white hover:text-indigo-400";
+    submenuClasses += "text-indigo-400/80";
+    statusClasses += "text-indigo-400/80";
+    clockClasses += "text-indigo-100 border-indigo-950/40";
+  } else if (theme === "aurora") {
+    barClasses += "bg-zinc-950/75 border-teal-950/40 text-teal-300";
+    brandTextClasses += "text-white hover:text-teal-400";
+    submenuClasses += "text-teal-500/80";
+    statusClasses += "text-teal-500/80";
+    clockClasses += "text-teal-200 border-teal-950/40";
+  } else {
+    // dark
+    barClasses += "bg-zinc-950/75 border-zinc-800/40 text-zinc-300";
+    brandTextClasses += "text-white hover:text-cyan-400";
+    submenuClasses += "text-zinc-400";
+    statusClasses += "text-zinc-400";
+    clockClasses += "text-white border-zinc-800";
+  }
+
   return (
-    <div className="h-7 w-full bg-zinc-950/75 backdrop-blur-md border-b border-zinc-800/40 flex items-center justify-between px-4 select-none z-[999] text-xs font-semibold text-zinc-300">
+    <div className={barClasses}>
       {/* Left side: System Controls, OS name, submenus */}
       <div className="flex items-center gap-4">
         {/* macOS dot indicators */}
@@ -41,12 +76,12 @@ export const MenuBar: React.FC = () => {
         </div>
 
         {/* Global OS Name */}
-        <span className="font-extrabold text-white tracking-wider cursor-pointer hover:text-cyan-400 transition-colors">
+        <span className={brandTextClasses}>
           ARES
         </span>
 
         {/* App Context Submenus */}
-        <div className="hidden md:flex items-center gap-4 text-zinc-400 font-medium">
+        <div className={submenuClasses}>
           <span className="hover:text-white cursor-pointer transition-colors">File</span>
           <span className="hover:text-white cursor-pointer transition-colors">Edit</span>
           <span className="hover:text-white cursor-pointer transition-colors">View</span>
@@ -56,7 +91,7 @@ export const MenuBar: React.FC = () => {
       </div>
 
       {/* Right side: WiFi, Battery, Date & Time status */}
-      <div className="flex items-center gap-4 text-zinc-400 font-medium">
+      <div className={statusClasses}>
         {/* WiFi Indicator */}
         <div className="flex items-center gap-1 cursor-help" title="WiFi Signal: 95% Strong">
           <span>📶</span>
@@ -70,7 +105,7 @@ export const MenuBar: React.FC = () => {
         </div>
 
         {/* System Time */}
-        <div className="text-white font-bold pl-2 border-l border-zinc-800">
+        <div className={clockClasses}>
           {time}
         </div>
       </div>

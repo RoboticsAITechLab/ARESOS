@@ -69,6 +69,31 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
   };
 
 
+  const theme = settings?.theme || "dark";
+
+  let dockClasses = "flex items-end gap-3 px-4 py-2.5 rounded-2xl shadow-2xl backdrop-blur-xl max-w-max border ";
+  let dividerClasses = "w-[1px] h-10 self-center ";
+  let notifyHoverClass = "";
+
+  if (theme === "light") {
+    dockClasses += "bg-white/35 border-slate-200/50 shadow-slate-300/30";
+    dividerClasses += "bg-slate-300";
+    notifyHoverClass = "hover:bg-slate-200/40";
+  } else if (theme === "midnight") {
+    dockClasses += "bg-slate-950/30 border-indigo-900/30 shadow-indigo-950/30";
+    dividerClasses += "bg-indigo-950/40";
+    notifyHoverClass = "hover:bg-white/10";
+  } else if (theme === "aurora") {
+    dockClasses += "bg-zinc-950/30 border-teal-900/30 shadow-emerald-950/30";
+    dividerClasses += "bg-teal-950/40";
+    notifyHoverClass = "hover:bg-white/10";
+  } else {
+    // dark
+    dockClasses += "bg-zinc-950/40 border-zinc-800/40 shadow-black/40";
+    dividerClasses += "bg-zinc-850";
+    notifyHoverClass = "hover:bg-white/10";
+  }
+
   return (
     <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[999] select-none pointer-events-auto">
       {/* Sci-fi macOS Bouncing Dock Animation Keyframes */}
@@ -86,11 +111,43 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
       `}</style>
 
       {/* Floating glassmorphic Dock container */}
-      <div className="flex items-end gap-3 px-4 py-2.5 bg-zinc-950/40 border border-zinc-800/40 rounded-2xl shadow-2xl backdrop-blur-xl max-w-max">
+      <div className={dockClasses}>
         {dockApps.map((app) => {
           // Check if process of this app is running
           const isRunning = processes.some((p) => p.appId === app.id);
           const isFocused = processes.some((p) => p.appId === app.id && activePid === p.pid);
+
+          let buttonClasses = "w-12 h-12 rounded-xl flex items-center justify-center text-3.5xl cursor-pointer select-none transition-all duration-200 hover:scale-120 hover:-translate-y-1.5 active:scale-105 active:translate-y-0 ";
+          if (isFocused) {
+            if (theme === "light") {
+              buttonClasses += "bg-slate-300/40 border border-slate-400/50 shadow-sm";
+            } else if (theme === "midnight") {
+              buttonClasses += "bg-indigo-600/25 border border-indigo-500/30 shadow-[0_0_6px_rgba(99,102,241,0.2)]";
+            } else if (theme === "aurora") {
+              buttonClasses += "bg-teal-600/25 border border-teal-500/30 shadow-[0_0_6px_rgba(20,184,166,0.2)]";
+            } else {
+              buttonClasses += "bg-indigo-600/25 border border-indigo-500/30";
+            }
+          } else {
+            buttonClasses += theme === "light" ? "hover:bg-slate-200/40" : "hover:bg-white/10";
+          }
+
+          let dotClasses = "w-1.5 h-1.5 rounded-full absolute -bottom-1 transition-all duration-200 ";
+          if (isRunning) {
+            if (isFocused) {
+              if (theme === "light") {
+                dotClasses += "bg-indigo-650 shadow-[0_0_6px_rgba(79,70,229,0.8)] scale-110";
+              } else if (theme === "midnight") {
+                dotClasses += "bg-indigo-400 shadow-[0_0_6px_rgba(129,140,248,0.8)] scale-110";
+              } else if (theme === "aurora") {
+                dotClasses += "bg-teal-400 shadow-[0_0_6px_rgba(45,212,191,0.8)] scale-110";
+              } else {
+                dotClasses += "bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)] scale-110";
+              }
+            } else {
+              dotClasses += theme === "light" ? "bg-slate-400" : "bg-zinc-500";
+            }
+          }
 
           return (
             <div
@@ -107,11 +164,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
                 {/* Dock Icon Button */}
                 <button
                   onClick={() => handleIconClick(app.id)}
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center text-3.5xl cursor-pointer select-none transition-all duration-200 hover:scale-120 hover:-translate-y-1.5 active:scale-105 active:translate-y-0 ${
-                    isFocused 
-                      ? "bg-indigo-600/25 border border-indigo-500/30" 
-                      : "hover:bg-white/10"
-                  }`}
+                  className={buttonClasses}
                 >
                   <span className="filter drop-shadow select-none leading-none">
                     {app.icon}
@@ -121,20 +174,14 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
 
               {/* Bottom status dot indicator (macOS style) */}
               {isRunning && (
-                <div
-                  className={`w-1.5 h-1.5 rounded-full absolute -bottom-1 transition-all duration-200 ${
-                    isFocused
-                      ? "bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)] scale-110"
-                      : "bg-zinc-500"
-                  }`}
-                />
+                <div className={dotClasses} />
               )}
             </div>
           );
         })}
 
         {/* Divider separator */}
-        <div className="w-[1px] h-10 bg-zinc-850 self-center" />
+        <div className={dividerClasses} />
 
         {/* Notifications Tray Icon */}
         <button
@@ -142,7 +189,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
             playClickSound((settings?.volume ?? 80) / 100);
             onToggleNotifications();
           }}
-          className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl hover:bg-white/10 cursor-pointer transition-all duration-200 hover:scale-120 hover:-translate-y-1.5 active:scale-105 active:translate-y-0"
+          className={`w-12 h-12 rounded-xl flex items-center justify-center text-3xl cursor-pointer transition-all duration-200 hover:scale-120 hover:-translate-y-1.5 active:scale-105 active:translate-y-0 ${notifyHoverClass}`}
           title="Notification Center"
         >
           🔔
