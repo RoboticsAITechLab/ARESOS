@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useOS } from "@/hooks/webos/useOS";
 
 export const MenuBar: React.FC = () => {
-  const { settings, currentUser } = useOS();
+  const { settings } = useOS();
   const [time, setTime] = useState("");
   const [batteryLevel, setBatteryLevel] = useState(95);
 

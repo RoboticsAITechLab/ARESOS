@@ -34,11 +34,37 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const [focusActive, setFocusActive] = useState(false);
   
   // Goals Widget State
-  const [goals, setGoals] = useState<MiniGoal[]>([
+  const [goals, setGoals] = useState<MiniGoal[] | null>(null);
+  const [newGoalText, setNewGoalText] = useState("");
+
+  const defaultGoals: MiniGoal[] = [
     { id: "g1", text: "Design clean layouts", completed: true },
     { id: "g2", text: "Test VFS system logs", completed: false },
-  ]);
-  const [newGoalText, setNewGoalText] = useState("");
+  ];
+
+  // Load goals from localStorage on client-side mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("aresos_notification_goals");
+      if (saved) {
+        try {
+          setGoals(JSON.parse(saved));
+        } catch (e) {
+          console.error("Failed to parse goals checklist", e);
+          setGoals(defaultGoals);
+        }
+      } else {
+        setGoals(defaultGoals);
+      }
+    }
+  }, []);
+
+  // Save goals to localStorage on changes
+  useEffect(() => {
+    if (goals !== null && typeof window !== "undefined") {
+      localStorage.setItem("aresos_notification_goals", JSON.stringify(goals));
+    }
+  }, [goals]);
 
   // Close when clicked outside
   useEffect(() => {
@@ -79,9 +105,12 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   // Handle Focus Timer completion side effects
   useEffect(() => {
     if (focusSeconds <= 0) {
-      setFocusActive(false);
-      setFocusSeconds(1500);
-      addNotification("Focus Session", "Focus Session Finished", "success");
+      const timer = setTimeout(() => {
+        setFocusActive(false);
+        setFocusSeconds(1500);
+        addNotification("Focus Session", "Focus Session Finished", "success");
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [focusSeconds, addNotification]);
 
@@ -103,16 +132,16 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       text: newGoalText.trim(),
       completed: false,
     };
-    setGoals((prev) => [...prev, nGoal]);
+    setGoals((prev) => [...(prev || []), nGoal]);
     setNewGoalText("");
   };
 
   const handleToggleGoal = (id: string) => {
-    const targetGoal = goals.find((g) => g.id === id);
+    const targetGoal = (goals || []).find((g) => g.id === id);
     if (targetGoal) {
       const nextVal = !targetGoal.completed;
       setGoals((prev) =>
-        prev.map((g) => (g.id === id ? { ...g, completed: nextVal } : g))
+        (prev || []).map((g) => (g.id === id ? { ...g, completed: nextVal } : g))
       );
       if (nextVal) {
         addNotification("Goal Updated", `Goal Completed: "${targetGoal.text}"`, "success");
@@ -236,7 +265,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           </span>
           
           <div className="space-y-1.5 max-h-28 overflow-y-auto scrollbar-thin">
-            {goals.map((g) => (
+            {goals === null ? (
+              <div className="text-center text-[10px] text-zinc-600 py-4 font-mono animate-pulse">
+                LOADING TARGETS...
+              </div>
+            ) : goals.map((g) => (
               <div
                 key={g.id}
                 onClick={() => handleToggleGoal(g.id)}

@@ -9,11 +9,15 @@ interface TextEditorProps {
 }
 
 export default function TextEditor({ pid }: TextEditorProps) {
-  const { addNotification } = useOS();
-  const { currentPath, listDirectory, readFile, writeFile, deleteNode } = useFileSystem();
+  const { addNotification, processes } = useOS();
+  const { listDirectory, readFile, writeFile, deleteNode } = useFileSystem();
+
+  const myProcess = processes.find((p) => p.pid === pid);
+  const filePathArg = myProcess?.args?.filePath as string | undefined;
 
   const [notesList, setNotesList] = useState<string[]>([]);
-  const [selectedNote, setSelectedNote] = useState<string>("Physics.txt");
+  const [notesDir, setNotesDir] = useState("/home/user/Documents");
+  const [selectedNote, setSelectedNote] = useState<string>("");
   const [content, setContent] = useState("");
   const [isModified, setIsModified] = useState(false);
 
@@ -27,11 +31,26 @@ export default function TextEditor({ pid }: TextEditorProps) {
   // Cursor coordinates
   const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
 
-  const notesDir = "/home/user/Documents";
+  // Handle open file from process argument on mount
+  useEffect(() => {
+    if (filePathArg) {
+      const lastSlashIdx = filePathArg.lastIndexOf("/");
+      if (lastSlashIdx !== -1) {
+        const dir = filePathArg.substring(0, lastSlashIdx) || "/";
+        const file = filePathArg.substring(lastSlashIdx + 1);
+        setNotesDir(dir);
+        setSelectedNote(file);
+        return;
+      }
+    }
+    setNotesDir("/home/user/Documents");
+    setSelectedNote("Physics.txt");
+  }, [filePathArg]);
 
   // Prepopulate VFS notes if empty on load
   const initDefaultNotes = () => {
     try {
+      if (notesDir !== "/home/user/Documents") return;
       const existing = listDirectory(notesDir);
       const txtFiles = existing.filter((item) => item.name.endsWith(".txt") || item.name.endsWith(".md"));
 
@@ -58,23 +77,31 @@ export default function TextEditor({ pid }: TextEditorProps) {
     }
   };
 
-  // Setup files list on mount
+  // Setup and dynamic refresh of files list
   useEffect(() => {
     initDefaultNotes();
     loadNotesCatalog();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notesDir, listDirectory]);
 
-  // Load note contents when selection changes
+  // Load note contents when selection or folder changes
   useEffect(() => {
-    if (!selectedNote) return;
+    if (!selectedNote) {
+      setContent("");
+      setIsModified(false);
+      return;
+    }
 
     const path = `${notesDir}/${selectedNote}`;
     const file = readFile(path);
     if (file) {
       setContent(file.content);
       setIsModified(false);
+    } else {
+      setContent("");
+      setIsModified(false);
     }
-  }, [selectedNote]);
+  }, [selectedNote, notesDir, readFile]);
 
   const handleSave = () => {
     if (!selectedNote) return;
@@ -128,8 +155,8 @@ export default function TextEditor({ pid }: TextEditorProps) {
   };
 
   // Cursor coordinates selector monitor
-  const handleTextareaSelection = (e: any) => {
-    const textarea = e.target;
+  const handleTextareaSelection = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    const textarea = e.target as HTMLTextAreaElement;
     const text = textarea.value;
     const selectionIndex = textarea.selectionStart;
 

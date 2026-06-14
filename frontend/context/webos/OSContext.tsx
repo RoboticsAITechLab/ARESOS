@@ -1,9 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { Process, AppConfig } from "@/types/webos/process";
+import React, { createContext, useState, useEffect, ReactNode } from "react";
+import { Process } from "@/types/webos/process";
 import { WindowInstance } from "@/types/webos/window";
-import { SystemNotification, SystemSettings, SystemTheme, SystemUser } from "@/types/webos/system";
+import { SystemNotification, SystemSettings, SystemUser } from "@/types/webos/system";
 import { getAppConfig } from "@/config/webos/apps.config";
 
 interface OSContextType {
@@ -17,7 +17,7 @@ interface OSContextType {
   setStartMenuOpen: (open: boolean) => void;
   
   // Process / App Management
-  launchApp: (appId: string, args?: Record<string, any>) => string | null;
+  launchApp: (appId: string, args?: Record<string, unknown>) => string | null;
   terminateApp: (pid: string) => void;
   
   // Window Management
@@ -35,6 +35,10 @@ interface OSContextType {
   clearNotifications: () => void;
 }
 
+function generatePid(appId: string): string {
+  return `${appId}-${Date.now()}`;
+}
+
 export const OSContext = createContext<OSContextType | undefined>(undefined);
 
 export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -49,6 +53,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     wallpaperUrlOrGradient: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)",
     volume: 80,
     brightness: 90,
+    maxStorageAllocation: 64,
   });
 
   const [currentUser, setCurrentUser] = useState<SystemUser>({
@@ -56,6 +61,62 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     role: "SYSTEM ADMINISTRATOR",
     avatarUrl: "",
   });
+
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load settings, user, and notifications on client-side mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedSettings = localStorage.getItem("aresos_system_settings");
+      if (savedSettings) {
+        try {
+          setSettings(JSON.parse(savedSettings));
+        } catch (e) {
+          console.error("Failed to parse settings", e);
+        }
+      }
+
+      const savedUser = localStorage.getItem("aresos_system_user");
+      if (savedUser) {
+        try {
+          setCurrentUser(JSON.parse(savedUser));
+        } catch (e) {
+          console.error("Failed to parse user details", e);
+        }
+      }
+
+      const savedNotifs = localStorage.getItem("aresos_system_notifications");
+      if (savedNotifs) {
+        try {
+          setNotifications(JSON.parse(savedNotifs));
+        } catch (e) {
+          console.error("Failed to parse notifications", e);
+        }
+      }
+      setIsLoaded(true);
+    }
+  }, []);
+
+  // Save settings on changes
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("aresos_system_settings", JSON.stringify(settings));
+    }
+  }, [settings, isLoaded]);
+
+  // Save user details on changes
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("aresos_system_user", JSON.stringify(currentUser));
+    }
+  }, [currentUser, isLoaded]);
+
+  // Save notifications list on changes
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("aresos_system_notifications", JSON.stringify(notifications));
+    }
+  }, [notifications, isLoaded]);
 
   const updateUser = (newUser: Partial<SystemUser>) => {
     setCurrentUser((prev) => ({ ...prev, ...newUser }));
@@ -88,7 +149,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   // Launch dynamic process & map it to a window
-  const launchApp = (appId: string, args?: Record<string, any>) => {
+  const launchApp = (appId: string, args?: Record<string, unknown>) => {
     const config = getAppConfig(appId);
     if (!config) {
       addNotification("Launch Error", `Application '${appId}' not found.`, "error");
@@ -105,7 +166,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       }
     }
 
-    const pid = `${appId}-${Date.now()}`;
+    const pid = generatePid(appId);
     const newProcess: Process = {
       pid,
       appId,

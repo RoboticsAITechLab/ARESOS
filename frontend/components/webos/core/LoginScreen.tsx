@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useOS } from "@/hooks/webos/useOS";
 import { playScanSound, playSuccessSound } from "@/utils/webos/audio";
 
@@ -79,6 +79,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
       handleRetinalScan();
     }, 1000);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

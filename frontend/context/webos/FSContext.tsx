@@ -1,7 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { FSDirectory, FSNode, FSFile, FSNodeType } from "@/types/webos/fs";
+import React, { createContext, useState, ReactNode } from "react";
+import { FSDirectory, FSNode, FSFile } from "@/types/webos/fs";
 
 interface FSContextType {
   root: FSDirectory;
@@ -101,22 +101,20 @@ const INITIAL_FS: FSDirectory = {
 };
 
 export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [root, setRoot] = useState<FSDirectory>(INITIAL_FS);
-  const [currentPath, setCurrentPath] = useState<string>("/home/user");
-
-  // Load from localStorage on mount
-  useEffect(() => {
+  const [root, setRoot] = useState<FSDirectory>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (saved) {
         try {
-          setRoot(JSON.parse(saved));
+          return JSON.parse(saved) as FSDirectory;
         } catch (e) {
           console.error("Failed to parse virtual file system from storage, using default", e);
         }
       }
     }
-  }, []);
+    return INITIAL_FS;
+  });
+  const [currentPath, setCurrentPath] = useState<string>("/home/user");
 
   // Save to localStorage on changes
   const saveFileSystem = (newRoot: FSDirectory) => {

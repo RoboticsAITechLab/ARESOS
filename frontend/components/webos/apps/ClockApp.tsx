@@ -6,7 +6,7 @@ interface ClockAppProps {
   pid: string;
 }
 
-export default function ClockApp({ pid }: ClockAppProps) {
+export default function ClockApp({ pid: _pid }: ClockAppProps) {
   const [tab, setTab] = useState<"clocks" | "stopwatch">("clocks");
   
   // World Clocks State

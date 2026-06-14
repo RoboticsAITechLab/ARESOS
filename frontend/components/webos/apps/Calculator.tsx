@@ -6,7 +6,7 @@ interface CalculatorProps {
   pid: string;
 }
 
-export default function Calculator({ pid }: CalculatorProps) {
+export default function Calculator({ pid: _pid }: CalculatorProps) {
   const [display, setDisplay] = useState("0");
   const [equation, setEquation] = useState("");
   const [isDone, setIsDone] = useState(false);
@@ -40,20 +40,41 @@ export default function Calculator({ pid }: CalculatorProps) {
     setIsDone(false);
   };
 
+  const evaluateBasicMath = (expr: string): number => {
+    for (let i = expr.length - 1; i >= 0; i--) {
+      const char = expr[i];
+      if (char === "+" || char === "-") {
+        if (i === 0) continue;
+        if (["+", "-", "*", "/"].includes(expr[i - 1])) continue;
+        const left = evaluateBasicMath(expr.slice(0, i));
+        const right = evaluateBasicMath(expr.slice(i + 1));
+        return char === "+" ? left + right : left - right;
+      }
+    }
+    for (let i = expr.length - 1; i >= 0; i--) {
+      const char = expr[i];
+      if (char === "*" || char === "/") {
+        const left = evaluateBasicMath(expr.slice(0, i));
+        const right = evaluateBasicMath(expr.slice(i + 1));
+        return char === "*" ? left * right : left / right;
+      }
+    }
+    return Number(expr);
+  };
+
   const handleEqual = () => {
     try {
       if (!equation) return;
       // Evaluate equation safely (since it is a calculator of basic math strings)
       // We sanitise characters to exclude non-mathematical entities
       const sanitized = equation.replace(/[^0-9+\-*/.]/g, "");
-      // eslint-disable-next-line no-eval
-      const result = eval(sanitized);
+      const result = evaluateBasicMath(sanitized);
       
       const resStr = String(Number(result).toLocaleString("en-US", { maximumFractionDigits: 4 }));
       setDisplay(resStr);
       setEquation(resStr);
       setIsDone(true);
-    } catch (e) {
+    } catch {
       setDisplay("Error");
       setEquation("");
       setIsDone(true);

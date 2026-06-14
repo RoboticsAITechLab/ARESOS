@@ -8,12 +8,12 @@ interface FileManagerProps {
   pid: string;
 }
 
-export default function FileManager({ pid }: FileManagerProps) {
+export default function FileManager({ pid: _pid }: FileManagerProps) {
   const { currentPath, listDirectory, changeDirectory, createDirectory, deleteNode, writeFile } = useFileSystem();
   const { launchApp, addNotification } = useOS();
   const [items, setItems] = useState<{ name: string; type: "file" | "directory" }[]>([]);
 
-  const loadItems = () => {
+  const loadItems = React.useCallback(() => {
     try {
       const nodes = listDirectory();
       setItems(
@@ -25,11 +25,14 @@ export default function FileManager({ pid }: FileManagerProps) {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [listDirectory]);
 
   useEffect(() => {
-    loadItems();
-  }, [currentPath]);
+    const timer = setTimeout(() => {
+      loadItems();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [currentPath, loadItems]);
 
   // Back button navigation (cd ..)
   const handleGoBack = () => {

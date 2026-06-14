@@ -9,8 +9,8 @@ interface TerminalProps {
   pid: string;
 }
 
-export default function Terminal({ pid }: TerminalProps) {
-  const { currentPath, listDirectory, changeDirectory, readFile, writeFile, createDirectory, deleteNode } = useFileSystem();
+export default function Terminal({ pid: _pid }: TerminalProps) {
+  const { currentPath, listDirectory, changeDirectory, readFile, createDirectory, deleteNode } = useFileSystem();
   const { updateSettings, addNotification, currentUser, settings } = useOS();
 
   const [input, setInput] = useState("");
@@ -24,8 +24,31 @@ export default function Terminal({ pid }: TerminalProps) {
 
   // Command history logs (for Up/Down arrows scroll)
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isFocused, setIsFocused] = useState(true);
+
+  // Load terminal command history from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("aresos_terminal_history");
+      if (saved) {
+        try {
+          setCommandHistory(JSON.parse(saved));
+        } catch (e) {
+          console.error("Failed to parse terminal history", e);
+        }
+      }
+      setIsHistoryLoaded(true);
+    }
+  }, []);
+
+  // Save terminal command history to localStorage on change
+  useEffect(() => {
+    if (isHistoryLoaded && typeof window !== "undefined") {
+      localStorage.setItem("aresos_terminal_history", JSON.stringify(commandHistory));
+    }
+  }, [commandHistory, isHistoryLoaded]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const hiddenInputRef = useRef<HTMLTextAreaElement>(null);
@@ -77,7 +100,7 @@ export default function Terminal({ pid }: TerminalProps) {
               (n) => `${n.node.type === "directory" ? "📁" : "📄"}  ${n.name}`
             );
           }
-        } catch (err) {
+        } catch {
           output = ["ls: failed to list contents."];
         }
         break;
@@ -147,7 +170,7 @@ export default function Terminal({ pid }: TerminalProps) {
       case "theme":
         const reqTheme = args[1];
         if (reqTheme === "light" || reqTheme === "dark" || reqTheme === "midnight" || reqTheme === "aurora") {
-          updateSettings({ theme: reqTheme as any });
+          updateSettings({ theme: reqTheme as "light" | "dark" | "midnight" | "aurora" });
           output = [`System theme updated to '${reqTheme}'`];
           addNotification("System Command", `Theme set to ${reqTheme}`, "info");
         } else {

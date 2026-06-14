@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useOS } from "@/hooks/webos/useOS";
 import { useFileSystem } from "@/hooks/webos/useFileSystem";
+import { FSNode } from "@/types/webos/fs";
 
 interface SettingsAppProps {
   pid: string;
@@ -10,7 +11,7 @@ interface SettingsAppProps {
 
 type SettingsTab = "appearance" | "wallpaper" | "profile" | "storage" | "about";
 
-export default function SettingsApp({ pid }: SettingsAppProps) {
+export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
   const { settings, updateSettings, currentUser, updateUser, addNotification } = useOS();
   const { root } = useFileSystem();
   
@@ -21,7 +22,7 @@ export default function SettingsApp({ pid }: SettingsAppProps) {
   // Recalculate VFS size dynamically
   useEffect(() => {
     let bytes = 0;
-    const traverse = (node: any) => {
+    const traverse = (node: FSNode) => {
       if (node.type === "file") {
         bytes += typeof node.content === "string" ? node.content.length : 0;
       } else if (node.type === "directory" && node.children) {
@@ -29,7 +30,10 @@ export default function SettingsApp({ pid }: SettingsAppProps) {
       }
     };
     traverse(root);
-    setVfsBytes(bytes);
+    const timer = setTimeout(() => {
+      setVfsBytes(bytes);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [root]);
 
   // Expanded Wallpapers matching mockup: Aurora, Space, Ocean, Neon, Mountain, Abstract
@@ -228,19 +232,42 @@ export default function SettingsApp({ pid }: SettingsAppProps) {
                 <div className="flex justify-between text-xs font-semibold text-zinc-200">
                   <span>Virtual Disk Size (VFS)</span>
                   <span className="font-mono text-zinc-400">
-                    Used: {(12 + vfsBytes / (1024 * 1024)).toFixed(4)} MB
+                    Used: {(vfsBytes / (1024 * 1024)).toFixed(4)} MB
                   </span>
                 </div>
                 <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
                   <div
-                    style={{ width: "32.4%" }}
-                    className="bg-gradient-to-r from-cyan-500 to-indigo-500 h-full rounded-full"
+                    style={{ width: `${Math.min(100, (vfsBytes / (1024 * 1024) / (settings.maxStorageAllocation || 64)) * 100)}%` }}
+                    className="bg-gradient-to-r from-cyan-500 to-indigo-500 h-full rounded-full transition-all duration-300"
                   />
                 </div>
                 <div className="flex justify-between text-[9px] text-zinc-500 font-mono pt-0.5">
-                  <span>Total Allocation: 64.00 MB</span>
-                  <span>Free Space: ~51.95 MB</span>
+                  <span>Total Allocation: {(settings.maxStorageAllocation || 64).toFixed(2)} MB</span>
+                  <span>Free Space: {Math.max(0, (settings.maxStorageAllocation || 64) - (vfsBytes / (1024 * 1024))).toFixed(2)} MB</span>
                 </div>
+              </div>
+
+              {/* Dynamic slider for storage size limit allotment */}
+              <div className="space-y-2 pt-2 border-t border-zinc-850/40">
+                <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider flex justify-between">
+                  <span>Allot Storage Limit</span>
+                  <span className="text-indigo-400 font-mono">{(settings.maxStorageAllocation || 64)} MB</span>
+                </label>
+                <input
+                  type="range"
+                  min="10"
+                  max="1024"
+                  step="10"
+                  value={settings.maxStorageAllocation || 64}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    updateSettings({ maxStorageAllocation: val });
+                  }}
+                  className="w-full accent-indigo-500 h-1 bg-zinc-800 rounded-lg cursor-pointer appearance-none"
+                />
+                <span className="text-[8px] text-zinc-500 leading-normal block italic">
+                  Drag the slider to adjust the local virtual space allocation. The browser allows up to 5MB - 10MB of local storage, but this VFS limits user filesystem uploads within the WebOS.
+                </span>
               </div>
 
               <div className="border-t border-zinc-850/40 pt-3 text-[10px] text-zinc-400 leading-relaxed font-mono">

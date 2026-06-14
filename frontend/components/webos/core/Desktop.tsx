@@ -19,7 +19,7 @@ export const Desktop: React.FC = () => {
   });
 
   // Load files from virtual desktop directory
-  const refreshDesktopFiles = () => {
+  const refreshDesktopFiles = React.useCallback(() => {
     try {
       const files = listDirectory("/home/user/Desktop");
       setDesktopFiles(
@@ -31,14 +31,19 @@ export const Desktop: React.FC = () => {
     } catch (e) {
       console.error("Failed to load desktop files", e);
     }
-  };
+  }, [listDirectory]);
 
   useEffect(() => {
-    refreshDesktopFiles();
+    const timer = setTimeout(() => {
+      refreshDesktopFiles();
+    }, 0);
     // Refresh desktop icons every time a filesystem change might occur
     const interval = setInterval(refreshDesktopFiles, 1500);
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, [refreshDesktopFiles]);
 
   // Handle Desktop Right-Click
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -57,19 +62,41 @@ export const Desktop: React.FC = () => {
   // Actions for Context Menu
   const contextMenuItems: ContextMenuItem[] = [
     {
+      label: "Refresh",
+      icon: "🔄",
+      divider: true,
+      action: () => {
+        refreshDesktopFiles();
+        addNotification("System", "Desktop refreshed.", "info");
+      },
+    },
+    {
       label: "Create New Text File",
       icon: "📄",
       action: () => {
-        const name = prompt("Enter file name (e.g. notes.txt):", "untitled.txt");
-        if (name) {
-          const path = `/home/user/Desktop/${name}`;
-          const ok = writeFile(path, "");
-          if (ok) {
-            refreshDesktopFiles();
-            addNotification("File Created", `Created text file ${name} on Desktop.`, "success");
-          } else {
-            addNotification("Error", "Could not create file.", "error");
+        let baseName = "New Text Document.txt";
+        let fileName = baseName;
+        let counter = 2;
+
+        try {
+          const existing = listDirectory("/home/user/Desktop");
+          const existingNames = new Set(existing.map((item) => item.name));
+          
+          while (existingNames.has(fileName)) {
+            fileName = `New Text Document (${counter}).txt`;
+            counter++;
           }
+        } catch (e) {
+          console.error("Failed to determine unique file name", e);
+        }
+
+        const path = `/home/user/Desktop/${fileName}`;
+        const ok = writeFile(path, "");
+        if (ok) {
+          refreshDesktopFiles();
+          addNotification("File Created", `Created text file "${fileName}" on Desktop.`, "success");
+        } else {
+          addNotification("Error", "Could not create file.", "error");
         }
       },
     },
@@ -77,15 +104,28 @@ export const Desktop: React.FC = () => {
       label: "Create New Folder",
       icon: "📁",
       action: () => {
-        const name = prompt("Enter folder name:", "New Folder");
-        if (name) {
-          const ok = createDirectory("/home/user/Desktop", name);
-          if (ok) {
-            refreshDesktopFiles();
-            addNotification("Folder Created", `Created folder ${name} on Desktop.`, "success");
-          } else {
-            addNotification("Error", "Folder already exists or directory not found.", "error");
+        let baseName = "New Folder";
+        let folderName = baseName;
+        let counter = 2;
+
+        try {
+          const existing = listDirectory("/home/user/Desktop");
+          const existingNames = new Set(existing.map((item) => item.name));
+          
+          while (existingNames.has(folderName)) {
+            folderName = `${baseName} (${counter})`;
+            counter++;
           }
+        } catch (e) {
+          console.error("Failed to determine unique folder name", e);
+        }
+
+        const ok = createDirectory("/home/user/Desktop", folderName);
+        if (ok) {
+          refreshDesktopFiles();
+          addNotification("Folder Created", `Created folder "${folderName}" on Desktop.`, "success");
+        } else {
+          addNotification("Error", "Could not create folder.", "error");
         }
       },
     },
