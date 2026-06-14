@@ -274,12 +274,12 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
                 <div
                   className="w-48 h-28 border border-zinc-800 rounded-lg overflow-hidden shadow-lg relative flex flex-col justify-between p-2"
                   style={{
-                    backgroundImage: settings.wallpaperUrlOrGradient.startsWith("url") 
-                      ? settings.wallpaperUrlOrGradient 
+                    backgroundImage: (settings.wallpaperUrlOrGradient.startsWith("url") || settings.wallpaperUrlOrGradient.includes("gradient"))
+                      ? settings.wallpaperUrlOrGradient
                       : undefined,
-                    background: settings.wallpaperUrlOrGradient.startsWith("url") 
-                      ? undefined 
-                      : settings.wallpaperUrlOrGradient,
+                    backgroundColor: (!settings.wallpaperUrlOrGradient.startsWith("url") && !settings.wallpaperUrlOrGradient.includes("gradient"))
+                      ? settings.wallpaperUrlOrGradient
+                      : undefined,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                   }}
