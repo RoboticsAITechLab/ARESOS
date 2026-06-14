@@ -28,8 +28,18 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onComplete }) => {
   const { settings } = useOS();
   const [progress, setProgress] = useState(0);
   const [glitch, setGlitch] = useState(false);
+  const [systemTime, setSystemTime] = useState<string>("");
   
   const bootSoundPlayed = useRef(false);
+
+  // Set system time and update it every second
+  useEffect(() => {
+    setSystemTime(new Date().toLocaleTimeString());
+    const timer = setInterval(() => {
+      setSystemTime(new Date().toLocaleTimeString());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Trigger boot chime
   useEffect(() => {
@@ -343,7 +353,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onComplete }) => {
             TERMINAL FOCUS LINK
             <span className="inline-block w-1 h-3 bg-cyan-500 animate-[blink_1s_steps(2)_infinite] align-middle" />
           </span>
-          <span>SYSTEM TIME: {new Date().toLocaleTimeString()}</span>
+          <span>SYSTEM TIME: {systemTime}</span>
         </div>
       </footer>
 
