@@ -98,7 +98,7 @@ export default function Browser({ pid }: BrowserProps) {
   }, []);
 
   // Save bookmarks on changes
-  useEffect(()0 => {
+  useEffect(() => {
     if (isBookmarksLoaded && typeof window !== "undefined") {
       localStorage.setItem("aresos_browser_bookmarks", JSON.stringify(bookmarks));
     }
