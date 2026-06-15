@@ -4,8 +4,12 @@
 [![React](https://img.shields.io/badge/React-19.2.4-blue?style=for-the-badge&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-38bdf8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
+[![Documentation](https://img.shields.io/badge/Documentation-Architect_Docs-blueviolet?style=for-the-badge&logo=markdown)](DOCUMENTATION.md)
 
 ARESOS (ARES Operating System) is a premium, highly interactive, and visually stunning web-based operating system designed for student mission control. It features immersive animations, browser-synthesized soundscapes, an active virtual filesystem, and a full suite of productive desktop utility applications.
+
+> [!NOTE]
+> For a comprehensive system layout, custom app integration guide, virtual filesystem specification, and procedural audio setups, check out the [ARESOS System & Architecture Documentation](DOCUMENTATION.md).
 
 > [!TIP]
 > Visit the project locally to experience the custom Web Audio API chimes and desktop window transitions in real-time.
