@@ -1,9 +1,9 @@
 # ARESOS 🌌 — Advanced Sci-Fi Web Operating System
 
-[![Next.js](https://img.shields.95/badge/Next.js-15-black?style=for-the-badge&logo=nextdotjs)](https://nextjs.org/)
-[![React](https://img.shields.95/badge/React-19-blue?style=for-the-badge&logo=react)](https://react.dev/)
-[![TypeScript](https://img.shields.95/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.95/badge/Tailwind-3-38bdf8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-16.2.9-black?style=for-the-badge&logo=nextdotjs)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19.2.4-blue?style=for-the-badge&logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-38bdf8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
 
 ARESOS (ARES Operating System) is a premium, highly interactive, and visually stunning web-based operating system designed for student mission control. It features immersive animations, browser-synthesized soundscapes, an active virtual filesystem, and a full suite of productive desktop utility applications.
 
@@ -15,46 +15,46 @@ ARESOS (ARES Operating System) is a premium, highly interactive, and visually st
 ## 🔮 Key Features
 
 ### 1. Immersive Sci-Fi Entryway
-*   **Mainframe Initialization Boot Screen:** Features a triple-nested rotating SVG reactor core loader, diagnostic sensor grids mapping system RAM allocation, live clock trackers, and scrolling logging sequences resolving to a sweeping startup chime.
-*   **Biometric Retinal Scanner Login:** Interactive radar eye lock-card with laser scanning lines, auto-scrolling decryption matrices, and validation logs that play high-frequency pulse sweeps and grant system access with a pleasant chime chord.
+*   **Mainframe Initialization Boot Screen:** Features a rotating SVG reactor core loader displaying progress, diagnostic sensor grids mapping system memory allocation, live system clock trackers, and scrolling logging sequences resolving to a startup chime.
+*   **Biometric Retinal Scanner Login:** Interactive radar eye scanner panel with laser scanning lines, auto-scrolling decryption matrices, validation checks that play scan sound effects, and session authorization to the desktop environment.
 
 ### 2. Desktop Environment & Navigation
-*   **macOS-style Centered Dock:** Centered floating glassmorphic dock supporting magnification on hover, active process status dots, notification counters, and springy **bouncing icon animations** on launch.
-*   **Slide & Shrink Window Minimize:** Double-clicking title bars or clicking minimize scales windows down to `0.01` and slides them smoothly straight into the Dock area using custom transform transitions.
-*   **Z-Index Window Layering:** Focus system that automatically surfaces active window layers to the front while maintaining standard coordinates, drag limits, and borders.
-*   **High Performance Drag & Resize:** Disables position/dimension transition properties during dragging or resizing to maintain a fluid 60 FPS with zero layout stutter.
-*   **Global Status Menu Bar:** macOS-style top lockbar tracking local connection indicators, clock timers, volume nodes, and system menu drops.
+*   **macOS-style Centered Dock:** Centered floating glassmorphic dock supporting magnification on hover, active process status dots, notification counters, and bouncing icon animations on launch.
+*   **Slide & Shrink Window Minimize:** Double-clicking title bars or clicking minimize scales windows down and slides them smoothly straight into the Dock area using CSS transforms and transition effects.
+*   **Z-Index Window Layering:** Focus system that automatically surfaces the active window layer to the front while maintaining standard coordinates, drag limits, and borders.
+*   **High Performance Drag & Resize:** Fluid repositioning and resizing of window containers within desktop boundaries.
+*   **Global Status Menu Bar:** macOS-style top bar tracking local connection indicators, clock timers, volume nodes, and system menus.
 
 ### 3. Integrated Web Audio API Synthesizer
-*   No external asset `.mp3` files needed. All sounds are generated procedurally on-the-fly using browser oscillators, lowpass filters, and exponential ramps:
+*   No external asset `.mp3` files needed. All sounds are generated procedurally on-the-fly using browser oscillators, lowpass filters, and exponential frequency ramps:
     *   **Startup Sweep:** Heavy sawtooth lowpass frequency sweep overlaid with an E-major chime triad.
     *   **Scanner Ping:** Fast triangle frequency sweeps simulating biometric eye sonar.
-    *   **Granted Chord:** ASCending sine arpeggio resolving to a C-major chord.
-    *   **System Click:** Subtle click beep feedback for buttons and terminal submissions.
-*   All audio is wired to the volume controls inside the Notification Center.
+    *   **Granted Chord:** Ascending sine arpeggio resolving to a C-major chord.
+    *   **System Click:** Subtle click feedback for buttons.
+*   All audio outputs respect the volume level configured in the Notification Center.
 
 ### 4. Built-in Applications Catalog
 
 | Application | Description | Features |
 | :--- | :--- | :--- |
-| **💻 Terminal** | Inline Command CLI Shell | Blinking block cursor `█`, hidden input focus bindings, command history memory logs (ArrowUp/Down), virtual shell nodes command execution (`ls`, `cd`, `cat`, `mkdir`, `rm`, `neofetch`, `theme`). |
-| **📒 Text Editor** | Windows Notepad replica | Document explorer sidebar mapping `/home/user/Documents` (Physics, Maths, Ideas), menus (File, Edit, Format for wrapping & font scaling), cursor coordinates line/column metrics status bar. |
-| **📁 File Explorer** | Graphical directory tree | VFS folder/file creation and deletion, list navigators. |
+| **💻 Terminal** | Interactive Command CLI Shell | Blinking cursor `█`, hidden input focus bindings, command history memory logs (ArrowUp/Down), virtual shell command execution (`ls`, `cd`, `cat`, `mkdir`, `rm`, `neofetch`, `theme`, `clear`). |
+| **📒 Text Editor** | Custom Notepad application | Document explorer sidebar mapping `/home/user/Documents` (Physics, Maths, Ideas), menus (File, Edit, Format for wrapping & font scaling), cursor coordinates line/column metrics status bar. |
+| **📁 File Explorer** | Graphical directory tree explorer | VFS folder/file creation and deletion, list navigation. |
 | **⚙️ Settings** | Controls center configuration | Custom tab panels (Appearance themes, Wallpaper gradients, profile editor, storage disk space summary, about stats card). |
-| **🔔 Notifications** | Full-height control center drawer | Pomodoro focus sessions timers (with desktop notification logging), daily target checklist, brightness sliders, and checkmarked OS system alerts list. |
-| **⏰ System Clock** | Live timezone clocks & stopwatch | Multi-world time zone trackers, laps logger. |
+| **🔔 Notifications** | Control center drawer | Pomodoro focus session timer, daily target checklist, brightness sliders, and checkmarked OS system alerts list. |
+| **⏰ System Clock** | Live timezone clocks & stopwatch | Multi-world time zone trackers, stopwatch with laps logger. |
 | **📅 Calendar** | Monthly scheduler | Highlights and lists scheduling slots (including Ankit's birthday!). |
-| **✅ Todo App** | Checklist task manager | Add, toggle, and prune custom chores lists. |
-| **🧮 Calculator** | Mathematical scratchpad | Responsive arithmetic layout pad. |
-| **🌐 Web Browser** | iframe website bookmark navigator | Load address URL requests with google search query fail-safes. |
+| **✅ Todo App** | Checklist task manager | Add, toggle, and delete custom chore lists. |
+| **🧮 Calculator** | Mathematical scratchpad | Responsive arithmetic layout pad supporting basic operations. |
+| **🌐 Web Browser** | iframe website bookmark navigator | Load address URL requests with search query fail-safes. |
 
 ---
 
 ## 🛠️ Tech Stack & Architecture
 
-*   **Framework:** Next.js (App Router, Turbopack bundle compiler)
-*   **Runtime:** React 19 & TypeScript
-*   **Styling:** Vanilla Tailwind CSS + Custom CSS Keyframe modules
+*   **Framework:** Next.js 16.2.9 (App Router)
+*   **Runtime:** React 19.2.4 & TypeScript 5
+*   **Styling:** Tailwind CSS v4 & custom glassmorphism styles
 *   **Audio Synthesis:** Web Audio API Oscillators, BiquadFilters & GainNodes
 *   **Virtual Filesystem (VFS):** Tree-structured node directory map persisted directly to `localStorage`
 
@@ -66,10 +66,11 @@ To launch ARESOS on your local system, follow these steps:
 
 ### Prerequisites
 *   Node.js (v18 or higher recommended)
-*   npm or yarn package managers
+*   npm (installed with Node.js)
 
 ### Installation & Run
-1. Navigate into the frontend directory:
+
+1. Clone the repository and navigate into the `frontend` directory:
    ```bash
    cd frontend
    ```
@@ -91,11 +92,11 @@ To launch ARESOS on your local system, follow these steps:
 ```text
 ARESOS/
 ├── frontend/
-│   ├── app/                # Next.js main routes page layout
-│   ├── components/         # Desktop workspace widgets & apps
+│   ├── app/                # Next.js page routes, layouts, and styles
+│   ├── components/         # Desktop widgets, apps, and window containers
 │   │   └── webos/
-│   │       ├── apps/       # Built-in Apps (Terminal, Notepad, Settings, etc.)
-│   │       └── core/       # OS Layouts (Window, Taskbar, Boot, Login)
+│   │       ├── apps/       # Built-in Apps (Terminal, TextEditor, Settings, etc.)
+│   │       └── core/       # OS Layouts (Window, Taskbar, BootScreen, LoginScreen)
 │   ├── config/             # Dynamic application registries
 │   ├── context/            # React Contexts (OS settings and FileSystem VFS states)
 │   ├── hooks/              # Custom context wrapper hooks (useOS, useFileSystem)
@@ -107,15 +108,13 @@ ARESOS/
 
 ---
 
-## 🎨 Theme Gradients Settings
-ARESOS includes built-in desktop backdrop themes that can be selected in the Settings dashboard:
+## 🎨 Theme & Wallpaper Customization
+ARESOS includes built-in desktop themes that can be selected in the Settings dashboard:
 *   **Dark Space:** Slate black with dark indigo accents.
-*   **Light Mode:** Premium clean white slate layout.
+*   **Light Mode:** Premium clean white layout.
 *   **Midnight Aurora:** Emerald sweeps and dark violet nodes.
 *   **Neon Neon:** High contrast violet gradients.
 
 ---
+
 Developed by **Ankit Kumar** // *Mission Control for Students*
-
-
-
