@@ -18,37 +18,25 @@ ARESOS (ARES Operating System) is a premium, highly interactive, and visually st
 
 ## 📸 Interface Screenshots
 
-<details open>
-<summary><b>1. Mainframe Initialization Boot Screen</b></summary>
-<br/>
+### 1. Mainframe Initialization Boot Screen
 <p align="center">
   <img src="frontend/public/screenshots/boot_screen.png" alt="ARESOS Boot Screen" width="90%" style="border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.2);" />
 </p>
-</details>
 
-<details>
-<summary><b>2. Biometric Retinal Scanner Login</b></summary>
-<br/>
+### 2. Biometric Retinal Scanner Login
 <p align="center">
   <img src="frontend/public/screenshots/login_screen.png" alt="ARESOS Login Screen" width="90%" style="border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.2);" />
 </p>
-</details>
 
-<details>
-<summary><b>3. Desktop Environment Workspace</b></summary>
-<br/>
+### 3. Desktop Environment Workspace
 <p align="center">
   <img src="frontend/public/screenshots/desktop.png" alt="ARESOS Desktop" width="90%" style="border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.2);" />
 </p>
-</details>
 
-<details>
-<summary><b>4. Multi-App Workflow (Terminal with neofetch & weather, Calculator)</b></summary>
-<br/>
+### 4. Multi-App Workflow (Terminal with neofetch & weather, Calculator)
 <p align="center">
   <img src="frontend/public/screenshots/apps.png" alt="ARESOS Apps" width="90%" style="border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.2);" />
 </p>
-</details>
 
 ---
 
