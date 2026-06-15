@@ -1010,6 +1010,34 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
         }
         hiddenInputRef.current?.focus();
       }}
+      onContextMenu={async (e) => {
+        e.preventDefault(); // Block browser's default context menu
+        
+        const selection = window.getSelection();
+        const selectedText = selection ? selection.toString() : "";
+        
+        if (selectedText.trim() !== "") {
+          // Windows Cmd Style: Copy selected text on right-click
+          try {
+            await navigator.clipboard.writeText(selectedText);
+            addNotification("System Shell", "Selected text copied to clipboard", "info");
+          } catch (err) {
+            console.error("Failed to copy selected text via right click: ", err);
+          }
+        } else {
+          // Windows Cmd Style: Paste text from clipboard on right-click if no selection
+          try {
+            const clipboardText = await navigator.clipboard.readText();
+            if (clipboardText) {
+              setInput((prev) => prev + clipboardText);
+              // Focus hidden input to allow typing immediately after paste
+              hiddenInputRef.current?.focus();
+            }
+          } catch (err) {
+            console.error("Failed to read from clipboard via right click: ", err);
+          }
+        }
+      }}
     >
       {/* Hidden textarea to capture keyboard inputs */}
       <textarea
