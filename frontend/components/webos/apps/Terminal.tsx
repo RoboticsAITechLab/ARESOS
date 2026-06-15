@@ -483,7 +483,9 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
         break;
 
       case "weather": {
-        const queryCity = args[1] ? args.slice(1).join(" ") : "";
+        let queryCity = args[1] ? args.slice(1).join(" ") : "";
+        // Strip out brackets < >, [ ], ( ), quotes, or spaces that users might type when copying placeholders
+        queryCity = queryCity.trim().replace(/^<|>$/g, "").replace(/^\[|\]$/g, "").replace(/^\(|\)$/g, "").replace(/^"|"$/g, "").replace(/^'|'$/g, "").trim();
         
         // Show loading state immediately to keep UI responsive
         setHistory((prev) => [
