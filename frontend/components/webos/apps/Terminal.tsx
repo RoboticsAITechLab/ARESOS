@@ -32,20 +32,20 @@ const COMMANDS = [
 ];
 
 export default function Terminal({ pid: _pid }: TerminalProps) {
-  const { 
-    currentPath, 
-    listDirectory, 
-    changeDirectory, 
-    readFile, 
-    writeFile, 
-    createDirectory, 
-    deleteNode 
+  const {
+    currentPath,
+    listDirectory,
+    changeDirectory,
+    readFile,
+    writeFile,
+    createDirectory,
+    deleteNode
   } = useFileSystem();
 
-  const { 
-    updateSettings, 
-    addNotification, 
-    currentUser, 
+  const {
+    updateSettings,
+    addNotification,
+    currentUser,
     settings,
     processes,
     windows,
@@ -246,7 +246,7 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
       if (["cd", "cat", "rm", "write", "touch"].includes(cmd)) {
         const argPart = parts[1];
         let nodes = listDirectory();
-        
+
         if (cmd === "cd") {
           nodes = nodes.filter((n) => n.node.type === "directory");
         } else if (cmd === "cat") {
@@ -452,7 +452,7 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
         } else {
           // Strip enclosing symbols if copied verbatim
           const host = args[1].trim().replace(/^<|>$/g, "").replace(/^\[|\]$/g, "").replace(/^\(|\)$/g, "").replace(/^"|"$/g, "").replace(/^'|'$/g, "").trim();
-          
+
           setHistory((prev) => [
             ...prev,
             `${currentUser.username}@aresos:${currentPath}$ ${command}`,
@@ -501,7 +501,7 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
               ""
             ]);
           })();
-          
+
           return;
         }
         break;
@@ -538,7 +538,7 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
         let queryCity = args[1] ? args.slice(1).join(" ") : "";
         // Strip out brackets < >, [ ], ( ), quotes, or spaces that users might type when copying placeholders
         queryCity = queryCity.trim().replace(/^<|>$/g, "").replace(/^\[|\]$/g, "").replace(/^\(|\)$/g, "").replace(/^"|"$/g, "").replace(/^'|'$/g, "").trim();
-        
+
         // Show loading state immediately to keep UI responsive
         setHistory((prev) => [
           ...prev,
@@ -690,7 +690,7 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
             }
             const weatherData = await weatherRes.json();
             const current = weatherData.current;
-            
+
             if (!current) {
               throw new Error("Invalid weather payload");
             }
@@ -736,7 +736,7 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
             ]);
           }
         })();
-        
+
         return;
       }
 
@@ -898,10 +898,10 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
       const isPromptOnly = !line.includes("$ ");
       const promptPart = isPromptOnly ? line : line.split("$ ")[0] + "$";
       const commandPart = isPromptOnly ? "" : line.split("$ ").slice(1).join("$ ");
-      
+
       const userHost = promptPart.split(":")[0];
       const path = promptPart.substring(userHost.length + 1, promptPart.length - 1);
-      
+
       return (
         <div key={idx} className="leading-relaxed min-h-[14px]">
           <span className="text-emerald-400 font-semibold">{userHost}</span>
@@ -933,13 +933,13 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
 
     // Highlight syntax warning/errors
     if (
-      line.startsWith("sh:") || 
-      line.startsWith("cd:") || 
-      line.startsWith("cat:") || 
-      line.startsWith("rm:") || 
-      line.startsWith("mkdir:") || 
-      line.startsWith("touch:") || 
-      line.startsWith("write:") || 
+      line.startsWith("sh:") ||
+      line.startsWith("cd:") ||
+      line.startsWith("cat:") ||
+      line.startsWith("rm:") ||
+      line.startsWith("mkdir:") ||
+      line.startsWith("touch:") ||
+      line.startsWith("write:") ||
       line.startsWith("calc:")
     ) {
       return (
@@ -951,10 +951,10 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
 
     // Highlight headers/commands manual
     if (
-      line.startsWith("====") || 
-      line.startsWith("DIRECTORY / FILE COMMANDS:") || 
-      line.startsWith("SYSTEM COMMANDS:") || 
-      line.startsWith("INTERACTIVE UTILITIES") || 
+      line.startsWith("====") ||
+      line.startsWith("DIRECTORY / FILE COMMANDS:") ||
+      line.startsWith("SYSTEM COMMANDS:") ||
+      line.startsWith("INTERACTIVE UTILITIES") ||
       line.startsWith("SHORTCUTS:") ||
       line.startsWith("Created empty file") ||
       line.startsWith("Written content to") ||
@@ -969,13 +969,13 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
 
     // Uptime or system neofetch layout keys highlight
     if (
-      line.includes("OS:") || 
-      line.includes("Kernel:") || 
-      line.includes("Uptime:") || 
-      line.includes("Host:") || 
-      line.includes("Shell:") || 
-      line.includes("Browser:") || 
-      line.includes("CPU:") || 
+      line.includes("OS:") ||
+      line.includes("Kernel:") ||
+      line.includes("Uptime:") ||
+      line.includes("Host:") ||
+      line.includes("Shell:") ||
+      line.includes("Browser:") ||
+      line.includes("CPU:") ||
       line.includes("Memory:")
     ) {
       const labelMatch = line.match(/(OS|Kernel|Uptime|Host|Shell|Browser|CPU|Memory):/);
@@ -1012,10 +1012,10 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
       }}
       onContextMenu={async (e) => {
         e.preventDefault(); // Block browser's default context menu
-        
+
         const selection = window.getSelection();
         const selectedText = selection ? selection.toString() : "";
-        
+
         if (selectedText.trim() !== "") {
           // Windows Cmd Style: Copy selected text on right-click
           try {
@@ -1053,9 +1053,9 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
 
       {activeProgram === "matrix" ? (
         <div className="w-full h-full relative">
-          <canvas 
-            ref={canvasRef} 
-            className="absolute inset-0 w-full h-full bg-black cursor-pointer" 
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full bg-black cursor-pointer"
             onClick={() => setActiveProgram("none")}
           />
           <div className="absolute top-4 left-4 text-[9px] text-zinc-500 bg-black/75 border border-zinc-800/40 px-2.5 py-1 rounded select-none pointer-events-none tracking-wider font-semibold">
@@ -1076,7 +1076,7 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
               <span>THEME: {settings.theme.toUpperCase()}</span>
             </div>
           </div>
-          
+
           {/* Table of active processes */}
           <div className="flex-1 overflow-y-auto scrollbar-thin">
             <table className="w-full text-left">
@@ -1108,8 +1108,8 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
                   const win = windows.find((w) => w.pid === p.pid);
                   const isFocused = win?.isFocused;
                   return (
-                    <tr 
-                      key={p.pid} 
+                    <tr
+                      key={p.pid}
                       className={isFocused ? "text-white font-bold bg-emerald-500/10" : "text-zinc-300"}
                     >
                       <td className="py-1">{p.pid}</td>
@@ -1154,7 +1154,7 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
               )}
             </span>
             {isFocused && (
-              <span 
+              <span
                 className="inline-block w-1.5 h-3.5 bg-emerald-400 align-middle animate-pulse"
                 style={{ verticalAlign: "middle" }}
               />
