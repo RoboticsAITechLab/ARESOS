@@ -268,7 +268,7 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
 
   const suggestion = getSuggestion();
 
-  const handleCommandExecute = (command: string) => {
+  const handleCommandExecute = async (command: string) => {
     const args = command.trim().split(/\s+/);
     const cmd = args[0].toLowerCase();
     let output: string[] = [];
@@ -482,33 +482,182 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
         }
         break;
 
-      case "weather":
-        const city = args[1] ? args.slice(1).join(" ") : "Quantum City";
-        const temp = 15 + Math.floor(Math.random() * 15);
-        const conditions = ["Clear Sky", "Rainy", "Overcast", "Thunderstorm", "Snowy"][
-          Math.floor(Math.random() * 5)
-        ];
+      case "weather": {
+        const queryCity = args[1] ? args.slice(1).join(" ") : "";
         
-        let ascii = "";
-        if (conditions === "Clear Sky") {
-          ascii = "   \\ _ / \n  - ( ) - \n   /   \\ ";
-        } else if (conditions === "Rainy") {
-          ascii = "   _--_ \n  (    ) \n  / / / ";
-        } else if (conditions === "Thunderstorm") {
-          ascii = "   _--_ \n  (    ) \n  ⚡⚡⚡ ";
-        } else {
-          ascii = "   _--_ \n  (    ) \n  (____) ";
-        }
+        // Show loading state immediately to keep UI responsive
+        setHistory((prev) => [
+          ...prev,
+          `${currentUser.username}@aresos:${currentPath}$ ${command}`,
+          "📡 Initiating connection with orbital weather satellites...",
+          "🛰️ Resolving location coordinates...",
+          ""
+        ]);
+
+        const getWeatherCondition = (code: number): { condition: string; ascii: string } => {
+          if (code === 0) {
+            return {
+              condition: "Clear Sky ☀️",
+              ascii: "      \\   /\n       .-.\n    ― (   ) ―\n       `-’\n      /   \\"
+            };
+          }
+          if (code === 1) {
+            return {
+              condition: "Mainly Clear 🌤️",
+              ascii: "      \\   /\n       .-.\n    ― (   ) ―\n       `-’\n      /   \\"
+            };
+          }
+          if (code === 2) {
+            return {
+              condition: "Partly Cloudy ⛅",
+              ascii: "      \\   /\n    _ /.-.\n   ( (   )\n    (______)"
+            };
+          }
+          if (code === 3) {
+            return {
+              condition: "Overcast ☁️",
+              ascii: "      .--.\n   .-(    ).\n  (___.___)__)"
+            };
+          }
+          if ([45, 48].includes(code)) {
+            return {
+              condition: "Foggy 🌫️",
+              ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n  ════════════"
+            };
+          }
+          if ([51, 53, 55, 56, 57].includes(code)) {
+            return {
+              condition: "Drizzle 🌧️",
+              ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n   '  '  '  '\n  '  '  '  '"
+            };
+          }
+          if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) {
+            return {
+              condition: "Rainy / Showers 🌧️",
+              ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n   / / / / /\n  / / / / /"
+            };
+          }
+          if ([71, 73, 75, 77, 85, 86].includes(code)) {
+            return {
+              condition: "Snowy ❄️",
+              ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n   *  *  *  *\n  *  *  *  *"
+            };
+          }
+          if ([95, 96, 99].includes(code)) {
+            return {
+              condition: "Thunderstorm ⚡",
+              ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n    ⚡ ⚡ ⚡ ⚡\n   / / / / /"
+            };
+          }
+          return {
+            condition: "Cloudy",
+            ascii: "      .--.\n   .-(    ).\n  (___.___)__)"
+          };
+        };
+
+        const getWindDirectionStr = (deg: number): string => {
+          const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+          const index = Math.round(((deg % 360) / 22.5)) % 16;
+          return directions[index];
+        };
+
+        // Self-invoking async function to handle the geolocation and weather fetches
+        (async () => {
+          try {
+            let lat = 28.6139;
+            let lon = 77.2090;
+            let resolvedCity = "New Delhi";
+            let resolvedCountry = "India";
+            let resolvedTimezone = "Asia/Kolkata";
+
+            if (queryCity) {
+              const geoRes = await fetch(
+                `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(queryCity)}&count=1&language=en`
+              );
+              if (!geoRes.ok) {
+                throw new Error("Geocoding failed");
+              }
+              const geoData = await geoRes.json();
+              if (!geoData.results || geoData.results.length === 0) {
+                setHistory((prev) => [
+                  ...prev,
+                  `weather: city '${queryCity}' could not be resolved by satellite networks.`,
+                  ""
+                ]);
+                return;
+              }
+              const location = geoData.results[0];
+              lat = location.latitude;
+              lon = location.longitude;
+              resolvedCity = location.name;
+              resolvedCountry = location.country || "";
+              resolvedTimezone = location.timezone || "auto";
+            } else {
+              try {
+                const ipRes = await fetch("https://ipapi.co/json/");
+                if (ipRes.ok) {
+                  const ipData = await ipRes.json();
+                  if (ipData.latitude && ipData.longitude) {
+                    lat = ipData.latitude;
+                    lon = ipData.longitude;
+                    resolvedCity = ipData.city || "Detected City";
+                    resolvedCountry = ipData.country_name || "";
+                    resolvedTimezone = ipData.timezone || "auto";
+                  }
+                }
+              } catch (ipErr) {
+                console.warn("IP geolocation failed, falling back to default.", ipErr);
+              }
+            }
+
+            const weatherRes = await fetch(
+              `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m&timezone=auto`
+            );
+            if (!weatherRes.ok) {
+              throw new Error("Weather request failed");
+            }
+            const weatherData = await weatherRes.json();
+            const current = weatherData.current;
+            
+            if (!current) {
+              throw new Error("Invalid weather payload");
+            }
+
+            const { condition, ascii } = getWeatherCondition(current.weather_code);
+            const windDir = getWindDirectionStr(current.wind_direction_10m);
+
+            const telemetryOutput = [
+              `WEATHER TELEMETRY REPORT: ${resolvedCity.toUpperCase()}${resolvedCountry ? `, ${resolvedCountry.toUpperCase()}` : ""}`,
+              `Coordinates: ${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E | Timezone: ${resolvedTimezone}`,
+              `----------------------------------------------------------------------`,
+              `Condition: ${condition}`,
+              `Temperature: ${current.temperature_2m}°C (Feels like: ${current.apparent_temperature}°C)`,
+              `Humidity: ${current.relative_humidity_2m}% | Cloud Cover: ${current.cloud_cover}%`,
+              `Wind Speed: ${current.wind_speed_10m} km/h (Direction: ${current.wind_direction_10m}° ${windDir})`,
+              `Precipitation: ${current.precipitation} mm`,
+              `----------------------------------------------------------------------`,
+              `ASCII Satellite Visualization:`,
+              ascii,
+              `----------------------------------------------------------------------`
+            ];
+
+            setHistory((prev) => [
+              ...prev,
+              ...telemetryOutput,
+              ""
+            ]);
+          } catch (err) {
+            console.error(err);
+            setHistory((prev) => [
+              ...prev,
+              "weather: orbital telemetry fetch encountered a connection error.",
+              ""
+            ]);
+          }
+        })();
         
-        output = [
-          `Weather Report telemetry for: ${city}`,
-          `Condition: ${conditions}`,
-          `Temperature: ${temp}°C`,
-          "",
-          ascii,
-          "",
-        ];
-        break;
+        return;
+      }
 
       default:
         output = [`sh: command not found: ${cmd}. Type 'help' for command list.`];
