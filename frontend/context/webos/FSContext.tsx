@@ -2,6 +2,7 @@
 
 import React, { createContext, useState, ReactNode } from "react";
 import { FSDirectory, FSNode, FSFile } from "@/types/webos/fs";
+import { useOS } from "@/hooks/webos/useOS";
 
 interface FSContextType {
   root: FSDirectory;
@@ -16,6 +17,7 @@ interface FSContextType {
   copyNode: (paths: string[], mode: "copy" | "cut") => void;
   pasteNode: (targetDirPath: string) => boolean;
   renameNode: (nodePath: string, newName: string) => boolean;
+  formatFileSystem: () => void;
 }
 
 export const FSContext = createContext<FSContextType | undefined>(undefined);
@@ -105,6 +107,8 @@ const INITIAL_FS: FSDirectory = {
 };
 
 export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { settings, addNotification } = useOS();
+
   const [root, setRoot] = useState<FSDirectory>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -119,6 +123,31 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     return INITIAL_FS;
   });
   const [currentPath, setCurrentPath] = useState<string>("/home/user");
+
+  const calculateFolderSize = (node: FSNode): number => {
+    if (node.type === "file") {
+      return typeof node.content === "string" ? node.content.length : 0;
+    }
+    if (node.type === "directory" && node.children) {
+      return Object.values(node.children).reduce(
+        (sum, child) => sum + calculateFolderSize(child),
+        0
+      );
+    }
+    return 0;
+  };
+
+  const formatFileSystem = () => {
+    setRoot(INITIAL_FS);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      localStorage.removeItem("aresos_todo_items");
+      localStorage.removeItem("aresos_calendar_events");
+      localStorage.removeItem("aresos_browser_bookmarks");
+      localStorage.removeItem("aresos_terminal_history");
+      localStorage.removeItem("aresos_notification_goals");
+    }
+  };
 
   // Save to localStorage on changes
   const saveFileSystem = (newRoot: FSDirectory) => {
@@ -198,6 +227,18 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         size: content.length,
         extension: ext,
       };
+
+      // Check storage allocation limit
+      const newSize = calculateFolderSize(newRoot);
+      const limitBytes = (settings?.maxStorageAllocation || 64) * 1024 * 1024;
+      if (newSize > limitBytes) {
+        addNotification(
+          "Storage Limit Exceeded",
+          `Cannot write file. Virtual filesystem size would exceed allocation limit of ${settings?.maxStorageAllocation || 64} MB.`,
+          "error"
+        );
+        return false;
+      }
 
       saveFileSystem(newRoot);
       return true;
@@ -372,6 +413,18 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     });
 
     if (successCount > 0) {
+      // Check storage allocation limit before saving
+      const newSize = calculateFolderSize(newRoot);
+      const limitBytes = (settings?.maxStorageAllocation || 64) * 1024 * 1024;
+      if (newSize > limitBytes) {
+        addNotification(
+          "Storage Limit Exceeded",
+          `Cannot paste items. Virtual filesystem size would exceed allocation limit of ${settings?.maxStorageAllocation || 64} MB.`,
+          "error"
+        );
+        return false;
+      }
+
       saveFileSystem(newRoot);
       if (clipboard.mode === "cut") {
         setClipboard(null);
@@ -423,6 +476,7 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         copyNode,
         pasteNode,
         renameNode,
+        formatFileSystem,
       }}
     >
       {children}

@@ -203,7 +203,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             Control Center
           </div>
 
-          {/* Volume Slider */}
+          {/* Volume Slider
           <div className="space-y-1">
             <div className={`flex justify-between text-[11px] font-medium ${theme === 'light' ? 'text-slate-700' : 'text-zinc-300'}`}>
               <span>System Volume</span>
@@ -220,7 +220,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           </div>
 
           {/* Brightness Slider */}
-          <div className="space-y-1">
+          {/* <div className="space-y-1">
             <div className={`flex justify-between text-[11px] font-medium ${theme === 'light' ? 'text-slate-700' : 'text-zinc-300'}`}>
               <span>Display Brightness</span>
               <span className={`font-mono ${labelThemeClasses}`}>{settings.brightness}%</span>
@@ -233,8 +233,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               onChange={(e) => updateSettings({ brightness: parseInt(e.target.value) })}
               className="w-full accent-indigo-500 h-1 bg-zinc-800 rounded-lg cursor-pointer appearance-none"
             />
-          </div>
-        </div>
+          </div> */}
+        </div> 
 
         {/* Widget 2: Focus Timer (Pomodoro Widget) */}
         <div className={`p-3.5 rounded-xl flex items-center justify-between border ${widgetThemeClasses}`}>

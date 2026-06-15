@@ -13,7 +13,7 @@ type SettingsTab = "appearance" | "wallpaper" | "profile" | "storage" | "about";
 
 export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
   const { settings, updateSettings, currentUser, updateUser, addNotification } = useOS();
-  const { root } = useFileSystem();
+  const { root, formatFileSystem } = useFileSystem();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
   
@@ -23,6 +23,9 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
   // Custom Wallpapers States
   const [customWallpaperUrl, setCustomWallpaperUrl] = useState("");
   const [customGradient, setCustomGradient] = useState("");
+  const [gradColorStart, setGradColorStart] = useState("#8b5cf6");
+  const [gradColorEnd, setGradColorEnd] = useState("#ec4899");
+  const [gradAngle, setGradAngle] = useState(135);
 
   const [vfsBytes, setVfsBytes] = useState(0);
   const [clientSpecs, setClientSpecs] = useState({
@@ -117,7 +120,7 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
 
   const handleWipeStorage = () => {
     if (confirm("WARNING: This will delete all virtual files, folders, notepad entries, and reset to defaults. Proceed?")) {
-      localStorage.removeItem("aresos_vfs_root");
+      formatFileSystem();
       addNotification("System Partitions", "Disk formatted. Resetting workspace...", "warning");
       setTimeout(() => {
         window.location.reload();
@@ -133,10 +136,12 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
     { id: "about" as const, label: "ℹ️ System About" },
   ];
 
+  const theme = settings?.theme || "dark";
+
   return (
-    <div className="w-full h-full flex bg-zinc-900 text-zinc-300 select-none font-sans overflow-hidden">
+    <div className={`w-full h-full flex select-none font-sans overflow-hidden ${theme === "light" ? "bg-slate-100 text-slate-800" : "bg-zinc-900/40 text-zinc-300"}`}>
       {/* Left Sidebar Menu */}
-      <div className="w-44 bg-zinc-950/40 border-r border-zinc-800/60 p-4 space-y-1.5 flex-shrink-0">
+      <div className={`w-44 border-r p-4 space-y-1.5 flex-shrink-0 ${theme === "light" ? "bg-slate-200/50 border-slate-350" : "bg-zinc-950/40 border-zinc-855"}`}>
         <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider block px-3 mb-2.5">
           System Control
         </span>
@@ -146,8 +151,8 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
             onClick={() => setActiveTab(tab.id)}
             className={`w-full text-left text-xs px-3 py-2 rounded-xl cursor-pointer transition-all ${
               activeTab === tab.id
-                ? "bg-indigo-600/30 text-indigo-200 font-semibold border border-indigo-500/20"
-                : "hover:bg-zinc-800/50 text-zinc-355 border border-transparent"
+                ? (theme === "light" ? "bg-indigo-600 text-white font-semibold" : "bg-indigo-600/30 text-indigo-200 font-semibold border border-indigo-500/20")
+                : (theme === "light" ? "hover:bg-slate-200 text-slate-700" : "hover:bg-zinc-800/50 text-zinc-355")
             }`}
           >
             {tab.label}
@@ -161,11 +166,11 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
         {/* Appearance Tab: System Themes & Controls */}
         {activeTab === "appearance" && (
           <div className="space-y-4">
-            <h3 className="text-sm font-bold border-b border-zinc-850 pb-2 text-zinc-200">
+            <h3 className={`text-sm font-bold border-b pb-2 ${theme === "light" ? "border-slate-200 text-slate-900" : "border-zinc-850 text-zinc-200"}`}>
               System Themes & Hardware Controls
             </h3>
             
-            <div className="bg-zinc-950/30 border border-zinc-850 p-4 rounded-xl space-y-4">
+            <div className={`p-4 rounded-xl space-y-4 border ${theme === "light" ? "bg-white border-slate-200" : "bg-zinc-950/30 border-zinc-850"}`}>
               <div className="space-y-2">
                 <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Themes Manager</span>
                 <div className="grid grid-cols-2 gap-2">
@@ -181,7 +186,7 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
                         className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg border text-xs font-semibold capitalize transition cursor-pointer ${
                           isActive
                             ? "bg-indigo-600/25 border-indigo-500 text-indigo-200"
-                            : "bg-zinc-950/20 border-zinc-800/60 hover:border-zinc-700 text-zinc-400"
+                            : (theme === "light" ? "bg-slate-50 border-slate-200 hover:border-slate-300 text-slate-600" : "bg-zinc-955/20 border-zinc-800/60 hover:border-zinc-700 text-zinc-400")
                         }`}
                       >
                         <span>{t}</span>
@@ -192,40 +197,7 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
                 </div>
               </div>
 
-              {/* Sliders in settings */}
-              <div className="border-t border-zinc-850/40 pt-4.5 space-y-4">
-                {/* Volume Slider */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-medium text-zinc-300">
-                    <span>System Master Volume</span>
-                    <span className="font-mono text-indigo-400">{settings.volume}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={settings.volume}
-                    onChange={(e) => updateSettings({ volume: parseInt(e.target.value) })}
-                    className="w-full accent-indigo-500 h-1 bg-zinc-800 rounded-lg cursor-pointer appearance-none"
-                  />
-                </div>
 
-                {/* Brightness Slider */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-medium text-zinc-300">
-                    <span>Display Screen Brightness</span>
-                    <span className="font-mono text-indigo-400">{settings.brightness}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="10"
-                    max="100"
-                    value={settings.brightness}
-                    onChange={(e) => updateSettings({ brightness: parseInt(e.target.value) })}
-                    className="w-full accent-indigo-500 h-1 bg-zinc-800 rounded-lg cursor-pointer appearance-none"
-                  />
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -282,6 +254,7 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
                       : undefined,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
+                    filter: `brightness(${settings.wallpaperBrightness ?? 100}%)`,
                   }}
                 >
                   <div className="flex justify-between items-center bg-black/50 backdrop-blur-xxs rounded px-1.5 py-0.5 text-[5px] text-white/80 select-none">
@@ -301,8 +274,26 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
             <div className="bg-zinc-950/30 border border-zinc-850 p-4 rounded-xl space-y-4 mt-2">
               <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider block">Set Custom Desktop Background</span>
               
+              {/* Wallpaper Brightness Dimmer */}
+              <div className="space-y-1.5 pb-2">
+                <div className="flex justify-between text-xs font-semibold text-zinc-300">
+                  <span>Wallpaper Brightness Dimmer</span>
+                  <span className="font-mono text-indigo-400">{settings.wallpaperBrightness ?? 100}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  value={settings.wallpaperBrightness ?? 100}
+                  onChange={(e) => {
+                    updateSettings({ wallpaperBrightness: parseInt(e.target.value) });
+                  }}
+                  className="w-full accent-indigo-500 h-1 bg-zinc-800 rounded-lg cursor-pointer appearance-none"
+                />
+              </div>
+
               {/* Form 1: Image URL */}
-              <form onSubmit={handleApplyCustomUrl} className="space-y-1.5">
+              <form onSubmit={handleApplyCustomUrl} className="space-y-1.5 border-t border-zinc-850/45 pt-3.5">
                 <label className="text-[9px] text-zinc-400 font-medium">Custom Image URL (Unsplash, Imgur, etc.)</label>
                 <div className="flex gap-2">
                   <input
@@ -312,7 +303,7 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
                     onChange={(e) => setCustomWallpaperUrl(e.target.value)}
                     className="flex-1 bg-zinc-900 border border-zinc-850 focus:border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-200 outline-none transition"
                   />
-           -       <button
+                  <button
                     type="submit"
                     className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white rounded-lg transition cursor-pointer"
                   >
@@ -322,22 +313,105 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
               </form>
 
               {/* Form 2: CSS Gradient string */}
-              <form onSubmit={handleApplyCustomGradient} className="space-y-1.5 border-t border-zinc-850/45 pt-3.5">
-                <label className="text-[9px] text-zinc-400 font-medium">Custom CSS Linear Gradient Code</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="linear-gradient(135deg, #ff007f 0%, #00f0ff 100%)"
-                    value={customGradient}
-                    onChange={(e) => setCustomGradient(e.target.value)}
-                    className="flex-1 bg-zinc-900 border border-zinc-850 focus:border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-200 outline-none transition"
-                  />
-                  <button
-                    type="submit"
-                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white rounded-lg transition cursor-pointer"
+              <form onSubmit={handleApplyCustomGradient} className="space-y-2 border-t border-zinc-850/45 pt-3.5">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Custom Gradient Builder</label>
+                  <span className="text-[8px] text-zinc-500 font-mono">Select colors & angle dynamically</span>
+                </div>
+                
+                {/* Advanced Builder controls */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-zinc-950/45 border border-zinc-850/80 rounded-xl">
+                  {/* Start Color picker */}
+                  <div className="space-y-1">
+                    <span className="text-[9px] text-zinc-500 font-bold uppercase block">Start Color</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={gradColorStart}
+                        onChange={(e) => setGradColorStart(e.target.value)}
+                        className="w-7 h-7 rounded border border-zinc-800 bg-transparent cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={gradColorStart}
+                        onChange={(e) => setGradColorStart(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-850 focus:border-zinc-700 rounded-md px-2 py-1 text-[10px] font-mono text-zinc-250 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* End Color picker */}
+                  <div className="space-y-1">
+                    <span className="text-[9px] text-zinc-500 font-bold uppercase block">End Color</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={gradColorEnd}
+                        onChange={(e) => setGradColorEnd(e.target.value)}
+                        className="w-7 h-7 rounded border border-zinc-800 bg-transparent cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={gradColorEnd}
+                        onChange={(e) => setGradColorEnd(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-850 focus:border-zinc-700 rounded-md px-2 py-1 text-[10px] font-mono text-zinc-250 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Gradient Angle */}
+                  <div className="space-y-1">
+                    <span className="text-[9px] text-zinc-500 font-bold uppercase block">Angle ({gradAngle}°)</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="360"
+                      value={gradAngle}
+                      onChange={(e) => setGradAngle(parseInt(e.target.value))}
+                      className="w-full accent-indigo-500 h-1 bg-zinc-800 rounded cursor-pointer mt-2"
+                    />
+                  </div>
+                </div>
+
+                {/* Preview and Apply section */}
+                <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                  <div 
+                    className="h-8 flex-1 rounded-lg border border-zinc-850/80 flex items-center justify-center font-mono text-[9px] text-white font-bold tracking-wider shadow" 
+                    style={{ background: `linear-gradient(${gradAngle}deg, ${gradColorStart} 0%, ${gradColorEnd} 100%)` }}
                   >
-                    Apply Gradient
+                    BUILDER PREVIEW
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const grad = `linear-gradient(${gradAngle}deg, ${gradColorStart} 0%, ${gradColorEnd} 100%)`;
+                      updateSettings({ wallpaperUrlOrGradient: grad });
+                      addNotification("Wallpaper Manager", "Applied custom generated gradient.", "success");
+                    }}
+                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white rounded-lg transition cursor-pointer shadow-md shadow-indigo-600/10"
+                  >
+                    Apply Builder Gradient
                   </button>
+                </div>
+
+                {/* Raw gradient CSS fallback input */}
+                <div className="space-y-1 border-t border-zinc-850/30 pt-3 mt-3">
+                  <label className="text-[9px] text-zinc-500 font-semibold block">Or paste custom CSS Linear Gradient Code</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="linear-gradient(135deg, #ff007f 0%, #00f0ff 100%)"
+                      value={customGradient}
+                      onChange={(e) => setCustomGradient(e.target.value)}
+                      className="flex-1 bg-zinc-900 border border-zinc-850 focus:border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-200 outline-none transition"
+                    />
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 bg-zinc-850 hover:bg-zinc-800 text-xs font-semibold text-zinc-355 hover:text-white border border-zinc-800 hover:border-zinc-700 rounded-lg transition cursor-pointer"
+                    >
+                      Apply Code
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>

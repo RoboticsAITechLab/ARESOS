@@ -69,8 +69,8 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
   const [pingIp, setPingIp] = useState("");
 
   // Top states
-  const [mockCpu, setMockCpu] = useState(14);
-  const [mockRam, setMockRam] = useState(3840);
+  const [cpuLoad, setCpuLoad] = useState(5);
+  const [ramUsage, setRamUsage] = useState(3500);
 
   // Command history logs (for Up/Down arrows scroll)
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
@@ -151,17 +151,41 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
     return () => clearInterval(interval);
   }, [activeProgram, pingTarget, pingIp]);
 
+  // Helper to query real JS memory heap values or estimated browser VFS allocation
+  const getRealMemory = () => {
+    if (typeof window !== "undefined" && (window.performance as any)?.memory) {
+      const mem = (window.performance as any).memory;
+      const used = Math.round(mem.usedJSHeapSize / (1024 * 1024));
+      const total = Math.round(mem.jsHeapSizeLimit / (1024 * 1024));
+      return { used, total };
+    }
+    const deviceMemoryGb = (typeof navigator !== "undefined" ? ((navigator as any).deviceMemory || 8) : 8);
+    const total = deviceMemoryGb * 1024;
+    const used = 400 + (windows.length * 150) + Math.floor(Math.random() * 50);
+    return { used, total };
+  };
+
   // Top stats updater effect
   useEffect(() => {
     if (activeProgram !== "top") return;
 
-    const interval = setInterval(() => {
-      setMockCpu(Math.floor(10 + Math.random() * 15));
-      setMockRam(Math.floor(3500 + Math.random() * 700));
-    }, 1000);
+    const getRealStats = () => {
+      // Calculate realistic CPU based on active windows/processes
+      const activeWins = windows.length;
+      const activeProcs = processes.length;
+      const baseCpu = 2 + (activeWins * 2) + (activeProcs * 1.5);
+      const randCpu = Math.floor(Math.random() * 4);
+      setCpuLoad(Math.min(99, Math.round(baseCpu + randCpu)));
+
+      const mem = getRealMemory();
+      setRamUsage(mem.used);
+    };
+
+    getRealStats();
+    const interval = setInterval(getRealStats, 1000);
 
     return () => clearInterval(interval);
-  }, [activeProgram]);
+  }, [activeProgram, windows, processes]);
 
   // Matrix digital rain canvas renderer effect
   useEffect(() => {
@@ -433,18 +457,23 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
         }
         break;
 
-      case "neofetch":
+      case "neofetch": {
+        const cpuCores = typeof navigator !== "undefined" ? (navigator.hardwareConcurrency || 8) : 8;
+        const memoryDetails = getRealMemory();
+        const browserName = typeof navigator !== "undefined" ? (navigator.userAgent.includes("Chrome") ? "Chrome" : navigator.userAgent.includes("Firefox") ? "Firefox" : "Safari/WebKit") : "WebKit";
+        
         output = [
           "    /\\_/\\          OS: ARESOS WebOS v1.2.0",
           "   ( o.o )         Kernel: Next.js 16 Client-side Runtime",
           "    > ^ <          Uptime: " + getUptimeString(),
           "   /     \\         Host: Advanced AI Agent Interface",
           "  (       )        Shell: custom ares-bash emulator",
-          "   `-^-^-'         Browser: Chrome/WebKit Engine",
-          "                   CPU: Mock Intel i9-16900K @ 5.2GHz",
-          "                   Memory: 3500MB / 8000MB (VFS Mode)",
+          "   `-^-^-'         Browser: " + browserName,
+          "                   CPU: AMD/Intel Host Cores (" + cpuCores + " Threads)",
+          "                   Memory: " + memoryDetails.used + "MB / " + memoryDetails.total + "MB (JS Heap Mode)",
         ];
         break;
+      }
 
       case "ping": {
         if (!args[1]) {
@@ -1071,8 +1100,8 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
               <span>UPTIME: {getUptimeString()}</span>
             </div>
             <div className="flex gap-6 mt-1 text-zinc-300 font-semibold text-[10px]">
-              <span>CPU: {mockCpu}%</span>
-              <span>RAM: {mockRam}MB / 8192MB</span>
+              <span>CPU: {cpuLoad}%</span>
+              <span>RAM: {ramUsage}MB / {getRealMemory().total}MB</span>
               <span>THEME: {settings.theme.toUpperCase()}</span>
             </div>
           </div>

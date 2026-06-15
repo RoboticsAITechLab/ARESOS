@@ -20,5 +20,6 @@ export interface SystemSettings {
   wallpaperUrlOrGradient: string;
   volume: number; // 0 to 100
   brightness: number; // 0 to 100
+  wallpaperBrightness?: number; // 10 to 100
   maxStorageAllocation?: number; // In MB
 }

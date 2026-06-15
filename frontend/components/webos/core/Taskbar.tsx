@@ -145,7 +145,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
                 dotClasses += "bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)] scale-110";
               }
             } else {
-              dotClasses += theme === "light" ? "bg-slate-400" : "bg-zinc-500";
+              dotClasses += theme === "light" ? "bg-slate-400" :"bg-zinc-500";
             }
           }
 

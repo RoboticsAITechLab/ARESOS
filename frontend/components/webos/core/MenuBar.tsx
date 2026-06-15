@@ -87,15 +87,32 @@ export const MenuBar: React.FC = () => {
   };
 
   // Natively Toggle Browser Fullscreen
-  const toggleFullscreen = () => {
+  // const toggleFullscreen = () => {
+  //   if (!document.fullscreenElement) {
+  //     document.documentElement.requestFullscreen().catch((err) => {
+  //       console.error("Error attempting to enable fullscreen:", err);
+  //     });
+  //   } else {
+  //     document.exitFullscreen();
+  //   }
+  // };
+
+
+  const toggleFullscreen = async () => {
+  try {
+    console.log("Fullscreen Clicked");
+
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch((err) => {
-        console.error("Error attempting to enable fullscreen:", err);
-      });
+      await document.documentElement.requestFullscreen();
+      console.log("Entered Fullscreen");
     } else {
-      document.exitFullscreen();
+      await document.exitFullscreen();
+      console.log("Exited Fullscreen");
     }
-  };
+  } catch (err) {
+    console.error("Fullscreen Error:", err);
+  }
+};
 
   // Cycle global OS themes
   const cycleTheme = () => {
@@ -297,7 +314,7 @@ export const MenuBar: React.FC = () => {
                   onClick={() => addNotification("ARES Help", "ARES OS shell emulator supports ls, cd, mkdir, rm, weather, ping and top commands. Tap dock icons to launch applications.", "info")}
                   className="w-full text-left px-3 py-1.5 hover:bg-white/10 rounded flex items-center gap-2 transition duration-100"
                 >
-                  <span>📖</span> Quick Start Manual
+                  {/* <span>📖</span> Quick Start Manual */}
                 </button>
                 <a 
                   href="https://github.com/RoboticsAITechLab/ARESOS" 

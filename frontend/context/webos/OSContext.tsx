@@ -5,6 +5,8 @@ import { Process } from "@/types/webos/process";
 import { WindowInstance } from "@/types/webos/window";
 import { SystemNotification, SystemSettings, SystemUser } from "@/types/webos/system";
 import { getAppConfig } from "@/config/webos/apps.config";
+import { playNotificationSound } from "@/utils/webos/audio";
+
 
 interface OSContextType {
   processes: Process[];
@@ -53,6 +55,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     wallpaperUrlOrGradient: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)",
     volume: 80,
     brightness: 90,
+    wallpaperBrightness: 80,
     maxStorageAllocation: 64,
   });
 
@@ -231,32 +234,55 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   // Minimize Window
   const minimizeWindow = (pid: string) => {
-    setWindows((prev) =>
-      prev.map((w) => {
+    setWindows((prev) => {
+      const targetWin = prev.find((w) => w.pid === pid);
+      if (!targetWin) return prev;
+
+      const willBeMinimized = !targetWin.isMinimized;
+      let nextActivePid = activePid;
+
+      if (willBeMinimized) {
+        // We are minimizing this window.
+        // If it was the active window, we must find the next window to focus.
+        if (activePid === pid) {
+          const remaining = prev.filter((w) => w.pid !== pid && !w.isMinimized);
+          if (remaining.length > 0) {
+            const sorted = [...remaining].sort((a, b) => b.zIndex - a.zIndex);
+            nextActivePid = sorted[0].pid;
+          } else {
+            nextActivePid = null;
+          }
+        }
+      } else {
+        // We are restoring/unminimizing this window, so it becomes the active window.
+        nextActivePid = pid;
+      }
+
+      // Update active PID in state
+      if (nextActivePid !== activePid) {
+        setActivePid(nextActivePid);
+      }
+
+      const nextZ = !willBeMinimized ? maxZIndex + 1 : maxZIndex;
+      if (!willBeMinimized) {
+        setMaxZIndex(nextZ);
+      }
+
+      return prev.map((w) => {
         if (w.pid === pid) {
-          const isMin = !w.isMinimized;
           return {
             ...w,
-            isMinimized: isMin,
-            isFocused: isMin ? false : true,
+            isMinimized: willBeMinimized,
+            isFocused: !willBeMinimized, // Focused only if we restored it.
+            zIndex: !willBeMinimized ? nextZ : w.zIndex,
           };
         }
-        return w;
-      })
-    );
-
-    if (activePid === pid) {
-      // Find next focused window
-      const remaining = windows.filter((w) => w.pid !== pid && !w.isMinimized);
-      if (remaining.length > 0) {
-        const sorted = [...remaining].sort((a, b) => b.zIndex - a.zIndex);
-        setActivePid(sorted[0].pid);
-      } else {
-        setActivePid(null);
-      }
-    } else {
-      focusWindow(pid);
-    }
+        return {
+          ...w,
+          isFocused: w.pid === nextActivePid,
+        };
+      });
+    });
   };
 
   // Maximize Window
@@ -316,6 +342,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       read: false,
     };
     setNotifications((prev) => [newNotif, ...prev]);
+    playNotificationSound((settings.volume ?? 80) / 100);
   };
 
   const markNotificationAsRead = (id: string) => {

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useOS } from "@/hooks/webos/useOS";
 import { playScanSound, playSuccessSound } from "@/utils/webos/audio";
+import { Karla_Tamil_Inclined } from "next/font/google";
 
 interface LoginScreenProps {
   onSuccess: () => void;
@@ -289,11 +290,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
           </div>
         </div>
       </div>
-
-      {/* Small floating warning label at the very bottom */}
-      <div className="absolute bottom-6 text-[9px] text-cyan-800 text-center select-none z-10">
-        WARNING: UNAUTHORIZED ATTEMPTS WILL TRIGGER A KERNEL PANIC LOCKDOWN COOLDOWN PROTOCOL.
-      </div>
     </div>
+
   );
 };

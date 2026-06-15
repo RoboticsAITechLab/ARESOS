@@ -362,17 +362,23 @@ export const Desktop: React.FC = () => {
     <div
       id="desktop-backdrop"
       onContextMenu={(e) => handleContextMenu(e, null)}
-      style={{
-        backgroundImage: settings.wallpaperUrlOrGradient,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-      className="flex-1 w-full h-full relative overflow-hidden p-6 select-none"
+      className="flex-1 w-full h-full relative overflow-hidden p-6 select-none bg-zinc-950"
     >
+      {/* Exclusive wallpaper background layer with brightness filter */}
+      <div 
+        className="absolute inset-0 z-0 transition-all duration-300 pointer-events-none"
+        style={{
+          backgroundImage: settings.wallpaperUrlOrGradient,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          filter: `brightness(${settings.wallpaperBrightness ?? 100}%)`,
+        }}
+      />
+
       {/* Grid of Desktop Files/Folders Shortcuts */}
       <div
         id="desktop-grid"
-        className="absolute top-6 left-6 bottom-16 right-6 grid grid-flow-col auto-cols-[100px] grid-rows-[repeat(auto-fill,100px)] gap-4 justify-start items-start pointer-events-none"
+        className="absolute top-6 left-6 bottom-16 right-6 grid grid-flow-col auto-cols-[100px] grid-rows-[repeat(auto-fill,100px)] gap-4 justify-start items-start pointer-events-none z-10"
       >
         {/* Default App Shortcuts */}
         {REGISTERED_APPS.map((app) => (

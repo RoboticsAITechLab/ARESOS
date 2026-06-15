@@ -117,7 +117,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
         top: 0,
         left: 0,
         right: 0,
-        bottom: "48px", // taskbar height
+        bottom: "76px", // clear floating Dock/Taskbar height (with margin)
         zIndex: windowState.zIndex,
         transformOrigin: "bottom center",
         transition: isTransitioning
@@ -200,7 +200,10 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
         <div className="flex items-center gap-2">
           {/* Minimize */}
           <button
-            onClick={() => minimizeWindow(windowState.pid)}
+            onClick={(e) => {
+              e.stopPropagation();
+              minimizeWindow(windowState.pid);
+            }}
             className="w-3.5 h-3.5 rounded-full bg-yellow-500/80 hover:bg-yellow-500 flex items-center justify-center transition-colors cursor-pointer text-[9px] text-yellow-950 font-bold select-none"
             title="Minimize"
           >
@@ -209,7 +212,10 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
           
           {/* Maximize */}
           <button
-            onClick={() => maximizeWindow(windowState.pid)}
+            onClick={(e) => {
+              e.stopPropagation();
+              maximizeWindow(windowState.pid);
+            }}
             className="w-3.5 h-3.5 rounded-full bg-green-500/80 hover:bg-green-500 flex items-center justify-center transition-colors cursor-pointer text-[8px] text-green-950 font-bold select-none"
             title="Maximize"
           >
@@ -218,7 +224,10 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
 
           {/* Close */}
           <button
-            onClick={() => terminateApp(windowState.pid)}
+            onClick={(e) => {
+              e.stopPropagation();
+              terminateApp(windowState.pid);
+            }}
             className="w-3.5 h-3.5 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center transition-colors cursor-pointer text-[9px] text-red-950 font-bold select-none"
             title="Close"
           >
