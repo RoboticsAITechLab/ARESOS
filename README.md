@@ -143,7 +143,21 @@ ARESOS includes built-in desktop themes that can be selected in the Settings das
 *   **Midnight Aurora:** Emerald sweeps and dark violet nodes.
 *   **Neon Neon:** High contrast violet gradients.
 
----
+## 👥 Collaborative Development & Contribution Transparency
 
-Developed by **Ankit Kumar** // *Mission Control for St
-udents*
+ARESOS is a collaborative product designed by human ingenuity and developed with AI coding support.
+
+### 🎨 Product Design, Architecture & Vision (Human)
+*   **Concept & Theme:** Conceptualization of the advanced student mission control dashboard and sci-fi visual direction.
+*   **Feature Curation:** Selecting and planning features (VFS structure, Web Audio synthesis ideas, layout controls).
+*   **User Interface (UI/UX):** Establishing the glassmorphic aesthetics, layouts, and theme parameters.
+*   **Final Implementation Decisions:** Directing layout integrations, setting priorities, testing, and deployment setup.
+*   *Designed and Directed by:* **Ankit Kumar** // *Mission Control for Students*
+
+### 💻 AI-Assisted Engineering (AI)
+*   **Code Generation Assistance:** Bootstrapping React component structures, styling layouts, and handling utility functions.
+*   **Virtual File System (VFS) Logic:** Writing tree nodes traversals, path parsing, and local storage state persistence.
+*   **Procedural Audio Synthesizer:** Configuring Web Audio API node pathways, ramps, filters, and chord frequencies.
+*   **Terminal & Parser:** Building command interpreters, ping resolvers, auto-completers, and weather integrations.
+*   **Refactoring & Bug Fixes:** Cleaning TypeScript types, optimizing re-renders, and fixing layout spacing issues.
+
