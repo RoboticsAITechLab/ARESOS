@@ -5,7 +5,9 @@ import { useOS } from "@/hooks/webos/useOS";
 export const MenuBar: React.FC = () => {
   const { settings, launchApp, updateSettings, addNotification, clearNotifications } = useOS();
   const [time, setTime] = useState("");
-  const [batteryLevel, setBatteryLevel] = useState(95);
+  const [batteryLevel, setBatteryLevel] = useState(100);
+  const [isCharging, setIsCharging] = useState(true);
+  const [showBattery, setShowBattery] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
   // Time Sync
@@ -22,12 +24,45 @@ export const MenuBar: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Mock battery depletion very slowly
+  // Real Battery Status API Integration with Desktop detection
   useEffect(() => {
-    const batteryTimer = setInterval(() => {
-      setBatteryLevel((prev) => (prev > 10 ? prev - 1 : 95));
-    }, 600000); // every 10 min
-    return () => clearInterval(batteryTimer);
+    if (typeof window === "undefined" || !("getBattery" in navigator)) {
+      setShowBattery(false);
+      return;
+    }
+
+    let battery: any = null;
+
+    const updateBatteryStatus = () => {
+      if (!battery) return;
+      const level = Math.round(battery.level * 100);
+      setBatteryLevel(level);
+      setIsCharging(battery.charging);
+
+      // detect mobile / portable user agents
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      // on desktop, the browser mock-simulates battery as 100%, charging = true, and dischargingTime = Infinity.
+      // Laptop running on battery (charging = false) or discharging has battery, or mobile device.
+      const hasBattery = level < 100 || !battery.charging || battery.dischargingTime !== Infinity || isMobile;
+      
+      setShowBattery(hasBattery);
+    };
+
+    (navigator as any).getBattery().then((batt: any) => {
+      battery = batt;
+      updateBatteryStatus();
+
+      batt.addEventListener("chargingchange", updateBatteryStatus);
+      batt.addEventListener("levelchange", updateBatteryStatus);
+    });
+
+    return () => {
+      if (battery) {
+        battery.removeEventListener("chargingchange", updateBatteryStatus);
+        battery.removeEventListener("levelchange", updateBatteryStatus);
+      }
+    };
   }, []);
 
   // Click outside listener to close dropdowns
@@ -287,10 +322,12 @@ export const MenuBar: React.FC = () => {
         </div>
 
         {/* Battery Indicator */}
-        <div className="flex items-center gap-1.5 cursor-help" title={`Battery Status: ${batteryLevel}% Charged`}>
-          <span className="text-sm">🔋</span>
-          <span className="text-[10px] font-mono">{batteryLevel}%</span>
-        </div>
+        {showBattery && (
+          <div className="flex items-center gap-1.5 cursor-help" title={`Battery Status: ${batteryLevel}% ${isCharging ? "Charging" : "Discharging"}`}>
+            <span className="text-sm">{isCharging ? "⚡🔋" : "🔋"}</span>
+            <span className="text-[10px] font-mono">{batteryLevel}%</span>
+          </div>
+        )}
 
         {/* System Time */}
         <div className={clockClasses}>
