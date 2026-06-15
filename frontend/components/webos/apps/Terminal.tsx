@@ -493,8 +493,21 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
           `${currentUser.username}@aresos:${currentPath}$ ${command}`,
           "📡 Initiating connection with orbital weather satellites...",
           "🛰️ Resolving location coordinates...",
-          ""
         ]);
+
+        // Futuristic animated loading sequence
+        setTimeout(() => {
+          setHistory((prev) => [...prev, "⚡ Calibrating thermal sensor arrays... [OK]"]);
+        }, 350);
+        setTimeout(() => {
+          setHistory((prev) => [...prev, "🔓 Bypassing atmospheric distortion filters... [CONNECTED]"]);
+        }, 700);
+        setTimeout(() => {
+          setHistory((prev) => [...prev, "📊 Downloading telemetry packets: [████████████████] 100%"]);
+        }, 1100);
+        setTimeout(() => {
+          setHistory((prev) => [...prev, "🧬 Synthesizing weather matrix... [READY]", ""]);
+        }, 1450);
 
         const getWeatherCondition = (code: number): { condition: string; ascii: string } => {
           if (code === 0) {
@@ -565,6 +578,7 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
 
         // Self-invoking async function to handle the geolocation and weather fetches
         (async () => {
+          const startTime = Date.now();
           try {
             let lat = 28.6139;
             let lon = 77.2090;
@@ -581,6 +595,10 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
               }
               const geoData = await geoRes.json();
               if (!geoData.results || geoData.results.length === 0) {
+                const elapsed = Date.now() - startTime;
+                if (elapsed < 1600) {
+                  await new Promise((resolve) => setTimeout(resolve, 1600 - elapsed));
+                }
                 setHistory((prev) => [
                   ...prev,
                   `weather: city '${queryCity}' could not be resolved by satellite networks.`,
@@ -643,6 +661,11 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
               `----------------------------------------------------------------------`
             ];
 
+            const elapsed = Date.now() - startTime;
+            if (elapsed < 1600) {
+              await new Promise((resolve) => setTimeout(resolve, 1600 - elapsed));
+            }
+
             setHistory((prev) => [
               ...prev,
               ...telemetryOutput,
@@ -650,6 +673,10 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
             ]);
           } catch (err) {
             console.error(err);
+            const elapsed = Date.now() - startTime;
+            if (elapsed < 1600) {
+              await new Promise((resolve) => setTimeout(resolve, 1600 - elapsed));
+            }
             setHistory((prev) => [
               ...prev,
               "weather: orbital telemetry fetch encountered a connection error.",
@@ -688,6 +715,11 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
     }
 
     if (e.ctrlKey && e.key === "c") {
+      // If there is active text selection, let the browser copy it normally instead of sending interrupt
+      const selection = window.getSelection();
+      if (selection && selection.toString().trim() !== "") {
+        return;
+      }
       e.preventDefault();
       if (activeProgram !== "none") {
         const lastProg = activeProgram;
@@ -918,7 +950,14 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
   return (
     <div
       className="w-full h-full flex flex-col bg-zinc-950 font-mono text-emerald-400 p-4 text-xs select-text relative overflow-hidden"
-      onClick={() => hiddenInputRef.current?.focus()}
+      onMouseUp={() => {
+        // Only focus hidden input if user is not selecting text to allow easy copy-paste operations
+        const selection = window.getSelection();
+        if (selection && selection.toString().trim() !== "") {
+          return;
+        }
+        hiddenInputRef.current?.focus();
+      }}
     >
       {/* Hidden textarea to capture keyboard inputs */}
       <textarea
