@@ -312,7 +312,7 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
                     onChange={(e) => setCustomWallpaperUrl(e.target.value)}
                     className="flex-1 bg-zinc-900 border border-zinc-850 focus:border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-200 outline-none transition"
                   />
-                  <button
+           -       <button
                     type="submit"
                     className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white rounded-lg transition cursor-pointer"
                   >

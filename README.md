@@ -145,4 +145,5 @@ ARESOS includes built-in desktop themes that can be selected in the Settings das
 
 ---
 
-Developed by **Ankit Kumar** // *Mission Control for Students*
+Developed by **Ankit Kumar** // *Mission Control for St
+udents*

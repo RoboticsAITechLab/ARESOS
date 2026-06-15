@@ -18,7 +18,11 @@ export default function FileManager({ pid }: FileManagerProps) {
     createDirectory, 
     deleteNode, 
     writeFile,
-    readFile 
+    readFile,
+    clipboard,
+    copyNode,
+    pasteNode,
+    renameNode
   } = useFileSystem();
 
   const { launchApp, addNotification, processes } = useOS();
@@ -48,8 +52,7 @@ export default function FileManager({ pid }: FileManagerProps) {
   const [sortField, setSortField] = useState<"name" | "type" | "size" | "date">("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  // Clipboard State for Cut/Copy/Paste
-  const [clipboard, setClipboard] = useState<{ paths: string[]; mode: "copy" | "cut" } | null>(null);
+  // Sidebar Analytics Tab State
 
   // Sidebar Analytics Tab State
   const [sidebarTab, setSidebarTab] = useState<"properties" | "analyzer">("properties");
@@ -286,7 +289,7 @@ export default function FileManager({ pid }: FileManagerProps) {
     const paths = Array.from(selectedItems).map((name) => 
       currentPath === "/" ? `/${name}` : `${currentPath}/${name}`
     );
-    setClipboard({ paths, mode });
+    copyNode(paths, mode);
     addNotification("Clipboard", `Staged ${selectedItems.size} item(s) for ${mode}.`, "info");
     playClickSound();
   };
@@ -294,48 +297,14 @@ export default function FileManager({ pid }: FileManagerProps) {
   const handlePaste = () => {
     if (!clipboard || clipboard.paths.length === 0) return;
     
-    let processed = 0;
-    clipboard.paths.forEach((sourcePath) => {
-      const segments = sourcePath.split("/").filter(Boolean);
-      if (segments.length === 0) return;
-      const originalName = segments[segments.length - 1];
-
-      // Retrieve source node metadata in VFS
-      const sourceNode = findNodeByPathSegments(root, segments);
-      if (!sourceNode) return;
-
-      // Uniquify target names to avoid overwrites (only for copying)
-      let pasteName = originalName;
-      let counter = 1;
-      const currentItems = listDirectory().map((c) => c.name);
-
-      if (clipboard.mode === "copy") {
-        while (currentItems.includes(pasteName)) {
-          const dotIdx = originalName.lastIndexOf(".");
-          if (dotIdx !== -1) {
-            pasteName = `${originalName.substring(0, dotIdx)} (Copy ${counter})${originalName.substring(dotIdx)}`;
-          } else {
-            pasteName = `${originalName} (Copy ${counter})`;
-          }
-          counter++;
-        }
-      }
-
-      pasteNodeRecursive(sourceNode, currentPath, pasteName);
-      
-      // Delete source node if operation is "cut"
-      if (clipboard.mode === "cut") {
-        deleteNode(sourcePath);
-      }
-      processed++;
-    });
-
-    loadItems();
-    if (clipboard.mode === "cut") {
-      setClipboard(null); // Clear cut reference
+    const ok = pasteNode(currentPath);
+    if (ok) {
+      loadItems();
+      playSuccessSound();
+      addNotification("File Explorer", `Pasted clipboard item(s) into current directory.`, "success");
+    } else {
+      addNotification("Error", "Paste operation failed.", "error");
     }
-    playSuccessSound();
-    addNotification("File Explorer", `Pasted ${processed} item(s) into current directory.`, "success");
   };
 
   // Bulk Operations
@@ -424,14 +393,8 @@ export default function FileManager({ pid }: FileManagerProps) {
     }
 
     const oldFullPath = currentPath === "/" ? `/${oldName}` : `${currentPath}/${oldName}`;
-    const newFullPath = currentPath === "/" ? `/${newName}` : `${currentPath}/${newName}`;
-
-    const oldFile = readFile(oldFullPath);
-    const oldContent = oldFile ? oldFile.content : "";
-
-    const okWrite = writeFile(newFullPath, oldContent);
-    if (okWrite) {
-      deleteNode(oldFullPath);
+    const ok = renameNode(oldFullPath, newName);
+    if (ok) {
       loadItems();
       setSelectedItems(new Set([newName]));
       setRenameModal({ isOpen: false, targetName: "", newName: "" });
@@ -1243,6 +1206,22 @@ export default function FileManager({ pid }: FileManagerProps) {
               >
                 📂 Open / Run
               </button>
+              {items.find((i) => i.name === contextMenu.targetItem)?.type === "directory" && (
+                <button
+                  onClick={() => {
+                    const targetName = contextMenu.targetItem;
+                    if (targetName) {
+                      const fullPath = currentPath === "/" ? `/${targetName}` : `${currentPath}/${targetName}`;
+                      changeDirectory(fullPath);
+                      launchApp("terminal");
+                    }
+                    setContextMenu((prev) => ({ ...prev, isOpen: false }));
+                  }}
+                  className="w-full text-left px-3.5 py-1.5 text-xs text-zinc-200 hover:bg-indigo-600 hover:text-white transition"
+                >
+                  💻 Open in Terminal
+                </button>
+              )}
               <button
                 onClick={() => {
                   handleCopy("copy");
@@ -1288,7 +1267,7 @@ export default function FileManager({ pid }: FileManagerProps) {
                   if (target) triggerProperties(target);
                   setContextMenu((prev) => ({ ...prev, isOpen: false }));
                 }}
-                className="w-full text-left px-3.5 py-1.5 text-xs text-zinc-400 hover:bg-indigo-600 hover:text-white transition"
+                className="w-full text-left px-3.5 py-1.5 text-xs text-zinc-450 hover:bg-indigo-600 hover:text-white transition"
               >
                 ⚙️ Properties
               </button>
@@ -1323,6 +1302,16 @@ export default function FileManager({ pid }: FileManagerProps) {
                 className="w-full text-left px-3.5 py-1.5 text-xs text-zinc-200 hover:bg-indigo-600 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition"
               >
                 📋 Paste Clipboard
+              </button>
+              <button
+                onClick={() => {
+                  changeDirectory(currentPath);
+                  launchApp("terminal");
+                  setContextMenu((prev) => ({ ...prev, isOpen: false }));
+                }}
+                className="w-full text-left px-3.5 py-1.5 text-xs text-zinc-200 hover:bg-indigo-600 hover:text-white transition"
+              >
+                💻 Open in Terminal
               </button>
               <div className="h-px bg-zinc-850 my-1" />
               <button

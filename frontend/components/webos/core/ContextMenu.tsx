@@ -7,6 +7,7 @@ export interface ContextMenuItem {
   action: () => void;
   icon?: string;
   divider?: boolean;
+  disabled?: boolean;
 }
 
 interface ContextMenuProps {
@@ -59,10 +60,14 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           {item.divider && <div className="border-t border-zinc-800/80 my-1" />}
           <button
             onClick={() => {
+              if (item.disabled) return;
               item.action();
               onClose();
             }}
-            className="w-full text-left px-4 py-2 hover:bg-zinc-800/80 active:bg-zinc-700 text-xs flex items-center gap-2 cursor-pointer transition-colors duration-75"
+            disabled={item.disabled}
+            className={`w-full text-left px-4 py-2 hover:bg-zinc-800/80 active:bg-zinc-700 text-xs flex items-center gap-2 cursor-pointer transition-colors duration-75 ${
+              item.disabled ? "opacity-30 pointer-events-none" : ""
+            }`}
           >
             {item.icon && <span className="text-sm">{item.icon}</span>}
             <span>{item.label}</span>

@@ -12,6 +12,10 @@ interface FSContextType {
   createDirectory: (dirPath: string, name: string) => boolean;
   deleteNode: (nodePath: string) => boolean;
   changeDirectory: (targetPath: string) => boolean;
+  clipboard: { paths: string[]; mode: "copy" | "cut" } | null;
+  copyNode: (paths: string[], mode: "copy" | "cut") => void;
+  pasteNode: (targetDirPath: string) => boolean;
+  renameNode: (nodePath: string, newName: string) => boolean;
 }
 
 export const FSContext = createContext<FSContextType | undefined>(undefined);
@@ -283,6 +287,127 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     return false;
   };
 
+  const [clipboard, setClipboard] = useState<{ paths: string[]; mode: "copy" | "cut" } | null>(null);
+
+  const copyNode = (paths: string[], mode: "copy" | "cut") => {
+    setClipboard({ paths, mode });
+  };
+
+  const pasteNodeRecursive = (sourceNode: FSNode, destParentPath: string, newName: string, newRoot: FSDirectory) => {
+    const segments = destParentPath.split("/").filter(Boolean);
+    const parentNode = findNode(newRoot, segments);
+
+    if (parentNode && parentNode.type === "directory") {
+      if (sourceNode.type === "file") {
+        const file = sourceNode as FSFile;
+        parentNode.children[newName] = {
+          ...file,
+          name: newName,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+      } else if (sourceNode.type === "directory") {
+        const dir = sourceNode as FSDirectory;
+        const newDir: FSDirectory = {
+          name: newName,
+          type: "directory",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          children: {},
+        };
+        parentNode.children[newName] = newDir;
+        
+        const nextParentPath = destParentPath === "/" ? `/${newName}` : `${destParentPath}/${newName}`;
+        Object.entries(dir.children || {}).forEach(([childName, childNode]) => {
+          pasteNodeRecursive(childNode, nextParentPath, childName, newRoot);
+        });
+      }
+    }
+  };
+
+  const pasteNode = (targetDirPath: string): boolean => {
+    if (!clipboard || clipboard.paths.length === 0) return false;
+
+    const newRoot = JSON.parse(JSON.stringify(root)) as FSDirectory;
+    let successCount = 0;
+
+    clipboard.paths.forEach((sourcePath) => {
+      const sourceSegments = sourcePath.split("/").filter(Boolean);
+      if (sourceSegments.length === 0) return;
+      const originalName = sourceSegments[sourceSegments.length - 1];
+
+      const sourceNode = findNode(root, sourceSegments);
+      if (!sourceNode) return;
+
+      const targetSegments = targetDirPath.split("/").filter(Boolean);
+      const targetDirNode = findNode(newRoot, targetSegments);
+      if (!targetDirNode || targetDirNode.type !== "directory") return;
+
+      // Handle duplicate names
+      let pasteName = originalName;
+      let counter = 1;
+      
+      if (clipboard.mode === "copy") {
+        while (targetDirNode.children[pasteName]) {
+          const dotIdx = originalName.lastIndexOf(".");
+          if (dotIdx !== -1) {
+            pasteName = `${originalName.substring(0, dotIdx)} (Copy ${counter})${originalName.substring(dotIdx)}`;
+          } else {
+            pasteName = `${originalName} (Copy ${counter})`;
+          }
+          counter++;
+        }
+      }
+
+      pasteNodeRecursive(sourceNode, targetDirPath, pasteName, newRoot);
+      
+      if (clipboard.mode === "cut") {
+        const sourceParentSegments = sourceSegments.slice(0, -1);
+        const sourceParentNode = findNode(newRoot, sourceParentSegments);
+        if (sourceParentNode && sourceParentNode.type === "directory") {
+          delete sourceParentNode.children[originalName];
+        }
+      }
+      successCount++;
+    });
+
+    if (successCount > 0) {
+      saveFileSystem(newRoot);
+      if (clipboard.mode === "cut") {
+        setClipboard(null);
+      }
+      return true;
+    }
+    return false;
+  };
+
+  const renameNode = (nodePath: string, newName: string): boolean => {
+    const segments = nodePath.split("/").filter(Boolean);
+    if (segments.length === 0) return false;
+
+    const oldName = segments[segments.length - 1];
+    const parentSegments = segments.slice(0, -1);
+
+    const newRoot = JSON.parse(JSON.stringify(root)) as FSDirectory;
+    const parentNode = findNode(newRoot, parentSegments);
+
+    if (parentNode && parentNode.type === "directory") {
+      const node = parentNode.children[oldName];
+      if (node) {
+        if (parentNode.children[newName]) {
+          return false; // Name already exists in this folder
+        }
+        node.name = newName;
+        node.updatedAt = Date.now();
+        parentNode.children[newName] = node;
+        delete parentNode.children[oldName];
+        saveFileSystem(newRoot);
+        return true;
+      }
+    }
+    return false;
+  };
+
   return (
     <FSContext.Provider
       value={{
@@ -294,6 +419,10 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         createDirectory,
         deleteNode,
         changeDirectory,
+        clipboard,
+        copyNode,
+        pasteNode,
+        renameNode,
       }}
     >
       {children}
