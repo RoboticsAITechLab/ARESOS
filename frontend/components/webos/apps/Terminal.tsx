@@ -66,6 +66,7 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
 
   // Ping states
   const [pingTarget, setPingTarget] = useState("");
+  const [pingIp, setPingIp] = useState("");
 
   // Top states
   const [mockCpu, setMockCpu] = useState(14);
@@ -142,13 +143,13 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
       const ttl = 64 + Math.floor(Math.random() * 64);
       setHistory((prev) => [
         ...prev,
-        `64 bytes from ${pingTarget}: icmp_seq=${seq} ttl=${ttl} time=${time} ms`,
+        `64 bytes from ${pingTarget} (${pingIp}): icmp_seq=${seq} ttl=${ttl} time=${time} ms`,
       ]);
       seq++;
     }, 800);
 
     return () => clearInterval(interval);
-  }, [activeProgram, pingTarget]);
+  }, [activeProgram, pingTarget, pingIp]);
 
   // Top stats updater effect
   useEffect(() => {
@@ -445,15 +446,66 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
         ];
         break;
 
-      case "ping":
+      case "ping": {
         if (!args[1]) {
           output = ["ping: missing target host name. Usage: ping google.com"];
         } else {
-          setPingTarget(args[1]);
-          setActiveProgram("ping");
-          output = [`PING ${args[1]} (142.250.190.46): 56 data bytes`];
+          // Strip enclosing symbols if copied verbatim
+          const host = args[1].trim().replace(/^<|>$/g, "").replace(/^\[|\]$/g, "").replace(/^\(|\)$/g, "").replace(/^"|"$/g, "").replace(/^'|'$/g, "").trim();
+          
+          setHistory((prev) => [
+            ...prev,
+            `${currentUser.username}@aresos:${currentPath}$ ${command}`,
+            `🔍 Querying domain registry coordinates for ${host}...`,
+            ""
+          ]);
+
+          (async () => {
+            let resolvedIp = "8.8.8.8";
+            try {
+              // Resolve domain name to IP using Cloudflare public DoH DNS API
+              const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(host)}&type=A`, {
+                headers: { accept: "application/dns-json" }
+              });
+              if (res.ok) {
+                const data = await res.json();
+                if (data.Answer && data.Answer.length > 0) {
+                  const aRecord = data.Answer.find((ans: any) => ans.type === 1);
+                  if (aRecord) {
+                    resolvedIp = aRecord.data;
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn("DNS resolution failed, using fallback IP.", err);
+              // Dynamic pseudo-random IP derived from hostname as safe fallback
+              let hash = 0;
+              for (let i = 0; i < host.length; i++) {
+                hash = host.charCodeAt(i) + ((hash << 5) - hash);
+              }
+              const ipParts = [
+                Math.abs((hash & 0xFF000000) >> 24) % 223 + 1,
+                Math.abs((hash & 0x00FF0000) >> 16) % 256,
+                Math.abs((hash & 0x0000FF00) >> 8) % 256,
+                Math.abs(hash & 0x000000FF) % 254 + 1
+              ];
+              resolvedIp = ipParts.join(".");
+            }
+
+            setPingTarget(host);
+            setPingIp(resolvedIp);
+            setActiveProgram("ping");
+            setHistory((prev) => [
+              ...prev,
+              `PING ${host} (${resolvedIp}) 56(84) bytes of data.`,
+              ""
+            ]);
+          })();
+          
+          return;
         }
         break;
+      }
 
       case "top":
         setActiveProgram("top");
