@@ -437,9 +437,10 @@ export default function FileManager({ pid }: FileManagerProps) {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const text = event.target?.result as string;
+      const arrayBuffer = event.target?.result as ArrayBuffer;
+      const uint8Array = new Uint8Array(arrayBuffer);
       const fullPath = currentPath === "/" ? `/${file.name}` : `${currentPath}/${file.name}`;
-      const ok = writeFile(fullPath, text || "");
+      const ok = writeFile(fullPath, uint8Array);
       if (ok) {
         loadItems();
         setSelectedItems(new Set([file.name]));
@@ -449,7 +450,7 @@ export default function FileManager({ pid }: FileManagerProps) {
         addNotification("Error", "Import failed.", "error");
       }
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
     e.target.value = ""; // Clear inputs
   };
 

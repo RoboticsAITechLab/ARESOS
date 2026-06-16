@@ -1550,6 +1550,48 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
     }
   },
 
+  zipdebug: {
+    desc: "Diagnostic utility for zip archives",
+    run: (args, context, localPath) => {
+      if (args.length < 2) {
+        return { success: false, newPath: localPath, stdout: [], stderr: ["zipdebug: missing archive name."] };
+      }
+      const archivePath = resolveLocalPath(localPath, args[1]);
+      const file = context.readFile(archivePath);
+      if (!file) {
+        return { success: false, newPath: localPath, stdout: [], stderr: [`zipdebug: archive not found: ${args[1]}`] };
+      }
+
+      const bytes = file.binaryData || new Uint8Array(Array.from(file.content, c => c.charCodeAt(0) & 0xff));
+      
+      const hexList: string[] = [];
+      const hexLen = Math.min(bytes.length, 64);
+      for (let i = 0; i < hexLen; i++) {
+        hexList.push(bytes[i].toString(16).toUpperCase().padStart(2, "0"));
+      }
+      const hexStr = hexList.join(" ");
+
+      let signature = "";
+      if (bytes.length >= 4) {
+        signature = [bytes[0], bytes[1], bytes[2], bytes[3]].map(b => b.toString(16).toUpperCase().padStart(2, "0")).join(" ");
+      } else {
+        signature = "N/A (less than 4 bytes)";
+      }
+
+      const isPkzip = bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4B && bytes[2] === 0x03 && bytes[3] === 0x04;
+
+      const stdout = [
+        `File Size: ${file.size}`,
+        `File Node Type: ${file.type}`,
+        `Binary Length: ${bytes.length}`,
+        `First 64 Bytes (Hex): ${hexStr}`,
+        `Detected Archive Signature: ${signature}`,
+        `PKZIP Header Detection: ${isPkzip ? "DETECTED (PK\\x03\\x04)" : "NOT DETECTED"}`
+      ];
+      return { success: true, newPath: localPath, stdout, stderr: [] };
+    }
+  },
+
   ps: {
     desc: "List running OS processes",
     run: (args, context, localPath) => {
