@@ -2436,32 +2436,61 @@ export async function executeAST(
 }
 
 export function expandHistory(line: string, history: string[]): { expanded: string; error?: string } {
-  let expanded = line;
-  if (line.includes("!!")) {
-    if (history && history.length > 0) {
-      const lastCmd = history[history.length - 1];
-      expanded = expanded.replace(/!!/g, lastCmd);
-    } else {
-      return { expanded, error: "sh: no event found for !!" };
+  const visited = new Set<number>();
+  
+  function resolve(text: string, refIdx: number | null): { resolved: string; error?: string } {
+    let hasError: string | undefined = undefined;
+    
+    const resolvedText = text.replace(/!!|!(\d+)/g, (match, numStr) => {
+      if (hasError) return match;
+      
+      let targetIdx = -1;
+      if (match === "!!") {
+        if (refIdx !== null) {
+          targetIdx = refIdx - 1;
+        } else {
+          targetIdx = history.length - 1;
+        }
+        if (targetIdx < 0 || targetIdx >= history.length) {
+          hasError = "history: event not found: !!";
+          return match;
+        }
+      } else {
+        const num = parseInt(numStr, 10);
+        targetIdx = num - 1;
+        if (targetIdx < 0 || targetIdx >= history.length) {
+          hasError = `history: event not found: ${numStr}`;
+          return match;
+        }
+      }
+      
+      if (visited.has(targetIdx)) {
+        return history[targetIdx];
+      }
+      
+      visited.add(targetIdx);
+      const res = resolve(history[targetIdx], targetIdx);
+      visited.delete(targetIdx);
+      
+      if (res.error) {
+        hasError = res.error;
+        return match;
+      }
+      
+      return res.resolved;
+    });
+    
+    if (hasError) {
+      return { resolved: text, error: hasError };
     }
+    return { resolved: resolvedText };
   }
-
-  const bangNumRegex = /!(\d+)/g;
-  let errorMsg: string | undefined = undefined;
-  expanded = expanded.replace(bangNumRegex, (match, numStr) => {
-    const num = parseInt(numStr, 10);
-    if (history && num > 0 && num <= history.length) {
-      return history[num - 1];
-    } else {
-      errorMsg = `sh: no event found for ${match}`;
-      return match;
-    }
-  });
-
-  if (errorMsg) {
-    return { expanded, error: errorMsg };
+  
+  const finalResult = resolve(line, null);
+  if (finalResult.error) {
+    return { expanded: line, error: finalResult.error };
   }
-  return { expanded };
+  return { expanded: finalResult.resolved };
 }
 
 export const executeSingleCommand = async (
@@ -2471,6 +2500,7 @@ export const executeSingleCommand = async (
   stdin: string[] = []
 ): Promise<ExecutionResult> => {
   let expanded = rawCommandText;
+  let expansionOccurred = false;
   if (rawCommandText.includes("!!") || /!\d+/.test(rawCommandText)) {
     const res = expandHistory(rawCommandText, context.commandHistory || []);
     if (res.error) {
@@ -2484,6 +2514,7 @@ export const executeSingleCommand = async (
       };
     }
     expanded = res.expanded;
+    expansionOccurred = (expanded !== rawCommandText);
   }
 
   const tokens = lex(expanded);
@@ -2506,7 +2537,12 @@ export const executeSingleCommand = async (
       interleaved: [err.message || String(err)]
     };
   }
-  return executeAST(ast, context, localPath, stdin);
+  const result = await executeAST(ast, context, localPath, stdin);
+  if (expansionOccurred) {
+    result.stdout = [expanded, ...result.stdout];
+    result.interleaved = [expanded, ...(result.interleaved || [...result.stdout, ...result.stderr])];
+  }
+  return result;
 };
 
 export const executeCommandLine = async (

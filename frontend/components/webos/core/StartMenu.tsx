@@ -108,7 +108,7 @@ export const StartMenu: React.FC = () => {
       `}</style>
 
       {/* Centered Top Floating Search Bar */}
-      <div 
+      <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-sm mx-auto mb-12 flex-shrink-0 animate-in slide-in-from-top-4 duration-300"
       >
@@ -134,7 +134,7 @@ export const StartMenu: React.FC = () => {
       </div>
 
       {/* Main Apps Layout Grid */}
-      <div 
+      <div
         onClick={(e) => e.stopPropagation()}
         className="flex-1 w-full max-w-4xl mx-auto overflow-y-auto px-4 scrollbar-none"
       >

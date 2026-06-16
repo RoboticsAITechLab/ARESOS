@@ -60,8 +60,8 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   });
 
   const [currentUser, setCurrentUser] = useState<SystemUser>({
-    username: "Ankit",
-    role: "SYSTEM ADMINISTRATOR",
+    username: "guest",
+    role: "CLASS-1 ADMINISTRATOR",
     avatarUrl: "",
   });
 

@@ -182,7 +182,7 @@ export const MenuBar: React.FC = () => {
     // dark
     barClasses += "bg-zinc-950/75 border-zinc-800/40 text-zinc-300";
     brandTextClasses += "text-white hover:text-cyan-400";
-    submenuClasses += "text-zinc-400";
+    submenuClasses+= "text-zinc-400";
     statusClasses += "text-zinc-400";
     clockClasses += "text-white border-zinc-800";
     dropdownBg = "bg-zinc-950/95 border-zinc-800/40 text-zinc-200 shadow-zinc-950/40";
@@ -354,4 +354,10 @@ export const MenuBar: React.FC = () => {
     </div>
   );
 };
+
+
+
+
+
+// ======================================================================
 

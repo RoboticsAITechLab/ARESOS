@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useFileSystem } from "@/hooks/webos/useFileSystem";
 import { useOS } from "@/hooks/webos/useOS";
 import { playClickSound } from "@/utils/webos/audio";
-import { executeCommandLine, ShellContext } from "@/utils/webos/shellEngine";
+import { executeCommandLine, ShellContext, expandHistory } from "@/utils/webos/shellEngine";
 
 interface TerminalProps {
   pid: string;
@@ -701,42 +701,21 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
       setHistoryIndex(-1);
 
       if (command.trim()) {
-        let expandedCommand = command;
-        if (command.includes("!!")) {
-          if (commandHistory.length > 0) {
-            const lastCmd = commandHistory[commandHistory.length - 1];
-            expandedCommand = expandedCommand.replace(/!!/g, lastCmd);
-          } else {
-            setHistory((prev) => [...prev, "sh: no event found for !!", ""]);
-            return;
-          }
-        }
+        const { expanded, error } = expandHistory(command, commandHistory);
 
-        const bangNumRegex = /!(\d+)/g;
-        let bangNumError = false;
-        expandedCommand = expandedCommand.replace(bangNumRegex, (match, numStr) => {
-          const num = parseInt(numStr, 10);
-          if (num > 0 && num <= commandHistory.length) {
-            return commandHistory[num - 1];
-          } else {
-            bangNumError = true;
-            return match;
-          }
-        });
-
-        if (bangNumError) {
-          setHistory((prev) => [...prev, `sh: no event found for ${command}`, ""]);
+        if (error) {
+          setHistory((prev) => [...prev, `${currentUser.username}@aresos:${currentPath}$ ${command}`, error, ""]);
           return;
         }
 
         setCommandHistory((prev) => {
           const next = [...prev];
-          if (next[next.length - 1] !== expandedCommand) {
-            next.push(expandedCommand);
+          if (next[next.length - 1] !== expanded) {
+            next.push(expanded);
           }
           return next;
         });
-        handleCommandExecute(expandedCommand);
+        handleCommandExecute(command);
       } else {
         setHistory((prev) => [...prev, `${currentUser.username}@aresos:${currentPath}$`, ""]);
       }

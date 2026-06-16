@@ -10,7 +10,7 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
-  const { settings } = useOS();
+  const { settings, currentUser } = useOS();
   const [passkey, setPasskey] = useState("");
   const [scanState, setScanState] = useState<"idle" | "scanning" | "success" | "denied">("idle");
   const [scanProgress, setScanProgress] = useState(0);
@@ -24,13 +24,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const pwd = localStorage.getItem("aresos_admin_password") || process.env.NEXT_PUBLIC_LOGIN_PASSWORD;
-      if (pwd) {
-        setStoredPassword(pwd);
-        setIsFirstTimeSetup(false);
-      } else {
-        setIsFirstTimeSetup(true);
+      let pwd = localStorage.getItem("aresos_admin_password") || process.env.NEXT_PUBLIC_LOGIN_PASSWORD;
+      if (!pwd) {
+        pwd = "1462007";
+        localStorage.setItem("aresos_admin_password", pwd);
       }
+      setStoredPassword(pwd);
+      setIsFirstTimeSetup(false);
     }
   }, []);
   
@@ -266,9 +266,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
 
         {/* User Identity Details */}
         <div className="text-center mb-6">
-          <h3 className="text-sm font-bold text-white tracking-widest uppercase">Ankit</h3>
+          <h3 className="text-sm font-bold text-white tracking-widest uppercase">{currentUser?.username || "guest"}</h3>
           <span className="text-[9px] text-cyan-600 font-bold uppercase tracking-wider block mt-1">
-            CLASS-1 ADMINISTRATOR
+            {currentUser?.role || "CLASS-1 ADMINISTRATOR"}
           </span>
         </div>
 

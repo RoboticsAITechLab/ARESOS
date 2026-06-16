@@ -471,9 +471,23 @@ const runAllTests = async () => {
   const ctxHist = makeContext();
   ctxHist.commandHistory = ["pwd", "echo hello"];
   const resHist1 = await executeSingleCommand("!!", ctxHist, currentPath);
-  assert(resHist1.stdout.includes("hello"), "!! history expansion failed");
+  assert(resHist1.stdout[0] === "echo hello", "!! display expansion failed");
+  assert(resHist1.stdout[1] === "hello", "!! execution failed");
+  
   const resHist2 = await executeSingleCommand("!1", ctxHist, currentPath);
-  assert(resHist2.stdout.includes("/home/user"), "!1 history expansion failed");
+  assert(resHist2.stdout[0] === "pwd", "!1 display expansion failed");
+  assert(resHist2.stdout[1] === "/home/user", "!1 execution failed");
+
+  // Error case: out of bounds
+  const resHistError = await executeSingleCommand("!9999", ctxHist, currentPath);
+  assert(resHistError.stderr.includes("history: event not found: 9999"), "Error message format for out of bounds history expansion mismatch");
+
+  // Loop protection & nested resolution
+  const ctxHistLoop = makeContext();
+  ctxHistLoop.commandHistory = ["pwd", "!!", "!!"];
+  const resHistLoop = await executeSingleCommand("!!", ctxHistLoop, currentPath);
+  assert(resHistLoop.stdout[0] === "pwd", "Loop protection nested resolution display failed");
+  assert(resHistLoop.stdout[1] === "/home/user", "Loop protection nested resolution execution failed");
 
   // 16. TEST_JOB_CONTROL
   resetState();
