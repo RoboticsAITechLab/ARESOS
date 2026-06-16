@@ -21,6 +21,8 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
   const [usernameInput, setUsernameInput] = useState(currentUser.username);
   const [currentPasswordInput, setCurrentPasswordInput] = useState("");
   const [newPasswordInput, setNewPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
   
   // Custom Wallpapers States
   const [customWallpaperUrl, setCustomWallpaperUrl] = useState("");
@@ -101,12 +103,16 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess("");
+
     if (typeof window === "undefined") return;
 
     const actualCurrentPassword = localStorage.getItem("aresos_admin_password") || process.env.NEXT_PUBLIC_LOGIN_PASSWORD || "";
     
     // 1. Current password verification check
     if (actualCurrentPassword && currentPasswordInput !== actualCurrentPassword) {
+      setPasswordError("VERIFICATION FAILED: Current pass-key is incorrect!");
       addNotification("Security Settings", "Verification failed: Current pass-key is incorrect.", "error");
       return;
     }
@@ -114,45 +120,60 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
     // 2. Format validation check
     const cleanNewPassword = newPasswordInput;
     if (!cleanNewPassword) {
-      addNotification("Security Settings", "Validation error: New pass-key cannot be empty.", "error");
+      setPasswordError("VALIDATION ERROR: New pass-key cannot be empty!");
       return;
     }
 
     if (cleanNewPassword.length < 4) {
-      addNotification("Security Settings", "Validation error: Pass-key must be at least 4 characters long.", "error");
+      setPasswordError("VALIDATION ERROR: Pass-key must be at least 4 characters long!");
       return;
     }
 
     if (cleanNewPassword.includes(" ")) {
-      addNotification("Security Settings", "Validation error: Pass-key cannot contain space characters.", "error");
+      setPasswordError("VALIDATION ERROR: Pass-key cannot contain spaces!");
       return;
     }
 
     if (cleanNewPassword === actualCurrentPassword) {
-      addNotification("Security Settings", "Validation error: New pass-key must be different from the current one.", "error");
+      setPasswordError("VALIDATION ERROR: New pass-key must be different from current!");
       return;
     }
 
     // 3. Action and Storage Write Error Handling
     try {
       localStorage.setItem("aresos_admin_password", cleanNewPassword);
+      setPasswordSuccess("SUCCESS: Pass-key updated successfully!");
       addNotification("Security Settings", "System partition synced: Pass-key updated successfully.", "success");
       setCurrentPasswordInput("");
       setNewPasswordInput("");
     } catch (err) {
       console.error(err);
+      setPasswordError("SYSTEM ERROR: Failed to save pass-key to localStorage.");
       addNotification("Security Settings", "System error: Failed to save pass-key to localStorage.", "error");
     }
   };
 
   const handleApplyCustomUrl = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customWallpaperUrl.trim()) return;
+    const trimmed = customWallpaperUrl.trim();
+    if (!trimmed) return;
 
-    let targetUrl = customWallpaperUrl.trim();
-    const formatted = targetUrl.startsWith("url(") ? targetUrl : `url("${targetUrl}")`;
+    let targetUrl = trimmed;
 
-    updateSettings({ wallpaperUrlOrGradient: formatted });
+    // Check if it already has url(...) wrapping
+    if (!targetUrl.startsWith("url(") && !targetUrl.startsWith("linear-gradient") && !targetUrl.startsWith("radial-gradient")) {
+      // Remove any surrounding quotes pasted by the user
+      targetUrl = targetUrl.replace(/^['"]|['"]$/g, '');
+      
+      // Auto-prepend https:// if it looks like a domain without a protocol
+      if (!/^https?:\/\//i.test(targetUrl) && !targetUrl.startsWith("data:") && !targetUrl.startsWith("/")) {
+        targetUrl = `https://${targetUrl}`;
+      }
+      
+      targetUrl = `url("${targetUrl}")`;
+    }
+
+    updateSettings({ wallpaperUrlOrGradient: targetUrl });
     addNotification("Wallpaper Manager", "Custom wallpaper image applied to desktop background.", "success");
     setCustomWallpaperUrl("");
   };
@@ -345,7 +366,7 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
                 <label className="text-[9px] text-zinc-400 font-medium">Custom Image URL (Unsplash, Imgur, etc.)</label>
                 <div className="flex gap-2">
                   <input
-                    type="url"
+                    type="text"
                     placeholder="https://images.unsplash.com/photo-..."
                     value={customWallpaperUrl}
                     onChange={(e) => setCustomWallpaperUrl(e.target.value)}
@@ -536,6 +557,18 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
                   />
                 </div>
               </div>
+
+              {/* Error / Success logs */}
+              {passwordError && (
+                <div className="text-[10px] text-red-500 font-bold tracking-wider animate-pulse select-none bg-red-950/20 border border-red-500/20 p-2 rounded-lg text-center">
+                  ⚠️ {passwordError}
+                </div>
+              )}
+              {passwordSuccess && (
+                <div className="text-[10px] text-emerald-400 font-bold tracking-wider select-none bg-emerald-950/20 border border-emerald-500/20 p-2 rounded-lg text-center">
+                  ✓ {passwordSuccess}
+                </div>
+              )}
 
               <div className="flex justify-end pt-1">
                 <button
