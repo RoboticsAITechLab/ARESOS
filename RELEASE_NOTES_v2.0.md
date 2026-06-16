@@ -21,3 +21,8 @@ ARESOS v2.0.0 has been fully verified against our automated integration test sui
 ## Future Direction
 
 Milestones for upcoming versions focus on upgrading runtime environments from simulated to webassembly sandboxes (e.g. Pyodide C-Python runtime) and integrating real package hosting channels.
+
+---
+
+## 📚 Navigation Directory
+- **[Main README](README.md)** | **[System Architecture](ARCHITECTURE.md)** | **[Command Reference](COMMANDS.md)** | **[Changelog](CHANGELOG.md)** | **[Roadmap Goals](ROADMAP.md)**

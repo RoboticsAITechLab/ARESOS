@@ -16,6 +16,21 @@ ARESOS (ARES Operating System) is a premium, highly interactive, and visually st
 
 ---
 
+## 📚 Project Documentation Hub
+
+Explore all aspects of ARESOS v2.0:
+- **[System Architecture](ARCHITECTURE.md)**: Deep dive into parser, shell, and VFS design.
+- **[Command Reference](COMMANDS.md)**: Complete details of all registered shell utilities and commands.
+- **[v2.0.0 Release Notes](RELEASE_NOTES_v2.0.md)**: Major features, testing summary, and sandbox limitations.
+- **[Changelog](CHANGELOG.md)**: Full history of changes and release updates.
+- **[Roadmap](ROADMAP.md)**: Planned upgrades and future milestones.
+- **[Contributing Guide](CONTRIBUTING.md)**: How to set up local dev and workflows.
+- **[Security Policy](SECURITY.md)**: Vulnerability scope and disclosure procedures.
+- **[MIT License](LICENSE)**: Legal license permissions.
+- **[VFS & Audio Specification](DOCUMENTATION.md)**: Deep specification of internal components.
+
+---
+
 
 Some developer and networking commands currently operate in simulation mode and are planned for future runtime-backed implementations.
 
