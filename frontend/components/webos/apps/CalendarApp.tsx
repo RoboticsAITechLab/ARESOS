@@ -32,40 +32,7 @@ export default function CalendarApp({ pid: _pid }: CalendarAppProps) {
 
   const [selectedDay, setSelectedDay] = useState<number | null>(new Date().getDate());
 
-  const defaultEvents: Event[] = [
-    {
-      id: "1",
-      dateStr: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`,
-      text: "ARESOS OS Launch Party 🎉",
-      time: "18:00",
-      type: "holiday",
-      description: "Celebrate the first stable release of ARESOS WebOS with the team!",
-    },
-    {
-      id: "2",
-      dateStr: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-15`,
-      text: "Check VFS localStorage sync",
-      time: "10:00",
-      type: "work",
-      description: "Run automated benchmarks on filesystem nodes write operations.",
-    },
-    {
-      id: "3",
-      dateStr: `${new Date().getFullYear()}-06-14`,
-      text: "Ankit Birthday 🎂",
-      time: "00:00",
-      type: "personal",
-      description: "Celebrate birthday milestone!",
-    },
-    {
-      id: "4",
-      dateStr: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate() + 1).padStart(2, "0")}`,
-      text: "Submit frontend refactoring commits",
-      time: "23:59",
-      type: "deadline",
-      description: "Push changes to origin main and verify hot reloading compiles cleanly.",
-    }
-  ];
+  const defaultEvents: Event[] = [];
 
   const migrateEvents = (loadedEvents: any[]): Event[] => {
     return loadedEvents.map((ev) => ({
