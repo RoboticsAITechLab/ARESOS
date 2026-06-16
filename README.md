@@ -220,6 +220,15 @@ The following systems are implemented and verified:
 * Neofetch telemetry
 * CPU, memory, and storage diagnostics
 
+# Commands Overview
+
+ARESOS has a rich CLI command registry supporting full VFS interactions, diagnostics, and utilities. See [COMMANDS.md](COMMANDS.md) for the complete reference list.
+
+- **POSIX-like Commands**: `ls`, `cd`, `pwd`, `cat`, `touch`, `write`, `mkdir`, `rm`, `cp`, `mv`, `find`, `tree`, `grep`, `head`, `tail`, `wc`, `chmod`.
+- **Archive Commands**: `zip`, `unzip`, `zipinfo`.
+- **Environment & Control**: `export`, `unset`, `alias`, `unalias`, `history`, `ps`, `kill`, `htop`, `diskusage`, `meminfo`, `cpuinfo`.
+- **Simulated Commands**: `python`, `node`, `npm`, `gcc`, `clang`, `git`, `ssh`, `scp`, `curl`, `wget`, `ping`, `nslookup`, `traceroute`, `netstat`, `arespkg`, `jobs`, `bg`, `fg`, `nohup`.
+
 # Simulation-Based Components
 
 The following commands currently provide simulation behavior and are intended to be replaced by isolated runtime implementations in future releases.
@@ -240,26 +249,35 @@ The following commands currently provide simulation behavior and are intended to
 | nslookup   | Simulated DNS resolution      | DNS service integration      |
 | git        | Simulated repository state    | Full VCS backend             |
 | arespkg    | Simulated package manager     | Real package repository      |
+| jobs / bg / fg / nohup | Simulated job controls | Sandbox process controller |
 
-# Known Minor Issues
+# Known Limitations
 
-The following non-critical issues remain:
+The following non-critical limitations remain:
 
-* htop termination message may display "top terminated" instead of "htop terminated".
+* `htop` termination message may display "top terminated" instead of "htop terminated".
 * Background job control is intentionally limited and currently operates in simulation mode.
 * Some networking commands currently emulate behavior rather than performing real network operations.
 
-# Future Roadmap
+# Roadmap Summary
 
 Planned upgrades include:
+- Secure Python & Node.js execution sandboxes
+- Real package management backend
+- Virtual networking stack
+- POSIX user permissions and ownership models
+- Scripting support (.sh)
 
-* Secure Python execution sandbox
-* Secure Node.js execution sandbox
-* Real package management backend
-* Virtual networking stack
-* Persistent background jobs
-* User permissions and ownership model
-* Real compiler toolchains
-* Shell scripting support (.sh)
-* Advanced process scheduling
-* Multi-user environments
+For the detailed future roadmap plans, see [ROADMAP.md](ROADMAP.md).
+
+# Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, development setup, and pull request procedures.
+
+# Security
+
+Please refer to [SECURITY.md](SECURITY.md) for details on security scopes, vulnerability reporting, and responsible disclosure procedures.
+
+# License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
