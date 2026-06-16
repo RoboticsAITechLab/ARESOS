@@ -293,10 +293,89 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
 
   const suggestion = getSuggestion();
 
-  const handleCommandExecute = async (command: string) => {
+  interface ChainedCommand {
+    cmdText: string;
+    operator: "&&" | "||" | ";" | "none";
+  }
+
+  const parseCommandLine = (line: string): ChainedCommand[] => {
+    const result: ChainedCommand[] = [];
+    let currentCmd = "";
+    let inDoubleQuote = false;
+    let inSingleQuote = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"' && !inSingleQuote) {
+        inDoubleQuote = !inDoubleQuote;
+        currentCmd += char;
+      } else if (char === "'" && !inDoubleQuote) {
+        inSingleQuote = !inSingleQuote;
+        currentCmd += char;
+      } else if (!inDoubleQuote && !inSingleQuote) {
+        // Check for &&
+        if (char === '&' && line[i + 1] === '&') {
+          result.push({ cmdText: currentCmd.trim(), operator: "&&" });
+          currentCmd = "";
+          i++; // skip next &
+        }
+        // Check for ||
+        else if (char === '|' && line[i + 1] === '|') {
+          result.push({ cmdText: currentCmd.trim(), operator: "||" });
+          currentCmd = "";
+          i++; // skip next |
+        }
+        // Check for ;
+        else if (char === ';') {
+          result.push({ cmdText: currentCmd.trim(), operator: ";" });
+          currentCmd = "";
+        } else {
+          currentCmd += char;
+        }
+      } else {
+        currentCmd += char;
+      }
+    }
+    
+    if (currentCmd.trim() || result.length === 0) {
+      result.push({ cmdText: currentCmd.trim(), operator: "none" });
+    }
+    
+    return result;
+  };
+
+  const executeSingleCommand = async (
+    command: string,
+    localPath: string,
+    historyOutput: string[]
+  ): Promise<{ success: boolean; newPath: string }> => {
     const args = command.trim().split(/\s+/);
     const cmd = args[0].toLowerCase();
     let output: string[] = [];
+    let success = true;
+    let newPath = localPath;
+
+    // Helper to resolve path relative to localPath
+    const resolveLocalPath = (target: string): string => {
+      if (!target) return localPath;
+      if (target.startsWith("/")) {
+        return "/" + target.split("/").filter(Boolean).join("/");
+      }
+      const currentSegments = localPath.split("/").filter(Boolean);
+      const relativeSegments = target.split("/").filter(Boolean);
+
+      for (const segment of relativeSegments) {
+        if (segment === ".") {
+          continue;
+        } else if (segment === "..") {
+          currentSegments.pop();
+        } else {
+          currentSegments.push(segment);
+        }
+      }
+      return "/" + currentSegments.join("/");
+    };
 
     switch (cmd) {
       case "help":
@@ -336,7 +415,7 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
 
       case "ls":
         try {
-          const nodes = listDirectory();
+          const nodes = listDirectory(localPath);
           if (nodes.length === 0) {
             output = ["(empty directory)"];
           } else {
@@ -346,33 +425,42 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
           }
         } catch {
           output = ["ls: failed to list contents."];
+          success = false;
         }
         break;
 
       case "cd":
         if (!args[1]) {
           output = ["cd: missing destination argument."];
+          success = false;
         } else {
-          const ok = changeDirectory(args[1]);
-          if (!ok) {
+          const target = resolveLocalPath(args[1]);
+          const ok = changeDirectory(target);
+          if (ok) {
+            newPath = target;
+          } else {
             output = [`cd: no such directory: ${args[1]}`];
+            success = false;
           }
         }
         break;
 
       case "pwd":
-        output = [currentPath];
+        output = [localPath];
         break;
 
       case "cat":
         if (!args[1]) {
           output = ["cat: missing file name argument."];
+          success = false;
         } else {
-          const file = readFile(args[1]);
+          const target = resolveLocalPath(args[1]);
+          const file = readFile(target);
           if (file) {
             output = file.content.split("\n");
           } else {
             output = [`cat: file not found: ${args[1]}`];
+            success = false;
           }
         }
         break;
@@ -380,12 +468,15 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
       case "touch":
         if (!args[1]) {
           output = ["touch: missing filename argument."];
+          success = false;
         } else {
-          const ok = writeFile(args[1], "");
+          const target = resolveLocalPath(args[1]);
+          const ok = writeFile(target, "");
           if (ok) {
             output = [`Created empty file '${args[1]}'`];
           } else {
             output = [`touch: failed to create file: ${args[1]}`];
+            success = false;
           }
         }
         break;
@@ -393,15 +484,19 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
       case "write":
         if (!args[1]) {
           output = ["write: missing filename argument."];
+          success = false;
         } else if (args.length < 3) {
           output = ["write: missing content. Usage: write <filename> <text content>"];
+          success = false;
         } else {
           const content = args.slice(2).join(" ");
-          const ok = writeFile(args[1], content);
+          const target = resolveLocalPath(args[1]);
+          const ok = writeFile(target, content);
           if (ok) {
             output = [`Written content to file '${args[1]}'`];
           } else {
             output = [`write: failed to write to file: ${args[1]}`];
+            success = false;
           }
         }
         break;
@@ -409,12 +504,14 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
       case "mkdir":
         if (!args[1]) {
           output = ["mkdir: missing folder name argument."];
+          success = false;
         } else {
-          const ok = createDirectory(currentPath, args[1]);
+          const ok = createDirectory(localPath, args[1]);
           if (ok) {
             output = [`Created directory '${args[1]}'`];
           } else {
             output = ["mkdir: folder already exists or path invalid."];
+            success = false;
           }
         }
         break;
@@ -422,12 +519,15 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
       case "rm":
         if (!args[1]) {
           output = ["rm: missing target name argument."];
+          success = false;
         } else {
-          const ok = deleteNode(args[1]);
+          const target = resolveLocalPath(args[1]);
+          const ok = deleteNode(target);
           if (ok) {
             output = [`Removed '${args[1]}'`];
           } else {
             output = [`rm: no such file or directory: ${args[1]}`];
+            success = false;
           }
         }
         break;
@@ -442,7 +542,7 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
 
       case "clear":
         setHistory([]);
-        return;
+        break;
 
       case "theme":
         const reqTheme = args[1];
@@ -454,6 +554,7 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
           output = [
             "theme: invalid argument. Select 'light', 'dark', 'midnight', or 'aurora'.",
           ];
+          success = false;
         }
         break;
 
@@ -478,21 +579,17 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
       case "ping": {
         if (!args[1]) {
           output = ["ping: missing target host name. Usage: ping google.com"];
+          success = false;
         } else {
-          // Strip enclosing symbols if copied verbatim
           const host = args[1].trim().replace(/^<|>$/g, "").replace(/^\[|\]$/g, "").replace(/^\(|\)$/g, "").replace(/^"|"$/g, "").replace(/^'|'$/g, "").trim();
 
-          setHistory((prev) => [
-            ...prev,
-            `${currentUser.username}@aresos:${currentPath}$ ${command}`,
-            `🔍 Querying domain registry coordinates for ${host}...`,
-            ""
-          ]);
+          historyOutput.push(`${currentUser.username}@aresos:${localPath}$ ${command}`);
+          historyOutput.push(`🔍 Querying domain registry coordinates for ${host}...`);
+          historyOutput.push("");
 
           (async () => {
             let resolvedIp = "8.8.8.8";
             try {
-              // Resolve domain name to IP using Cloudflare public DoH DNS API
               const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(host)}&type=A`, {
                 headers: { accept: "application/dns-json" }
               });
@@ -507,7 +604,6 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
               }
             } catch (err) {
               console.warn("DNS resolution failed, using fallback IP.", err);
-              // Dynamic pseudo-random IP derived from hostname as safe fallback
               let hash = 0;
               for (let i = 0; i < host.length; i++) {
                 hash = host.charCodeAt(i) + ((hash << 5) - hash);
@@ -530,23 +626,23 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
               ""
             ]);
           })();
-
-          return;
+          return { success: true, newPath: localPath };
         }
         break;
       }
 
       case "top":
         setActiveProgram("top");
-        return;
+        return { success: true, newPath: localPath };
 
       case "matrix":
         setActiveProgram("matrix");
-        return;
+        return { success: true, newPath: localPath };
 
       case "calc":
         if (args.length < 2) {
           output = ["calc: missing mathematical expression. Usage: calc 2 + 2"];
+          success = false;
         } else {
           const expr = args.slice(1).join("");
           if (/^[0-9+\-*/%().\s]+$/.test(expr)) {
@@ -556,27 +652,23 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
               output = [`${expr} = ${result}`];
             } catch {
               output = ["calc: syntax error in expression."];
+              success = false;
             }
           } else {
             output = ["calc: insecure characters detected in expression."];
+            success = false;
           }
         }
         break;
 
       case "weather": {
         let queryCity = args[1] ? args.slice(1).join(" ") : "";
-        // Strip out brackets < >, [ ], ( ), quotes, or spaces that users might type when copying placeholders
         queryCity = queryCity.trim().replace(/^<|>$/g, "").replace(/^\[|\]$/g, "").replace(/^\(|\)$/g, "").replace(/^"|"$/g, "").replace(/^'|'$/g, "").trim();
 
-        // Show loading state immediately to keep UI responsive
-        setHistory((prev) => [
-          ...prev,
-          `${currentUser.username}@aresos:${currentPath}$ ${command}`,
-          "📡 Initiating connection with orbital weather satellites...",
-          "🛰️ Resolving location coordinates...",
-        ]);
+        historyOutput.push(`${currentUser.username}@aresos:${localPath}$ ${command}`);
+        historyOutput.push("📡 Initiating connection with orbital weather satellites...");
+        historyOutput.push("🛰️ Resolving location coordinates...");
 
-        // Futuristic animated loading sequence
         setTimeout(() => {
           setHistory((prev) => [...prev, "⚡ Calibrating thermal sensor arrays... [OK]"]);
         }, 350);
@@ -591,64 +683,16 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
         }, 1450);
 
         const getWeatherCondition = (code: number): { condition: string; ascii: string } => {
-          if (code === 0) {
-            return {
-              condition: "Clear Sky ☀️",
-              ascii: "      \\   /\n       .-.\n    ― (   ) ―\n       `-’\n      /   \\"
-            };
-          }
-          if (code === 1) {
-            return {
-              condition: "Mainly Clear 🌤️",
-              ascii: "      \\   /\n       .-.\n    ― (   ) ―\n       `-’\n      /   \\"
-            };
-          }
-          if (code === 2) {
-            return {
-              condition: "Partly Cloudy ⛅",
-              ascii: "      \\   /\n    _ /.-.\n   ( (   )\n    (______)"
-            };
-          }
-          if (code === 3) {
-            return {
-              condition: "Overcast ☁️",
-              ascii: "      .--.\n   .-(    ).\n  (___.___)__)"
-            };
-          }
-          if ([45, 48].includes(code)) {
-            return {
-              condition: "Foggy 🌫️",
-              ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n  ════════════"
-            };
-          }
-          if ([51, 53, 55, 56, 57].includes(code)) {
-            return {
-              condition: "Drizzle 🌧️",
-              ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n   '  '  '  '\n  '  '  '  '"
-            };
-          }
-          if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) {
-            return {
-              condition: "Rainy / Showers 🌧️",
-              ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n   / / / / /\n  / / / / /"
-            };
-          }
-          if ([71, 73, 75, 77, 85, 86].includes(code)) {
-            return {
-              condition: "Snowy ❄️",
-              ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n   *  *  *  *\n  *  *  *  *"
-            };
-          }
-          if ([95, 96, 99].includes(code)) {
-            return {
-              condition: "Thunderstorm ⚡",
-              ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n    ⚡ ⚡ ⚡ ⚡\n   / / / / /"
-            };
-          }
-          return {
-            condition: "Cloudy",
-            ascii: "      .--.\n   .-(    ).\n  (___.___)__)"
-          };
+          if (code === 0) return { condition: "Clear Sky ☀️", ascii: "      \\   /\n       .-.\n    ― (   ) ―\n       `-’\n      /   \\" };
+          if (code === 1) return { condition: "Mainly Clear 🌤️", ascii: "      \\   /\n       .-.\n    ― (   ) ―\n       `-’\n      /   \\" };
+          if (code === 2) return { condition: "Partly Cloudy ⛅", ascii: "      \\   /\n    _ /.-.\n   ( (   )\n    (______)" };
+          if (code === 3) return { condition: "Overcast ☁️", ascii: "      .--.\n   .-(    ).\n  (___.___)__)" };
+          if ([45, 48].includes(code)) return { condition: "Foggy 🌫️", ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n  ════════════" };
+          if ([51, 53, 55, 56, 57].includes(code)) return { condition: "Drizzle 🌧️", ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n   '  '  '  '\n  '  '  '  '" };
+          if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { condition: "Rainy / Showers 🌧️", ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n   / / / / /\n  / / / / /" };
+          if ([71, 73, 75, 77, 85, 86].includes(code)) return { condition: "Snowy ❄️", ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n   *  *  *  *\n  *  *  *  *" };
+          if ([95, 96, 99].includes(code)) return { condition: "Thunderstorm ⚡", ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n    ⚡ ⚡ ⚡ ⚡\n   / / / / /" };
+          return { condition: "Cloudy", ascii: "      .--.\n   .-(    ).\n  (___.___)__)" };
         };
 
         const getWindDirectionStr = (deg: number): string => {
@@ -657,7 +701,6 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
           return directions[index];
         };
 
-        // Self-invoking async function to handle the geolocation and weather fetches
         (async () => {
           const startTime = Date.now();
           try {
@@ -668,23 +711,13 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
             let resolvedTimezone = "Asia/Kolkata";
 
             if (queryCity) {
-              const geoRes = await fetch(
-                `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(queryCity)}&count=1&language=en`
-              );
-              if (!geoRes.ok) {
-                throw new Error("Geocoding failed");
-              }
+              const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(queryCity)}&count=1&language=en`);
+              if (!geoRes.ok) throw new Error("Geocoding failed");
               const geoData = await geoRes.json();
               if (!geoData.results || geoData.results.length === 0) {
                 const elapsed = Date.now() - startTime;
-                if (elapsed < 1600) {
-                  await new Promise((resolve) => setTimeout(resolve, 1600 - elapsed));
-                }
-                setHistory((prev) => [
-                  ...prev,
-                  `weather: city '${queryCity}' could not be resolved by satellite networks.`,
-                  ""
-                ]);
+                if (elapsed < 1600) await new Promise((resolve) => setTimeout(resolve, 1600 - elapsed));
+                setHistory((prev) => [...prev, `weather: city '${queryCity}' could not be resolved by satellite networks.`, ""]);
                 return;
               }
               const location = geoData.results[0];
@@ -711,19 +744,12 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
               }
             }
 
-            const weatherRes = await fetch(
-              `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m&timezone=auto`
-            );
-            if (!weatherRes.ok) {
-              throw new Error("Weather request failed");
-            }
+            const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m&timezone=auto`);
+            if (!weatherRes.ok) throw new Error("Weather request failed");
             const weatherData = await weatherRes.json();
             const current = weatherData.current;
 
-            if (!current) {
-              throw new Error("Invalid weather payload");
-            }
-
+            if (!current) throw new Error("Invalid weather payload");
             const { condition, ascii } = getWeatherCondition(current.weather_code);
             const windDir = getWindDirectionStr(current.wind_direction_10m);
 
@@ -743,43 +769,65 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
             ];
 
             const elapsed = Date.now() - startTime;
-            if (elapsed < 1600) {
-              await new Promise((resolve) => setTimeout(resolve, 1600 - elapsed));
-            }
+            if (elapsed < 1600) await new Promise((resolve) => setTimeout(resolve, 1600 - elapsed));
 
-            setHistory((prev) => [
-              ...prev,
-              ...telemetryOutput,
-              ""
-            ]);
+            setHistory((prev) => [...prev, ...telemetryOutput, ""]);
           } catch (err) {
             console.error(err);
             const elapsed = Date.now() - startTime;
-            if (elapsed < 1600) {
-              await new Promise((resolve) => setTimeout(resolve, 1600 - elapsed));
-            }
-            setHistory((prev) => [
-              ...prev,
-              "weather: orbital telemetry fetch encountered a connection error.",
-              ""
-            ]);
+            if (elapsed < 1600) await new Promise((resolve) => setTimeout(resolve, 1600 - elapsed));
+            setHistory((prev) => [...prev, "weather: orbital telemetry fetch encountered a connection error.", ""]);
           }
         })();
-
-        return;
+        return { success: true, newPath: localPath };
       }
 
       default:
         output = [`sh: command not found: ${cmd}. Type 'help' for command list.`];
+        success = false;
         break;
     }
 
-    setHistory((prev) => [
-      ...prev,
-      `${currentUser.username}@aresos:${currentPath}$ ${command}`,
-      ...output,
-      "",
-    ]);
+    if (cmd !== "clear") {
+      historyOutput.push(`${currentUser.username}@aresos:${localPath}$ ${command}`);
+      historyOutput.push(...output);
+      historyOutput.push("");
+    }
+
+    return { success, newPath };
+  };
+
+  const handleCommandExecute = async (commandLine: string) => {
+    const parsed = parseCommandLine(commandLine);
+    let lastSuccess = true;
+    let localPath = currentPath;
+    const allNewHistory: string[] = [];
+
+    for (let i = 0; i < parsed.length; i++) {
+      const { cmdText, operator } = parsed[i];
+      if (!cmdText) continue;
+
+      if (i > 0) {
+        const prevOperator = parsed[i - 1].operator;
+        if (prevOperator === "&&" && !lastSuccess) continue;
+        if (prevOperator === "||" && lastSuccess) continue;
+      }
+
+      // Execute single command
+      const result = await executeSingleCommand(cmdText, localPath, allNewHistory);
+      lastSuccess = result.success;
+      localPath = result.newPath;
+
+      // Break if an interactive subprogram starts
+      const firstWord = cmdText.trim().toLowerCase().split(/\s+/)[0];
+      if (["matrix", "top", "ping", "weather"].includes(firstWord)) {
+        break;
+      }
+    }
+
+    if (allNewHistory.length > 0) {
+      setHistory((prev) => [...prev, ...allNewHistory]);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
