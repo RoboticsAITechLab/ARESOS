@@ -498,8 +498,30 @@ const runAllTests = async () => {
   assertStdoutContains("bg: no such job");
   await run("fg");
   assertStdoutContains("fg: no such job");
-  const resKill = await executeSingleCommand("kill", makeContext(), currentPath);
+  
+  const ctxKill = makeContext();
+  const resKill = await executeSingleCommand("kill", ctxKill, currentPath);
   assert(resKill.exitCode !== 0, "kill without arguments should return non-zero exit code");
+
+  // Valid PID (12)
+  const resKillValid = await executeSingleCommand("kill 12", ctxKill, currentPath);
+  assert(resKillValid.success, "kill 12 should succeed");
+  assert(resKillValid.stdout.includes("Process terminated."), "kill 12 output mismatch");
+
+  // Invalid PID (999)
+  const resKillInvalid = await executeSingleCommand("kill 999", ctxKill, currentPath);
+  assert(!resKillInvalid.success, "kill 999 should fail");
+  assert(resKillInvalid.stderr.includes("kill: process not found: 999"), "kill 999 error message mismatch");
+
+  // Protected PID (1)
+  const resKillProtected = await executeSingleCommand("kill 1", ctxKill, currentPath);
+  assert(!resKillProtected.success, "kill 1 should fail");
+  assert(resKillProtected.stderr.includes("kill: cannot terminate root system process: 1"), "kill 1 error message mismatch");
+
+  // Nohup simulation not available
+  const resNohup = await executeSingleCommand("nohup echo hello", ctxKill, currentPath);
+  assert(!resNohup.success, "nohup should return failure");
+  assert(resNohup.stderr.includes("nohup: background job simulation not available"), "nohup error message mismatch");
 
   console.log("\n✅ All 16 regression tests passed successfully!\n");
 };

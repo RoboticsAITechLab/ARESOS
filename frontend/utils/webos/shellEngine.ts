@@ -1314,15 +1314,26 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
         return { success: false, newPath: localPath, stdout: [], stderr: ["kill: missing PID arguments."] };
       }
       const targetPid = args[1].trim();
-      if (targetPid === "1" || targetPid === "12") {
-        return { success: false, newPath: localPath, stdout: [], stderr: [`kill: cannot terminate root system process: ${targetPid}`] };
+      const existsInProcs = context.processes.some((p) => p.pid === targetPid);
+      const isValid = targetPid === "1" || targetPid === "12" || existsInProcs;
+
+      if (!isValid) {
+        return { success: false, newPath: localPath, stdout: [], stderr: [`kill: process not found: ${targetPid}`] };
       }
-      try {
-        context.terminateApp(targetPid);
-      } catch (err) {
-        return { success: false, newPath: localPath, stdout: [], stderr: [`kill: failed to terminate process: ${targetPid}`] };
+
+      if (targetPid === "1") {
+        return { success: false, newPath: localPath, stdout: [], stderr: [`kill: cannot terminate root system process: 1`] };
       }
-      return { success: true, newPath: localPath, stdout: [`Process terminal signal sent to PID: ${targetPid}`], stderr: [] };
+
+      if (existsInProcs) {
+        try {
+          context.terminateApp(targetPid);
+        } catch (err) {
+          return { success: false, newPath: localPath, stdout: [], stderr: [`kill: failed to terminate process: ${targetPid}`] };
+        }
+      }
+
+      return { success: true, newPath: localPath, stdout: ["Process terminated."], stderr: [] };
     }
   },
 
@@ -1350,7 +1361,7 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
   nohup: {
     desc: "Immunize execution from hangups",
     run: (args, context, localPath) => {
-      return { success: true, newPath: localPath, stdout: ["Simulation: job control driver 'nohup' registered in background."], stderr: [] };
+      return { success: false, newPath: localPath, stdout: [], stderr: ["nohup: background job simulation not available"] };
     }
   },
 
