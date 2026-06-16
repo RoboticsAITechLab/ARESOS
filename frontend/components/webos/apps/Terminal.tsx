@@ -13,7 +13,7 @@ interface TerminalProps {
 const COMMANDS = [
   "help", "ls", "cd", "pwd", "cat", "touch", "write", "mkdir", "rm", "echo",
   "clear", "theme", "neofetch", "cp", "mv", "find", "tree", "grep", "head",
-  "tail", "wc", "chmod", "zip", "unzip", "ps", "kill", "jobs", "bg", "fg",
+  "tail", "wc", "chmod", "zip", "unzip", "zipinfo", "ps", "kill", "jobs", "bg", "fg",
   "nohup", "htop", "diskusage", "meminfo", "cpuinfo", "curl", "wget",
   "nslookup", "traceroute", "netstat", "ssh", "scp", "git", "python", "node",
   "npm", "gcc", "clang", "arespkg", "ping", "weather", "top", "matrix", "calc"

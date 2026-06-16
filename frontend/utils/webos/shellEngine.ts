@@ -655,6 +655,96 @@ const AVAILABLE_PACKAGES: Record<string, { desc: string; version: string }> = {
   gcc: { desc: "GNU C Compiler toolkit environment", version: "13.2.0" }
 };
 
+const getBasename = (path: string): string => {
+  const segments = path.split("/").filter(Boolean);
+  return segments.length > 0 ? segments[segments.length - 1] : "";
+};
+
+const collectArchiveItems = (fullPath: string, relativePath: string, context: ShellContext, items: any[]) => {
+  const details = getNodeDetails(fullPath, context);
+  if (!details.exists) {
+    throw new Error(`file not found: ${getBasename(fullPath)}`);
+  }
+  
+  if (details.type === "file") {
+    const file = context.readFile(fullPath);
+    if (file) {
+      items.push({
+        path: relativePath,
+        type: "file",
+        content: file.content,
+        size: file.content.length
+      });
+    }
+  } else if (details.type === "directory") {
+    items.push({
+      path: relativePath + "/",
+      type: "directory",
+      content: "",
+      size: 0
+    });
+    
+    const children = context.listDirectory(fullPath);
+    children.forEach((child) => {
+      const childFullPath = fullPath === "/" ? `/${child.name}` : `${fullPath}/${child.name}`;
+      const childRelativePath = relativePath + "/" + child.name;
+      collectArchiveItems(childFullPath, childRelativePath, context, items);
+    });
+  }
+};
+
+const getNodeDetails = (path: string, context: ShellContext): { exists: boolean; type?: "file" | "directory" } => {
+  if (path === "/") {
+    return { exists: true, type: "directory" };
+  }
+  const cleanPath = "/" + path.split("/").filter(Boolean).join("/");
+  const segments = cleanPath.split("/").filter(Boolean);
+  if (segments.length === 0) {
+    return { exists: true, type: "directory" };
+  }
+  const name = segments[segments.length - 1];
+  const parentPath = "/" + segments.slice(0, -1).join("/");
+  
+  try {
+    const parentList = context.listDirectory(parentPath);
+    const found = parentList.find(item => item.name === name);
+    if (found) {
+      return { exists: true, type: found.node.type };
+    }
+  } catch (e) {}
+  
+  return { exists: false };
+};
+
+const copyRecursive = (srcPath: string, destPath: string, context: ShellContext) => {
+  const details = getNodeDetails(srcPath, context);
+  if (!details.exists) return;
+
+  if (details.type === "file") {
+    const file = context.readFile(srcPath);
+    if (file) {
+      context.writeFile(destPath, file.content);
+    }
+  } else if (details.type === "directory") {
+    const getParentPath = (path: string): { parentPath: string; nodeName: string } => {
+      const segments = path.split("/").filter(Boolean);
+      if (segments.length === 0) return { parentPath: "/", nodeName: "" };
+      const nodeName = segments[segments.length - 1];
+      const parentPath = "/" + segments.slice(0, -1).join("/");
+      return { parentPath, nodeName };
+    };
+    const parentDest = getParentPath(destPath);
+    context.createDirectory(parentDest.parentPath, parentDest.nodeName);
+
+    const children = context.listDirectory(srcPath);
+    children.forEach((child) => {
+      const childSrc = srcPath === "/" ? `/${child.name}` : `${srcPath}/${child.name}`;
+      const childDest = destPath === "/" ? `/${child.name}` : `${destPath}/${child.name}`;
+      copyRecursive(childSrc, childDest, context);
+    });
+  }
+};
+
 interface CommandHandler {
   desc: string;
   run: (
@@ -1045,39 +1135,22 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
       }
       const src = resolveLocalPath(localPath, args[1]);
       const dest = resolveLocalPath(localPath, args[2]);
-      const srcFile = context.readFile(src);
-      if (srcFile) {
-        const ok = context.writeFile(dest, srcFile.content);
-        if (ok) {
-          return { success: true, newPath: localPath, stdout: [`Copied file '${args[1]}' to '${args[2]}'`], stderr: [] };
-        }
-        return { success: false, newPath: localPath, stdout: [], stderr: [`cp: failed to write to destination '${args[2]}'`] };
-      } else {
-        try {
-          const list = context.listDirectory(src);
-          if (list) {
-            const getParentPath = (path: string): { parentPath: string; nodeName: string } => {
-              const segments = path.split("/").filter(Boolean);
-              if (segments.length === 0) return { parentPath: "/", nodeName: "" };
-              const nodeName = segments[segments.length - 1];
-              const parentPath = "/" + segments.slice(0, -1).join("/");
-              return { parentPath, nodeName };
-            };
-            const parentDest = getParentPath(dest);
-            context.createDirectory(parentDest.parentPath, parentDest.nodeName);
-            list.forEach((item) => {
-              const itemSrc = src + "/" + item.name;
-              const itemDest = dest + "/" + item.name;
-              if (item.node.type === "file") {
-                const data = context.readFile(itemSrc);
-                if (data) context.writeFile(itemDest, data.content);
-              }
-            });
-            return { success: true, newPath: localPath, stdout: [`Copied directory '${args[1]}' recursively to '${args[2]}'`], stderr: [] };
-          }
-        } catch {}
+      
+      const srcDetails = getNodeDetails(src, context);
+      if (!srcDetails.exists) {
+        return { success: false, newPath: localPath, stdout: [], stderr: [`cp: source node '${args[1]}' not found.`] };
       }
-      return { success: false, newPath: localPath, stdout: [], stderr: [`cp: source node '${args[1]}' not found.`] };
+
+      try {
+        copyRecursive(src, dest, context);
+        if (srcDetails.type === "file") {
+          return { success: true, newPath: localPath, stdout: [`Copied file '${args[1]}' to '${args[2]}'`], stderr: [] };
+        } else {
+          return { success: true, newPath: localPath, stdout: [`Copied directory '${args[1]}' recursively to '${args[2]}'`], stderr: [] };
+        }
+      } catch (e: any) {
+        return { success: false, newPath: localPath, stdout: [], stderr: [`cp: copy failed: ${e.message || e}`] };
+      }
     }
   },
 
@@ -1089,14 +1162,22 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
       }
       const src = resolveLocalPath(localPath, args[1]);
       const dest = resolveLocalPath(localPath, args[2]);
-      const srcFile = context.readFile(src);
-      if (srcFile) {
-        const ok = context.writeFile(dest, srcFile.content);
-        if (ok) {
-          context.deleteNode(src);
-          return { success: true, newPath: localPath, stdout: [`Moved '${args[1]}' to '${args[2]}'`], stderr: [] };
+
+      const srcDetails = getNodeDetails(src, context);
+      if (!srcDetails.exists) {
+        return { success: false, newPath: localPath, stdout: [], stderr: [`mv: source not found: ${args[1]}`] };
+      }
+
+      if (srcDetails.type === "file") {
+        const srcFile = context.readFile(src);
+        if (srcFile) {
+          const ok = context.writeFile(dest, srcFile.content);
+          if (ok) {
+            context.deleteNode(src);
+            return { success: true, newPath: localPath, stdout: [`Moved '${args[1]}' to '${args[2]}'`], stderr: [] };
+          }
+          return { success: false, newPath: localPath, stdout: [], stderr: [`mv: failed to write to destination '${args[2]}'`] };
         }
-        return { success: false, newPath: localPath, stdout: [], stderr: [`mv: failed to write to destination '${args[2]}'`] };
       } else {
         const ok = context.renameNode(src, args[2]);
         if (ok) {
@@ -1272,22 +1353,173 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
   },
 
   zip: {
-    desc: "Archive files (simulation)",
+    desc: "Archive files and directories",
     run: (args, context, localPath) => {
       if (args.length < 2) {
         return { success: false, newPath: localPath, stdout: [], stderr: ["zip: missing target archive name."] };
       }
-      return { success: true, newPath: localPath, stdout: [`Archive simulated: ${args[1]} successfully processed.`], stderr: [] };
+      if (args.length < 3) {
+        return { success: false, newPath: localPath, stdout: [], stderr: ["zip: missing source files."] };
+      }
+      const dest = resolveLocalPath(localPath, args[1]);
+      const items: any[] = [];
+      for (const srcArg of args.slice(2)) {
+        const fullSrc = resolveLocalPath(localPath, srcArg);
+        try {
+          collectArchiveItems(fullSrc, getBasename(srcArg), context, items);
+        } catch (e: any) {
+          return { success: false, newPath: localPath, stdout: [], stderr: [`zip: file not found: ${srcArg}`] };
+        }
+      }
+
+      const archiveData = {
+        isZipArchive: true,
+        archiveName: args[1],
+        createdAt: Date.now(),
+        items
+      };
+
+      const ok = context.writeFile(dest, JSON.stringify(archiveData));
+      if (ok) {
+        return { success: true, newPath: localPath, stdout: [`${args[1]} created in current directory`], stderr: [] };
+      }
+      return { success: false, newPath: localPath, stdout: [], stderr: [`zip: failed to write archive: ${args[1]}`] };
     }
   },
 
   unzip: {
-    desc: "Extract archive (simulation)",
+    desc: "Extract archive files and directories",
     run: (args, context, localPath) => {
-      if (args.length < 2) {
+      const isList = args.includes("-l");
+      const isOverwrite = args.includes("-o");
+      const archiveArg = args.find(arg => arg !== "unzip" && !arg.startsWith("-"));
+
+      if (!archiveArg) {
         return { success: false, newPath: localPath, stdout: [], stderr: ["unzip: missing target archive name."] };
       }
-      return { success: true, newPath: localPath, stdout: [`Archive simulated: ${args[1]} successfully processed.`], stderr: [] };
+
+      const archivePath = resolveLocalPath(localPath, archiveArg);
+      const file = context.readFile(archivePath);
+      if (!file) {
+        return { success: false, newPath: localPath, stdout: [], stderr: [`unzip: archive not found: ${archiveArg}`] };
+      }
+
+      let archiveData: any;
+      try {
+        archiveData = JSON.parse(file.content);
+      } catch (e) {}
+
+      if (!archiveData || !archiveData.isZipArchive) {
+        return { success: false, newPath: localPath, stdout: [], stderr: [`unzip: not a valid archive file: ${archiveArg}`] };
+      }
+
+      if (isList) {
+        const lines = [
+          `Archive: ${archiveArg}`,
+          "",
+          "## Length    Name",
+          ""
+        ];
+        let totalLength = 0;
+        archiveData.items.forEach((item: any) => {
+          if (item.type === "file") {
+            lines.push(`${String(item.size).padEnd(10)}${item.path}`);
+            totalLength += item.size;
+          } else {
+            lines.push(`${"0".padEnd(10)}${item.path}`);
+          }
+        });
+        lines.push("-------------------");
+        return { success: true, newPath: localPath, stdout: lines, stderr: [] };
+      }
+
+      // Check overwrite protection first if not in force-overwrite mode
+      if (!isOverwrite) {
+        for (const item of archiveData.items) {
+          const destPath = resolveLocalPath(localPath, item.path);
+          const destDetails = getNodeDetails(destPath, context);
+          if (destDetails.exists) {
+            return {
+              success: false,
+              newPath: localPath,
+              stdout: [`replace ${item.path}? [y/n]`],
+              stderr: [`unzip: file already exists: ${item.path}. Use -o to force overwrite.`]
+            };
+          }
+        }
+      }
+
+      // Perform extraction
+      const stdoutLines: string[] = [];
+      for (const item of archiveData.items) {
+        const destPath = resolveLocalPath(localPath, item.path);
+        if (item.type === "directory") {
+          const segments = item.path.split("/").filter(Boolean);
+          let currentBuild = "";
+          for (const nextDir of segments) {
+            context.createDirectory(currentBuild || localPath, nextDir);
+            currentBuild = currentBuild === "" ? `${localPath}/${nextDir}` : `${currentBuild}/${nextDir}`;
+          }
+        } else {
+          // Ensure all parent directories exist
+          const segments = item.path.split("/").filter(Boolean);
+          let currentBuild = "";
+          for (let i = 0; i < segments.length - 1; i++) {
+            const nextDir = segments[i];
+            context.createDirectory(currentBuild || localPath, nextDir);
+            currentBuild = currentBuild === "" ? `${localPath}/${nextDir}` : `${currentBuild}/${nextDir}`;
+          }
+          context.writeFile(destPath, item.content);
+          stdoutLines.push(`${item.path} restored.`);
+        }
+      }
+
+      return { success: true, newPath: localPath, stdout: stdoutLines, stderr: [] };
+    }
+  },
+
+  zipinfo: {
+    desc: "Display zip archive metadata",
+    run: (args, context, localPath) => {
+      if (args.length < 2) {
+        return { success: false, newPath: localPath, stdout: [], stderr: ["zipinfo: missing archive name."] };
+      }
+      const archivePath = resolveLocalPath(localPath, args[1]);
+      const file = context.readFile(archivePath);
+      if (!file) {
+        return { success: false, newPath: localPath, stdout: [], stderr: [`zipinfo: archive not found: ${args[1]}`] };
+      }
+
+      let archiveData: any;
+      try {
+        archiveData = JSON.parse(file.content);
+      } catch (e) {}
+
+      if (!archiveData || !archiveData.isZipArchive) {
+        return { success: false, newPath: localPath, stdout: [], stderr: [`zipinfo: not a valid archive file: ${args[1]}`] };
+      }
+
+      let filesCount = 0;
+      let dirsCount = 0;
+      let totalSize = 0;
+      archiveData.items.forEach((item: any) => {
+        if (item.type === "file") {
+          filesCount++;
+          totalSize += item.size;
+        } else {
+          dirsCount++;
+        }
+      });
+
+      const dateStr = new Date(archiveData.createdAt).toISOString();
+      const stdout = [
+        `Archive Name: ${archiveData.archiveName}`,
+        `Created Date: ${dateStr}`,
+        `Files Count: ${filesCount}`,
+        `Directories Count: ${dirsCount}`,
+        `Total Size: ${totalSize} bytes`
+      ];
+      return { success: true, newPath: localPath, stdout, stderr: [] };
     }
   },
 

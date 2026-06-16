@@ -523,7 +523,87 @@ const runAllTests = async () => {
   assert(!resNohup.success, "nohup should return failure");
   assert(resNohup.stderr.includes("nohup: background job simulation not available"), "nohup error message mismatch");
 
-  console.log("\n✅ All 16 regression tests passed successfully!\n");
+  // 17. TEST_FILESYSTEM_UTILITIES (cp and mv correctness)
+  resetState();
+  console.log("  [17] Testing cp and mv correctness (file vs directory checks)...");
+  
+  // Create test structure
+  await run("touch a.txt");
+  await run("write a.txt hello");
+  await run("mkdir docs");
+  await run("touch docs/b.txt");
+  await run("write docs/b.txt world");
+
+  // cp file
+  await run("cp a.txt copy.txt");
+  assertStdoutContains("Copied file 'a.txt' to 'copy.txt'");
+  assert(readFile("/home/user/copy.txt")?.content === "hello", "cp file content mismatch");
+
+  // cp directory
+  await run("cp docs backup");
+  assertStdoutContains("Copied directory 'docs' recursively to 'backup'");
+  assert(readFile("/home/user/backup/b.txt")?.content === "world", "cp directory content mismatch");
+
+  // mv nonexistent
+  const resMvNonexistent = await executeSingleCommand("mv missing.txt dest.txt", makeContext(), currentPath);
+  assert(!resMvNonexistent.success, "mv nonexistent source should fail");
+  assert(resMvNonexistent.stderr.includes("mv: source not found: missing.txt"), "mv nonexistent error message mismatch");
+
+  // mv file
+  await run("mv a.txt renamed.txt");
+  assert(readFile("/home/user/a.txt") === null, "mv source file should be deleted");
+  assert(readFile("/home/user/renamed.txt")?.content === "hello", "mv destination file content mismatch");
+
+  // 18. TEST_ARCHIVE_SYSTEM (zip, unzip, zipinfo)
+  resetState();
+  console.log("  [18] Testing real virtual zip, unzip, and zipinfo engine...");
+  
+  // Create test files
+  await run("touch notes.txt");
+  await run("write notes.txt importantinfo");
+  await run("mkdir src");
+  await run("touch src/main.ts");
+  await run("write src/main.ts \"console.log('hello')\"");
+
+  // zip file and directory
+  await run("zip backup.zip notes.txt src");
+  assertStdoutContains("backup.zip created in current directory");
+
+  // zipinfo
+  const ctxZipInfo = makeContext();
+  const resZipInfo = await executeSingleCommand("zipinfo backup.zip", ctxZipInfo, currentPath);
+  assert(resZipInfo.success, "zipinfo should succeed");
+  assert(resZipInfo.stdout.some(l => l.includes("Archive Name: backup.zip")), "zipinfo archive name mismatch");
+  assert(resZipInfo.stdout.some(l => l.includes("Files Count: 2")), "zipinfo files count mismatch");
+  assert(resZipInfo.stdout.some(l => l.includes("Directories Count: 1")), "zipinfo directories count mismatch"); // src/
+
+  // unzip list
+  const resUnzipList = await executeSingleCommand("unzip -l backup.zip", ctxZipInfo, currentPath);
+  assert(resUnzipList.success, "unzip -l should succeed");
+  assert(resUnzipList.stdout.some(l => l.includes("notes.txt")), "unzip -l list mismatch");
+  assert(resUnzipList.stdout.some(l => l.includes("src/main.ts")), "unzip -l list mismatch");
+
+  // delete original files
+  await run("rm notes.txt");
+  await run("rm src/main.ts");
+  await run("rm src");
+
+  // unzip extract
+  await run("unzip backup.zip");
+  assertStdoutContains("notes.txt restored.");
+  assert(readFile("/home/user/notes.txt")?.content === "importantinfo", "unzipped file content mismatch");
+  assert(readFile("/home/user/src/main.ts")?.content === "console.log('hello')", "unzipped directory file content mismatch");
+
+  // unzip overwrite protection
+  const resUnzipOverwriteFail = await executeSingleCommand("unzip backup.zip", ctxZipInfo, currentPath);
+  assert(!resUnzipOverwriteFail.success, "unzip without -o on existing file should fail");
+  assert(resUnzipOverwriteFail.stdout.includes("replace notes.txt? [y/n]"), "unzip prompt mismatch");
+
+  // unzip force overwrite
+  const resUnzipOverwriteSuccess = await executeSingleCommand("unzip -o backup.zip", ctxZipInfo, currentPath);
+  assert(resUnzipOverwriteSuccess.success, "unzip -o should succeed");
+
+  console.log("\n✅ All 18 regression tests passed successfully!\n");
 };
 
 runAllTests().catch(err => {
