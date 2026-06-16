@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useOS } from "@/hooks/webos/useOS";
 import { WindowInstance } from "@/types/webos/window";
+import { DotGothic16 } from "next/font/google";
 
 interface WindowProps {
   windowState: WindowInstance;
@@ -266,3 +267,10 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
     </div>
   );
 };
+
+
+
+
+// ===========================================================
+
+

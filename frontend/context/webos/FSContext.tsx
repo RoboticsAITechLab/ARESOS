@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useState, ReactNode } from "react";
+import React, { createContext, useState, useRef, useEffect, ReactNode } from "react";
 import { FSDirectory, FSNode, FSFile } from "@/types/webos/fs";
 import { useOS } from "@/hooks/webos/useOS";
 
@@ -122,7 +122,19 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
     return INITIAL_FS;
   });
-  const [currentPath, setCurrentPath] = useState<string>("/home/user");
+
+  const rootRef = useRef<FSDirectory>(root);
+  useEffect(() => {
+    rootRef.current = root;
+  }, [root]);
+
+  const [currentPath, _setCurrentPath] = useState<string>("/home/user");
+  const currentPathRef = useRef<string>(currentPath);
+
+  const setCurrentPath = (path: string) => {
+    currentPathRef.current = path;
+    _setCurrentPath(path);
+  };
 
   const calculateFolderSize = (node: FSNode): number => {
     if (node.type === "file") {
@@ -138,7 +150,9 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   const formatFileSystem = () => {
+    rootRef.current = INITIAL_FS;
     setRoot(INITIAL_FS);
+    setCurrentPath("/home/user");
     if (typeof window !== "undefined") {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
       localStorage.removeItem("aresos_todo_items");
@@ -151,6 +165,7 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   // Save to localStorage on changes
   const saveFileSystem = (newRoot: FSDirectory) => {
+    rootRef.current = newRoot;
     setRoot(newRoot);
     if (typeof window !== "undefined") {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newRoot));
@@ -159,7 +174,7 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   // Helper to split a path into segment arrays
   const parsePath = (path: string): string[] => {
-    const absolutePath = path.startsWith("/") ? path : `${currentPath}/${path}`;
+    const absolutePath = path.startsWith("/") ? path : `${currentPathRef.current}/${path}`;
     return absolutePath.split("/").filter(Boolean);
   };
 
@@ -179,9 +194,9 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   // List directory elements
   const listDirectory = (path?: string) => {
-    const targetPath = path !== undefined ? path : currentPath;
+    const targetPath = path !== undefined ? path : currentPathRef.current;
     const segments = parsePath(targetPath);
-    const node = findNode(root, segments);
+    const node = findNode(rootRef.current, segments);
 
     if (node && node.type === "directory") {
       return Object.entries(node.children).map(([name, child]) => ({
@@ -195,7 +210,7 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Read file contents
   const readFile = (filePath: string): FSFile | null => {
     const segments = parsePath(filePath);
-    const node = findNode(root, segments);
+    const node = findNode(rootRef.current, segments);
     if (node && node.type === "file") {
       return node;
     }
@@ -211,7 +226,7 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const parentSegments = segments.slice(0, -1);
 
     // Clone root to avoid state mutation issues
-    const newRoot = JSON.parse(JSON.stringify(root)) as FSDirectory;
+    const newRoot = JSON.parse(JSON.stringify(rootRef.current)) as FSDirectory;
     const parentNode = findNode(newRoot, parentSegments);
 
     if (parentNode && parentNode.type === "directory") {
@@ -250,7 +265,7 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Create new directory
   const createDirectory = (dirPath: string, name: string): boolean => {
     const segments = parsePath(dirPath);
-    const newRoot = JSON.parse(JSON.stringify(root)) as FSDirectory;
+    const newRoot = JSON.parse(JSON.stringify(rootRef.current)) as FSDirectory;
     const parentNode = findNode(newRoot, segments);
 
     if (parentNode && parentNode.type === "directory") {
@@ -281,7 +296,7 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const nodeName = segments[segments.length - 1];
     const parentSegments = segments.slice(0, -1);
 
-    const newRoot = JSON.parse(JSON.stringify(root)) as FSDirectory;
+    const newRoot = JSON.parse(JSON.stringify(rootRef.current)) as FSDirectory;
     const parentNode = findNode(newRoot, parentSegments);
 
     if (parentNode && parentNode.type === "directory") {
@@ -303,7 +318,7 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     if (targetPath.startsWith("/")) {
       segments = targetPath.split("/").filter(Boolean);
     } else {
-      const currentSegments = currentPath.split("/").filter(Boolean);
+      const currentSegments = currentPathRef.current.split("/").filter(Boolean);
       const relativeSegments = targetPath.split("/").filter(Boolean);
 
       for (const segment of relativeSegments) {
@@ -318,7 +333,7 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       segments = currentSegments;
     }
 
-    const node = findNode(root, segments);
+    const node = findNode(rootRef.current, segments);
     if (node && node.type === "directory") {
       const absolutePath = "/" + segments.join("/");
       setCurrentPath(absolutePath);
@@ -369,7 +384,7 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const pasteNode = (targetDirPath: string): boolean => {
     if (!clipboard || clipboard.paths.length === 0) return false;
 
-    const newRoot = JSON.parse(JSON.stringify(root)) as FSDirectory;
+    const newRoot = JSON.parse(JSON.stringify(rootRef.current)) as FSDirectory;
     let successCount = 0;
 
     clipboard.paths.forEach((sourcePath) => {
@@ -377,7 +392,7 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       if (sourceSegments.length === 0) return;
       const originalName = sourceSegments[sourceSegments.length - 1];
 
-      const sourceNode = findNode(root, sourceSegments);
+      const sourceNode = findNode(rootRef.current, sourceSegments);
       if (!sourceNode) return;
 
       const targetSegments = targetDirPath.split("/").filter(Boolean);
@@ -441,7 +456,7 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const oldName = segments[segments.length - 1];
     const parentSegments = segments.slice(0, -1);
 
-    const newRoot = JSON.parse(JSON.stringify(root)) as FSDirectory;
+    const newRoot = JSON.parse(JSON.stringify(rootRef.current)) as FSDirectory;
     const parentNode = findNode(newRoot, parentSegments);
 
     if (parentNode && parentNode.type === "directory") {

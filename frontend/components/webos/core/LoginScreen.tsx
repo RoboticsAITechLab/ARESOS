@@ -371,7 +371,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
           <span>📖</span> <span className="underline decoration-cyan-500/30">View README.md on GitHub</span>
         </a>
         <p className="text-[9px] text-zinc-500 text-center leading-relaxed">
-          ⚠️ <span className="font-semibold text-zinc-400">Security Suggestion:</span> Please change the default pass-key (<code className="text-cyan-500 bg-zinc-900/60 px-1 py-0.5 rounded border border-cyan-500/15">1462007</code>) after logging in.
+          ⚠️ <span className="font-semibold text-zinc-400">Security Suggestion:</span> Please change the default pass-key  after logging in.
         </p>
       </div>
 

@@ -4,32 +4,136 @@ import React, { useState, useEffect, useRef } from "react";
 import { useFileSystem } from "@/hooks/webos/useFileSystem";
 import { useOS } from "@/hooks/webos/useOS";
 import { playClickSound } from "@/utils/webos/audio";
+import { executeCommandLine, ShellContext } from "@/utils/webos/shellEngine";
 
 interface TerminalProps {
   pid: string;
 }
 
 const COMMANDS = [
-  "help",
-  "ls",
-  "cd",
-  "pwd",
-  "cat",
-  "mkdir",
-  "rm",
-  "echo",
-  "clear",
-  "neofetch",
-  "theme",
-  "history",
-  "touch",
-  "write",
-  "ping",
-  "top",
-  "matrix",
-  "calc",
-  "weather"
+  "help", "ls", "cd", "pwd", "cat", "touch", "write", "mkdir", "rm", "echo",
+  "clear", "theme", "neofetch", "cp", "mv", "find", "tree", "grep", "head",
+  "tail", "wc", "chmod", "zip", "unzip", "ps", "kill", "jobs", "bg", "fg",
+  "nohup", "htop", "diskusage", "meminfo", "cpuinfo", "curl", "wget",
+  "nslookup", "traceroute", "netstat", "ssh", "scp", "git", "python", "node",
+  "npm", "gcc", "clang", "arespkg", "ping", "weather", "top", "matrix", "calc"
 ];
+
+const getLastWord = (val: string): { word: string; prefix: string } => {
+  let lastSpaceIdx = -1;
+  let inDoubleQuote = false;
+  let inSingleQuote = false;
+  for (let i = 0; i < val.length; i++) {
+    const char = val[i];
+    if (char === '\\') {
+      i++;
+    } else if (char === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+    } else if (char === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+    } else if (char === ' ' && !inDoubleQuote && !inSingleQuote) {
+      lastSpaceIdx = i;
+    }
+  }
+  if (lastSpaceIdx === -1) {
+    return { word: val, prefix: "" };
+  }
+  return {
+    word: val.substring(lastSpaceIdx + 1),
+    prefix: val.substring(0, lastSpaceIdx + 1)
+  };
+};
+
+const parseAnsiColors = (text: string) => {
+  const ansiRegex = /[\u001b\x1b]\[([0-9;]*)m/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let currentStyle: React.CSSProperties = {};
+  let match;
+  let key = 0;
+
+  while ((match = ansiRegex.exec(text)) !== null) {
+    const textPart = text.substring(lastIndex, match.index);
+    if (textPart) {
+      parts.push(
+        <span key={key++} style={{ ...currentStyle }}>
+          {textPart}
+        </span>
+      );
+    }
+
+    const codes = match[1].split(";");
+    for (const code of codes) {
+      const codeNum = parseInt(code, 10);
+      if (codeNum === 0 || code === "") {
+        currentStyle = {};
+      } else if (codeNum === 1) {
+        currentStyle.fontWeight = "bold";
+      } else if (codeNum === 4) {
+        currentStyle.textDecoration = "underline";
+      } else if (codeNum >= 30 && codeNum <= 37) {
+        const colors = [
+          "#000000", // 30 Black
+          "#ef4444", // 31 Red
+          "#22c55e", // 32 Green
+          "#eab308", // 33 Yellow
+          "#3b82f6", // 34 Blue
+          "#ec4899", // 35 Magenta
+          "#06b6d4", // 36 Cyan
+          "#ffffff", // 37 White
+        ];
+        currentStyle.color = colors[codeNum - 30];
+      } else if (codeNum >= 90 && codeNum <= 97) {
+        const colors = [
+          "#71717a", // 90 Gray
+          "#f87171", // 91 Bright Red
+          "#4ade80", // 92 Bright Green
+          "#facc15", // 93 Bright Yellow
+          "#60a5fa", // 94 Bright Blue
+          "#f472b6", // 95 Bright Magenta
+          "#22d3ee", // 96 Bright Cyan
+          "#f4f4f5", // 97 Bright White
+        ];
+        currentStyle.color = colors[codeNum - 90];
+      } else if (codeNum >= 40 && codeNum <= 47) {
+        const bgColors = [
+          "#000000", // 40
+          "#7f1d1d", // 41
+          "#14532d", // 42
+          "#713f12", // 43
+          "#1e3a8a", // 44
+          "#701a75", // 45
+          "#164e63", // 46
+          "#3f3f46", // 47
+        ];
+        currentStyle.backgroundColor = bgColors[codeNum - 40];
+      } else if (codeNum >= 100 && codeNum <= 107) {
+        const bgColors = [
+          "#27272a", // 100
+          "#b91c1c", // 101
+          "#15803d", // 102
+          "#a16207", // 103
+          "#1d4ed8", // 104
+          "#a21caf", // 105
+          "#0e7490", // 106
+          "#71717a", // 107
+        ];
+        currentStyle.backgroundColor = bgColors[codeNum - 100];
+      }
+    }
+    lastIndex = ansiRegex.lastIndex;
+  }
+
+  const remainingText = text.substring(lastIndex);
+  if (remainingText) {
+    parts.push(
+      <span key={key++} style={{ ...currentStyle }}>
+        {remainingText}
+      </span>
+    );
+  }
+  return parts.length > 0 ? parts : text;
+};
 
 export default function Terminal({ pid: _pid }: TerminalProps) {
   const {
@@ -39,22 +143,25 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
     readFile,
     writeFile,
     createDirectory,
-    deleteNode
+    deleteNode,
+    renameNode
   } = useFileSystem();
 
   const {
     updateSettings,
     addNotification,
     currentUser,
+    updateUser,
     settings,
     processes,
     windows,
-    terminateApp
+    terminateApp,
+    launchApp
   } = useOS();
 
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<string[]>([
-    "ARESOS Command Line Shell [Version 1.2.0]",
+    "ARESOS Command Line Shell [Version 2.0.0]",
     "(c) 2026 Robotics AI Tech Lab. All rights reserved.",
     "",
     "Type 'help' to see list of available commands.",
@@ -77,6 +184,50 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
   const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isFocused, setIsFocused] = useState(true);
+
+  // Reverse Search (Ctrl+R) States
+  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchHistoryIdx, setSearchHistoryIdx] = useState(-1);
+  const [searchMatch, setSearchMatch] = useState("");
+
+  // Environment and Alias References
+  const envRef = useRef<Record<string, string>>({
+    USER: currentUser?.username || "user",
+    HOME: "/home/user",
+    PATH: "/bin:/usr/bin",
+    SHELL: "/bin/ares",
+    TERM: "xterm-256color",
+    PWD: currentPath,
+  });
+
+  const aliasesRef = useRef<Record<string, string>>({
+    ll: "ls -la",
+    gs: "git status",
+    la: "ls -a",
+  });
+
+  // Sync PWD with currentPath
+  useEffect(() => {
+    envRef.current.PWD = currentPath;
+  }, [currentPath]);
+
+  // Sync USER with currentUser
+  useEffect(() => {
+    if (currentUser?.username) {
+      envRef.current.USER = currentUser.username;
+    }
+  }, [currentUser]);
+
+  const findSearchMatch = (query: string, startIdx: number): { index: number; match: string } => {
+    if (!query) return { index: -1, match: "" };
+    for (let i = startIdx; i >= 0; i--) {
+      if (commandHistory[i] && commandHistory[i].toLowerCase().includes(query.toLowerCase())) {
+        return { index: i, match: commandHistory[i] };
+      }
+    }
+    return { index: -1, match: "" };
+  };
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const hiddenInputRef = useRef<HTMLTextAreaElement>(null);
@@ -253,584 +404,125 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
 
   // Autocomplete Suggestions Calculation
   const getSuggestion = () => {
-    if (!input.trim()) return "";
-    const trimmed = input.trimStart();
-    const parts = trimmed.split(/\s+/);
+    if (!input) return "";
+    const { word, prefix } = getLastWord(input);
+    if (!word) return "";
 
-    if (parts.length === 1) {
-      // Autocomplete command name
-      const cmdPart = parts[0].toLowerCase();
-      const match = COMMANDS.find((c) => c.startsWith(cmdPart) && c !== cmdPart);
+    if (word.startsWith("$")) {
+      const varName = word.substring(1).toUpperCase();
+      const match = Object.keys(envRef.current).find(
+        (k) => k.startsWith(varName) && k !== varName
+      );
       if (match) {
-        return match.substring(cmdPart.length);
+        return match.substring(varName.length);
       }
-    } else if (parts.length === 2) {
-      // Autocomplete folder or file argument based on command
-      const cmd = parts[0].toLowerCase();
-      if (["cd", "cat", "rm", "write", "touch"].includes(cmd)) {
-        const argPart = parts[1];
-        let nodes = listDirectory();
+      return "";
+    }
 
-        if (cmd === "cd") {
-          nodes = nodes.filter((n) => n.node.type === "directory");
-        } else if (cmd === "cat") {
-          nodes = nodes.filter((n) => n.node.type === "file");
-        }
+    const trimmedPrefix = prefix.trim();
+    const isCommandName =
+      !trimmedPrefix ||
+      trimmedPrefix.endsWith("&&") ||
+      trimmedPrefix.endsWith("||") ||
+      trimmedPrefix.endsWith(";") ||
+      trimmedPrefix.endsWith("|");
 
-        const match = nodes.find(
-          (n) =>
-            n.name.toLowerCase().startsWith(argPart.toLowerCase()) &&
-            n.name.toLowerCase() !== argPart.toLowerCase()
-        );
-        if (match) {
-          return match.name.substring(argPart.length);
+    if (isCommandName) {
+      const match = COMMANDS.find(
+        (c) => c.startsWith(word.toLowerCase()) && c !== word.toLowerCase()
+      );
+      if (match) {
+        return match.substring(word.length);
+      }
+      return "";
+    }
+
+    // Otherwise, autocomplete VFS files or directories
+    let searchDir = "";
+    let namePrefix = word;
+    let targetPathForList = currentPath;
+
+    if (word.includes("/")) {
+      const lastSlashIdx = word.lastIndexOf("/");
+      searchDir = word.substring(0, lastSlashIdx + 1);
+      namePrefix = word.substring(lastSlashIdx + 1);
+      const dirToResolve = word.substring(0, lastSlashIdx);
+      if (dirToResolve.startsWith("/")) {
+        targetPathForList = "/" + dirToResolve.split("/").filter(Boolean).join("/");
+      } else {
+        const segments = currentPath.split("/").filter(Boolean);
+        const relativeSegments = dirToResolve.split("/").filter(Boolean);
+        for (const seg of relativeSegments) {
+          if (seg === ".") continue;
+          if (seg === "..") {
+            segments.pop();
+          } else {
+            segments.push(seg);
+          }
         }
+        targetPathForList = "/" + segments.join("/");
       }
     }
+
+    try {
+      const nodes = listDirectory(targetPathForList);
+      const match = nodes.find(
+        (n) =>
+          n.name.toLowerCase().startsWith(namePrefix.toLowerCase()) &&
+          n.name.toLowerCase() !== namePrefix.toLowerCase()
+      );
+      if (match) {
+        return match.name.substring(namePrefix.length);
+      }
+    } catch (err) {}
 
     return "";
   };
 
   const suggestion = getSuggestion();
 
-  interface ChainedCommand {
-    cmdText: string;
-    operator: "&&" | "||" | ";" | "none";
-  }
-
-  const parseCommandLine = (line: string): ChainedCommand[] => {
-    const result: ChainedCommand[] = [];
-    let currentCmd = "";
-    let inDoubleQuote = false;
-    let inSingleQuote = false;
-    
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      
-      if (char === '"' && !inSingleQuote) {
-        inDoubleQuote = !inDoubleQuote;
-        currentCmd += char;
-      } else if (char === "'" && !inDoubleQuote) {
-        inSingleQuote = !inSingleQuote;
-        currentCmd += char;
-      } else if (!inDoubleQuote && !inSingleQuote) {
-        // Check for &&
-        if (char === '&' && line[i + 1] === '&') {
-          result.push({ cmdText: currentCmd.trim(), operator: "&&" });
-          currentCmd = "";
-          i++; // skip next &
-        }
-        // Check for ||
-        else if (char === '|' && line[i + 1] === '|') {
-          result.push({ cmdText: currentCmd.trim(), operator: "||" });
-          currentCmd = "";
-          i++; // skip next |
-        }
-        // Check for ;
-        else if (char === ';') {
-          result.push({ cmdText: currentCmd.trim(), operator: ";" });
-          currentCmd = "";
-        } else {
-          currentCmd += char;
-        }
-      } else {
-        currentCmd += char;
-      }
-    }
-    
-    if (currentCmd.trim() || result.length === 0) {
-      result.push({ cmdText: currentCmd.trim(), operator: "none" });
-    }
-    
-    return result;
-  };
-
-  const executeSingleCommand = async (
-    command: string,
-    localPath: string,
-    historyOutput: string[]
-  ): Promise<{ success: boolean; newPath: string }> => {
-    const args = command.trim().split(/\s+/);
-    const cmd = args[0].toLowerCase();
-    let output: string[] = [];
-    let success = true;
-    let newPath = localPath;
-
-    // Helper to resolve path relative to localPath
-    const resolveLocalPath = (target: string): string => {
-      if (!target) return localPath;
-      if (target.startsWith("/")) {
-        return "/" + target.split("/").filter(Boolean).join("/");
-      }
-      const currentSegments = localPath.split("/").filter(Boolean);
-      const relativeSegments = target.split("/").filter(Boolean);
-
-      for (const segment of relativeSegments) {
-        if (segment === ".") {
-          continue;
-        } else if (segment === "..") {
-          currentSegments.pop();
-        } else {
-          currentSegments.push(segment);
-        }
-      }
-      return "/" + currentSegments.join("/");
-    };
-
-    switch (cmd) {
-      case "help":
-        output = [
-          "================ ARES SYSTEM ASSISTANCE SHELL v1.2 ================",
-          "",
-          "DIRECTORY / FILE COMMANDS:",
-          "  ls             List contents of the current directory",
-          "  cd <path>      Navigate to directory path",
-          "  pwd            Show current working path",
-          "  cat <file>     Display contents of file",
-          "  touch <file>   Create an empty file in current directory",
-          "  write <f> <t>  Write/append text <t> into file <f>",
-          "  mkdir <name>   Create a new folder in current directory",
-          "  rm <name>      Remove a file or folder",
-          "",
-          "SYSTEM COMMANDS:",
-          "  neofetch       Display host specs in aesthetic ASCII art style",
-          "  theme <name>   Set theme (light, dark, midnight, or aurora)",
-          "  history        Show command prompt input logs history",
-          "  clear          Clear the command terminal window logs",
-          "",
-          "INTERACTIVE UTILITIES & UTILS:",
-          "  top            Run live processes manager & system task monitor",
-          "  matrix         Activate cyberdigital code matrix decryption waterfall",
-          "  ping <host>    Simulate network latency link diagnostic probes",
-          "  calc <expr>    Safe command line math evaluator (e.g. 150*2.5)",
-          "  weather <c>    Poll weather forecast telemetry for a city <c>",
-          "",
-          "SHORTCUTS:",
-          "  [Tab]          Autocomplete command or directory filename suggestion",
-          "  [Up/Down]      Cycle through previously entered shell commands",
-          "  [Esc]/[Ctrl+C] Interrupt and exit currently running process",
-          "===================================================================",
-        ];
-        break;
-
-      case "ls":
-        try {
-          const nodes = listDirectory(localPath);
-          if (nodes.length === 0) {
-            output = ["(empty directory)"];
-          } else {
-            output = nodes.map(
-              (n) => `${n.node.type === "directory" ? "📁" : "📄"}  ${n.name}`
-            );
-          }
-        } catch {
-          output = ["ls: failed to list contents."];
-          success = false;
-        }
-        break;
-
-      case "cd":
-        if (!args[1]) {
-          output = ["cd: missing destination argument."];
-          success = false;
-        } else {
-          const target = resolveLocalPath(args[1]);
-          const ok = changeDirectory(target);
-          if (ok) {
-            newPath = target;
-          } else {
-            output = [`cd: no such directory: ${args[1]}`];
-            success = false;
-          }
-        }
-        break;
-
-      case "pwd":
-        output = [localPath];
-        break;
-
-      case "cat":
-        if (!args[1]) {
-          output = ["cat: missing file name argument."];
-          success = false;
-        } else {
-          const target = resolveLocalPath(args[1]);
-          const file = readFile(target);
-          if (file) {
-            output = file.content.split("\n");
-          } else {
-            output = [`cat: file not found: ${args[1]}`];
-            success = false;
-          }
-        }
-        break;
-
-      case "touch":
-        if (!args[1]) {
-          output = ["touch: missing filename argument."];
-          success = false;
-        } else {
-          const target = resolveLocalPath(args[1]);
-          const ok = writeFile(target, "");
-          if (ok) {
-            output = [`Created empty file '${args[1]}'`];
-          } else {
-            output = [`touch: failed to create file: ${args[1]}`];
-            success = false;
-          }
-        }
-        break;
-
-      case "write":
-        if (!args[1]) {
-          output = ["write: missing filename argument."];
-          success = false;
-        } else if (args.length < 3) {
-          output = ["write: missing content. Usage: write <filename> <text content>"];
-          success = false;
-        } else {
-          const content = args.slice(2).join(" ");
-          const target = resolveLocalPath(args[1]);
-          const ok = writeFile(target, content);
-          if (ok) {
-            output = [`Written content to file '${args[1]}'`];
-          } else {
-            output = [`write: failed to write to file: ${args[1]}`];
-            success = false;
-          }
-        }
-        break;
-
-      case "mkdir":
-        if (!args[1]) {
-          output = ["mkdir: missing folder name argument."];
-          success = false;
-        } else {
-          const ok = createDirectory(localPath, args[1]);
-          if (ok) {
-            output = [`Created directory '${args[1]}'`];
-          } else {
-            output = ["mkdir: folder already exists or path invalid."];
-            success = false;
-          }
-        }
-        break;
-
-      case "rm":
-        if (!args[1]) {
-          output = ["rm: missing target name argument."];
-          success = false;
-        } else {
-          const target = resolveLocalPath(args[1]);
-          const ok = deleteNode(target);
-          if (ok) {
-            output = [`Removed '${args[1]}'`];
-          } else {
-            output = [`rm: no such file or directory: ${args[1]}`];
-            success = false;
-          }
-        }
-        break;
-
-      case "echo":
-        output = [args.slice(1).join(" ")];
-        break;
-
-      case "history":
-        output = commandHistory.map((cmd, idx) => `  ${idx + 1}  ${cmd}`);
-        break;
-
-      case "clear":
-        setHistory([]);
-        break;
-
-      case "theme":
-        const reqTheme = args[1];
-        if (reqTheme === "light" || reqTheme === "dark" || reqTheme === "midnight" || reqTheme === "aurora") {
-          updateSettings({ theme: reqTheme as "light" | "dark" | "midnight" | "aurora" });
-          output = [`System theme updated to '${reqTheme}'`];
-          addNotification("System Command", `Theme set to ${reqTheme}`, "info");
-        } else {
-          output = [
-            "theme: invalid argument. Select 'light', 'dark', 'midnight', or 'aurora'.",
-          ];
-          success = false;
-        }
-        break;
-
-      case "neofetch": {
-        const cpuCores = typeof navigator !== "undefined" ? (navigator.hardwareConcurrency || 8) : 8;
-        const memoryDetails = getRealMemory();
-        const browserName = typeof navigator !== "undefined" ? (navigator.userAgent.includes("Chrome") ? "Chrome" : navigator.userAgent.includes("Firefox") ? "Firefox" : "Safari/WebKit") : "WebKit";
-        
-        output = [
-          "    /\\_/\\          OS: ARESOS WebOS v1.2.0",
-          "   ( o.o )         Kernel: Next.js 16 Client-side Runtime",
-          "    > ^ <          Uptime: " + getUptimeString(),
-          "   /     \\         Host: Advanced AI Agent Interface",
-          "  (       )        Shell: custom ares-bash emulator",
-          "   `-^-^-'         Browser: " + browserName,
-          "                   CPU: AMD/Intel Host Cores (" + cpuCores + " Threads)",
-          "                   Memory: " + memoryDetails.used + "MB / " + memoryDetails.total + "MB (JS Heap Mode)",
-        ];
-        break;
-      }
-
-      case "ping": {
-        if (!args[1]) {
-          output = ["ping: missing target host name. Usage: ping google.com"];
-          success = false;
-        } else {
-          const host = args[1].trim().replace(/^<|>$/g, "").replace(/^\[|\]$/g, "").replace(/^\(|\)$/g, "").replace(/^"|"$/g, "").replace(/^'|'$/g, "").trim();
-
-          historyOutput.push(`${currentUser.username}@aresos:${localPath}$ ${command}`);
-          historyOutput.push(`🔍 Querying domain registry coordinates for ${host}...`);
-          historyOutput.push("");
-
-          (async () => {
-            let resolvedIp = "8.8.8.8";
-            try {
-              const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(host)}&type=A`, {
-                headers: { accept: "application/dns-json" }
-              });
-              if (res.ok) {
-                const data = await res.json();
-                if (data.Answer && data.Answer.length > 0) {
-                  const aRecord = data.Answer.find((ans: any) => ans.type === 1);
-                  if (aRecord) {
-                    resolvedIp = aRecord.data;
-                  }
-                }
-              }
-            } catch (err) {
-              console.warn("DNS resolution failed, using fallback IP.", err);
-              let hash = 0;
-              for (let i = 0; i < host.length; i++) {
-                hash = host.charCodeAt(i) + ((hash << 5) - hash);
-              }
-              const ipParts = [
-                Math.abs((hash & 0xFF000000) >> 24) % 223 + 1,
-                Math.abs((hash & 0x00FF0000) >> 16) % 256,
-                Math.abs((hash & 0x0000FF00) >> 8) % 256,
-                Math.abs(hash & 0x000000FF) % 254 + 1
-              ];
-              resolvedIp = ipParts.join(".");
-            }
-
-            setPingTarget(host);
-            setPingIp(resolvedIp);
-            setActiveProgram("ping");
-            setHistory((prev) => [
-              ...prev,
-              `PING ${host} (${resolvedIp}) 56(84) bytes of data.`,
-              ""
-            ]);
-          })();
-          return { success: true, newPath: localPath };
-        }
-        break;
-      }
-
-      case "top":
-        setActiveProgram("top");
-        return { success: true, newPath: localPath };
-
-      case "matrix":
-        setActiveProgram("matrix");
-        return { success: true, newPath: localPath };
-
-      case "calc":
-        if (args.length < 2) {
-          output = ["calc: missing mathematical expression. Usage: calc 2 + 2"];
-          success = false;
-        } else {
-          const expr = args.slice(1).join("");
-          if (/^[0-9+\-*/%().\s]+$/.test(expr)) {
-            try {
-              // eslint-disable-next-line no-eval
-              const result = eval(expr);
-              output = [`${expr} = ${result}`];
-            } catch {
-              output = ["calc: syntax error in expression."];
-              success = false;
-            }
-          } else {
-            output = ["calc: insecure characters detected in expression."];
-            success = false;
-          }
-        }
-        break;
-
-      case "weather": {
-        let queryCity = args[1] ? args.slice(1).join(" ") : "";
-        queryCity = queryCity.trim().replace(/^<|>$/g, "").replace(/^\[|\]$/g, "").replace(/^\(|\)$/g, "").replace(/^"|"$/g, "").replace(/^'|'$/g, "").trim();
-
-        historyOutput.push(`${currentUser.username}@aresos:${localPath}$ ${command}`);
-        historyOutput.push("📡 Initiating connection with orbital weather satellites...");
-        historyOutput.push("🛰️ Resolving location coordinates...");
-
-        setTimeout(() => {
-          setHistory((prev) => [...prev, "⚡ Calibrating thermal sensor arrays... [OK]"]);
-        }, 350);
-        setTimeout(() => {
-          setHistory((prev) => [...prev, "🔓 Bypassing atmospheric distortion filters... [CONNECTED]"]);
-        }, 700);
-        setTimeout(() => {
-          setHistory((prev) => [...prev, "📊 Downloading telemetry packets: [████████████████] 100%"]);
-        }, 1100);
-        setTimeout(() => {
-          setHistory((prev) => [...prev, "🧬 Synthesizing weather matrix... [READY]", ""]);
-        }, 1450);
-
-        const getWeatherCondition = (code: number): { condition: string; ascii: string } => {
-          if (code === 0) return { condition: "Clear Sky ☀️", ascii: "      \\   /\n       .-.\n    ― (   ) ―\n       `-’\n      /   \\" };
-          if (code === 1) return { condition: "Mainly Clear 🌤️", ascii: "      \\   /\n       .-.\n    ― (   ) ―\n       `-’\n      /   \\" };
-          if (code === 2) return { condition: "Partly Cloudy ⛅", ascii: "      \\   /\n    _ /.-.\n   ( (   )\n    (______)" };
-          if (code === 3) return { condition: "Overcast ☁️", ascii: "      .--.\n   .-(    ).\n  (___.___)__)" };
-          if ([45, 48].includes(code)) return { condition: "Foggy 🌫️", ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n  ════════════" };
-          if ([51, 53, 55, 56, 57].includes(code)) return { condition: "Drizzle 🌧️", ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n   '  '  '  '\n  '  '  '  '" };
-          if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { condition: "Rainy / Showers 🌧️", ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n   / / / / /\n  / / / / /" };
-          if ([71, 73, 75, 77, 85, 86].includes(code)) return { condition: "Snowy ❄️", ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n   *  *  *  *\n  *  *  *  *" };
-          if ([95, 96, 99].includes(code)) return { condition: "Thunderstorm ⚡", ascii: "      .--.\n   .-(    ).\n  (___.___)__)\n    ⚡ ⚡ ⚡ ⚡\n   / / / / /" };
-          return { condition: "Cloudy", ascii: "      .--.\n   .-(    ).\n  (___.___)__)" };
-        };
-
-        const getWindDirectionStr = (deg: number): string => {
-          const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-          const index = Math.round(((deg % 360) / 22.5)) % 16;
-          return directions[index];
-        };
-
-        (async () => {
-          const startTime = Date.now();
-          try {
-            let lat = 28.6139;
-            let lon = 77.2090;
-            let resolvedCity = "New Delhi";
-            let resolvedCountry = "India";
-            let resolvedTimezone = "Asia/Kolkata";
-
-            if (queryCity) {
-              const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(queryCity)}&count=1&language=en`);
-              if (!geoRes.ok) throw new Error("Geocoding failed");
-              const geoData = await geoRes.json();
-              if (!geoData.results || geoData.results.length === 0) {
-                const elapsed = Date.now() - startTime;
-                if (elapsed < 1600) await new Promise((resolve) => setTimeout(resolve, 1600 - elapsed));
-                setHistory((prev) => [...prev, `weather: city '${queryCity}' could not be resolved by satellite networks.`, ""]);
-                return;
-              }
-              const location = geoData.results[0];
-              lat = location.latitude;
-              lon = location.longitude;
-              resolvedCity = location.name;
-              resolvedCountry = location.country || "";
-              resolvedTimezone = location.timezone || "auto";
-            } else {
-              try {
-                const ipRes = await fetch("https://ipapi.co/json/");
-                if (ipRes.ok) {
-                  const ipData = await ipRes.json();
-                  if (ipData.latitude && ipData.longitude) {
-                    lat = ipData.latitude;
-                    lon = ipData.longitude;
-                    resolvedCity = ipData.city || "Detected City";
-                    resolvedCountry = ipData.country_name || "";
-                    resolvedTimezone = ipData.timezone || "auto";
-                  }
-                }
-              } catch (ipErr) {
-                console.warn("IP geolocation failed, falling back to default.", ipErr);
-              }
-            }
-
-            const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m&timezone=auto`);
-            if (!weatherRes.ok) throw new Error("Weather request failed");
-            const weatherData = await weatherRes.json();
-            const current = weatherData.current;
-
-            if (!current) throw new Error("Invalid weather payload");
-            const { condition, ascii } = getWeatherCondition(current.weather_code);
-            const windDir = getWindDirectionStr(current.wind_direction_10m);
-
-            const telemetryOutput = [
-              `WEATHER TELEMETRY REPORT: ${resolvedCity.toUpperCase()}${resolvedCountry ? `, ${resolvedCountry.toUpperCase()}` : ""}`,
-              `Coordinates: ${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E | Timezone: ${resolvedTimezone}`,
-              `----------------------------------------------------------------------`,
-              `Condition: ${condition}`,
-              `Temperature: ${current.temperature_2m}°C (Feels like: ${current.apparent_temperature}°C)`,
-              `Humidity: ${current.relative_humidity_2m}% | Cloud Cover: ${current.cloud_cover}%`,
-              `Wind Speed: ${current.wind_speed_10m} km/h (Direction: ${current.wind_direction_10m}° ${windDir})`,
-              `Precipitation: ${current.precipitation} mm`,
-              `----------------------------------------------------------------------`,
-              `ASCII Satellite Visualization:`,
-              ascii,
-              `----------------------------------------------------------------------`
-            ];
-
-            const elapsed = Date.now() - startTime;
-            if (elapsed < 1600) await new Promise((resolve) => setTimeout(resolve, 1600 - elapsed));
-
-            setHistory((prev) => [...prev, ...telemetryOutput, ""]);
-          } catch (err) {
-            console.error(err);
-            const elapsed = Date.now() - startTime;
-            if (elapsed < 1600) await new Promise((resolve) => setTimeout(resolve, 1600 - elapsed));
-            setHistory((prev) => [...prev, "weather: orbital telemetry fetch encountered a connection error.", ""]);
-          }
-        })();
-        return { success: true, newPath: localPath };
-      }
-
-      default:
-        output = [`sh: command not found: ${cmd}. Type 'help' for command list.`];
-        success = false;
-        break;
-    }
-
-    if (cmd !== "clear") {
-      historyOutput.push(`${currentUser.username}@aresos:${localPath}$ ${command}`);
-      historyOutput.push(...output);
-      historyOutput.push("");
-    }
-
-    return { success, newPath };
-  };
-
   const handleCommandExecute = async (commandLine: string) => {
-    const parsed = parseCommandLine(commandLine);
-    let lastSuccess = true;
-    let localPath = currentPath;
-    const allNewHistory: string[] = [];
-
-    for (let i = 0; i < parsed.length; i++) {
-      const { cmdText, operator } = parsed[i];
-      if (!cmdText) continue;
-
-      if (i > 0) {
-        const prevOperator = parsed[i - 1].operator;
-        if (prevOperator === "&&" && !lastSuccess) continue;
-        if (prevOperator === "||" && lastSuccess) continue;
-      }
-
-      // Execute single command
-      const result = await executeSingleCommand(cmdText, localPath, allNewHistory);
-      lastSuccess = result.success;
-      localPath = result.newPath;
-
-      // Break if an interactive subprogram starts
-      const firstWord = cmdText.trim().toLowerCase().split(/\s+/)[0];
-      if (["matrix", "top", "ping", "weather"].includes(firstWord)) {
-        break;
-      }
-    }
-
-    if (allNewHistory.length > 0) {
-      setHistory((prev) => [...prev, ...allNewHistory]);
-    }
+    const context: ShellContext = {
+      currentPath,
+      listDirectory,
+      changeDirectory,
+      readFile,
+      writeFile,
+      createDirectory,
+      deleteNode,
+      renameNode,
+      settings,
+      updateSettings,
+      currentUser,
+      updateUser,
+      addNotification,
+      processes,
+      windows,
+      terminateApp,
+      launchApp,
+      env: envRef.current,
+      aliases: aliasesRef.current,
+      commandHistory,
+      setHistory,
+      activeProgram,
+      setActiveProgram,
+      setPingTarget,
+      setPingIp,
+    };
+    await executeCommandLine(commandLine, context);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Ctrl+R starts reverse history search
+    if (e.ctrlKey && e.key === "r") {
+      e.preventDefault();
+      setIsSearchMode(true);
+      setSearchQuery("");
+      setSearchHistoryIdx(-1);
+      setSearchMatch("");
+      return;
+    }
+
     // Escape or Ctrl+C terminates sub-programs
     if (e.key === "Escape") {
       e.preventDefault();
@@ -860,6 +552,89 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
         setInput("");
       }
       return;
+    }
+
+    // Intercept keys when in search mode
+    if (isSearchMode) {
+      if (e.ctrlKey && e.key === "r") {
+        e.preventDefault();
+        const start = searchHistoryIdx === -1 ? commandHistory.length - 1 : searchHistoryIdx - 1;
+        const res = findSearchMatch(searchQuery, start);
+        if (res.index !== -1) {
+          setSearchHistoryIdx(res.index);
+          setSearchMatch(res.match);
+        }
+        return;
+      }
+
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        const nextQuery = searchQuery + e.key;
+        setSearchQuery(nextQuery);
+        const res = findSearchMatch(nextQuery, commandHistory.length - 1);
+        if (res.index !== -1) {
+          setSearchHistoryIdx(res.index);
+          setSearchMatch(res.match);
+        } else {
+          setSearchHistoryIdx(-1);
+          setSearchMatch("");
+        }
+        return;
+      }
+
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        const nextQuery = searchQuery.slice(0, -1);
+        setSearchQuery(nextQuery);
+        if (nextQuery) {
+          const res = findSearchMatch(nextQuery, commandHistory.length - 1);
+          if (res.index !== -1) {
+            setSearchHistoryIdx(res.index);
+            setSearchMatch(res.match);
+          } else {
+            setSearchHistoryIdx(-1);
+            setSearchMatch("");
+          }
+        } else {
+          setSearchHistoryIdx(-1);
+          setSearchMatch("");
+        }
+        return;
+      }
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        setIsSearchMode(false);
+        if (searchMatch) {
+          setInput("");
+          setCommandHistory((prev) => {
+            const next = [...prev];
+            if (next[next.length - 1] !== searchMatch) {
+              next.push(searchMatch);
+            }
+            return next;
+          });
+          handleCommandExecute(searchMatch);
+        }
+        return;
+      }
+
+      if (e.key === "Escape" || (e.ctrlKey && e.key === "g")) {
+        e.preventDefault();
+        setIsSearchMode(false);
+        setSearchQuery("");
+        setSearchMatch("");
+        return;
+      }
+
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key)) {
+        e.preventDefault();
+        setIsSearchMode(false);
+        if (searchMatch) {
+          setInput(searchMatch);
+        }
+        return;
+      }
     }
 
     // Intercept keyboard controls for active subprograms
@@ -926,14 +701,42 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
       setHistoryIndex(-1);
 
       if (command.trim()) {
+        let expandedCommand = command;
+        if (command.includes("!!")) {
+          if (commandHistory.length > 0) {
+            const lastCmd = commandHistory[commandHistory.length - 1];
+            expandedCommand = expandedCommand.replace(/!!/g, lastCmd);
+          } else {
+            setHistory((prev) => [...prev, "sh: no event found for !!", ""]);
+            return;
+          }
+        }
+
+        const bangNumRegex = /!(\d+)/g;
+        let bangNumError = false;
+        expandedCommand = expandedCommand.replace(bangNumRegex, (match, numStr) => {
+          const num = parseInt(numStr, 10);
+          if (num > 0 && num <= commandHistory.length) {
+            return commandHistory[num - 1];
+          } else {
+            bangNumError = true;
+            return match;
+          }
+        });
+
+        if (bangNumError) {
+          setHistory((prev) => [...prev, `sh: no event found for ${command}`, ""]);
+          return;
+        }
+
         setCommandHistory((prev) => {
           const next = [...prev];
-          if (next[next.length - 1] !== command) {
-            next.push(command);
+          if (next[next.length - 1] !== expandedCommand) {
+            next.push(expandedCommand);
           }
           return next;
         });
-        handleCommandExecute(command);
+        handleCommandExecute(expandedCommand);
       } else {
         setHistory((prev) => [...prev, `${currentUser.username}@aresos:${currentPath}$`, ""]);
       }
@@ -970,6 +773,15 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
 
   // Formatter for stylized output render
   const renderHistoryLine = (line: string, idx: number) => {
+    // Check if line contains ANSI escape character codes
+    if (line.includes("\u001b") || line.includes("\x1b")) {
+      return (
+        <div key={idx} className="text-zinc-300 leading-relaxed min-h-[14px] whitespace-pre-wrap select-text">
+          {parseAnsiColors(line)}
+        </div>
+      );
+    }
+
     // Parse prompt line
     if (line.includes("@aresos:") && line.includes("$")) {
       const isPromptOnly = !line.includes("$ ");
@@ -1218,25 +1030,42 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
           {history.map((line, idx) => renderHistoryLine(line, idx))}
 
           {/* Prompt + suggestion */}
-          <div className="flex flex-wrap items-center leading-relaxed">
-            <span className="text-zinc-400 select-none mr-2">
-              {currentUser.username}@aresos:{currentPath}$
-            </span>
-            <span className="text-white break-all whitespace-pre-wrap select-text pr-0.5">
-              {input}
-              {suggestion && (
-                <span className="text-zinc-600 select-none pointer-events-none">
-                  {suggestion}
-                </span>
+          {isSearchMode ? (
+            <div className="flex flex-wrap items-center leading-relaxed">
+              <span className="text-zinc-400 select-none mr-2">
+                (reverse-i-search)`{searchQuery}':
+              </span>
+              <span className="text-white break-all whitespace-pre-wrap select-text pr-0.5">
+                {searchMatch || "(no match)"}
+              </span>
+              {isFocused && (
+                <span
+                  className="inline-block w-1.5 h-3.5 bg-cyan-400 align-middle animate-pulse"
+                  style={{ verticalAlign: "middle" }}
+                />
               )}
-            </span>
-            {isFocused && (
-              <span
-                className="inline-block w-1.5 h-3.5 bg-emerald-400 align-middle animate-pulse"
-                style={{ verticalAlign: "middle" }}
-              />
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center leading-relaxed">
+              <span className="text-zinc-400 select-none mr-2">
+                {currentUser.username}@aresos:{currentPath}$
+              </span>
+              <span className="text-white break-all whitespace-pre-wrap select-text pr-0.5">
+                {input}
+                {suggestion && (
+                  <span className="text-zinc-600 select-none pointer-events-none">
+                    {suggestion}
+                  </span>
+                )}
+              </span>
+              {isFocused && (
+                <span
+                  className="inline-block w-1.5 h-3.5 bg-emerald-400 align-middle animate-pulse"
+                  style={{ verticalAlign: "middle" }}
+                />
+              )}
+            </div>
+          )}
           <div ref={bottomRef} />
         </div>
       )}
