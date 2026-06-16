@@ -12,6 +12,7 @@ export interface FSFile extends BaseFSNode {
   content: string;
   size: number;
   extension?: string;
+  binaryData?: Uint8Array;
 }
 
 export interface FSDirectory extends BaseFSNode {

@@ -130,12 +130,21 @@ const readFile = (filePath: string): FSFile | null => {
   const segments = parsePath(filePath);
   const node = findNode(root, segments);
   if (node && node.type === "file") {
+    if (node.binaryData && !(node.binaryData instanceof Uint8Array)) {
+      node.binaryData = new Uint8Array(Object.values(node.binaryData));
+    } else if (!node.binaryData && (node.extension === "zip" || node.name.endsWith(".zip"))) {
+      const arr = new Uint8Array(node.content.length);
+      for (let i = 0; i < node.content.length; i++) {
+        arr[i] = node.content.charCodeAt(i) & 0xff;
+      }
+      node.binaryData = arr;
+    }
     return node;
   }
   return null;
 };
 
-const writeFile = (filePath: string, content: string): boolean => {
+const writeFile = (filePath: string, content: string | Uint8Array): boolean => {
   const segments = parsePath(filePath);
   if (segments.length === 0) return false;
   const fileName = segments[segments.length - 1];
@@ -143,14 +152,34 @@ const writeFile = (filePath: string, content: string): boolean => {
   const parentNode = findNode(root, parentSegments);
   if (parentNode && parentNode.type === "directory") {
     const ext = fileName.includes(".") ? fileName.split(".").pop() : undefined;
+    
+    let contentStr = "";
+    let binData: Uint8Array | undefined;
+
+    if (content instanceof Uint8Array) {
+      binData = content;
+      for (let i = 0; i < content.length; i++) {
+        contentStr += String.fromCharCode(content[i]);
+      }
+    } else {
+      contentStr = content;
+      if (content.startsWith("PK\x03\x04") || content.startsWith("PK\u0003\u0004") || fileName.endsWith(".zip")) {
+        binData = new Uint8Array(content.length);
+        for (let i = 0; i < content.length; i++) {
+          binData[i] = content.charCodeAt(i) & 0xff;
+        }
+      }
+    }
+
     parentNode.children[fileName] = {
       name: fileName,
       type: "file",
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      content,
-      size: content.length,
+      content: contentStr,
+      size: binData ? binData.length : contentStr.length,
       extension: ext,
+      binaryData: binData,
     };
     return true;
   }
@@ -603,7 +632,49 @@ const runAllTests = async () => {
   const resUnzipOverwriteSuccess = await executeSingleCommand("unzip -o backup.zip", ctxZipInfo, currentPath);
   assert(resUnzipOverwriteSuccess.success, "unzip -o should succeed");
 
-  console.log("\n✅ All 18 regression tests passed successfully!\n");
+  // 19. TEST_EXTERNAL_ZIP
+  resetState();
+  console.log("  [19] Testing standard PKZIP file compatibility...");
+  
+  // Construct standard PKZIP in memory
+  const zipBytes = new Uint8Array([
+    0x50, 0x4B, 0x03, 0x04, // signature
+    0x0a, 0x00,             // version
+    0x00, 0x00,             // flags
+    0x00, 0x00,             // compression (0 = store)
+    0x00, 0x00,             // mod time
+    0x00, 0x00,             // mod date
+    0x00, 0x00, 0x00, 0x00, // crc32
+    0x05, 0x00, 0x00, 0x00, // compressed size (5)
+    0x05, 0x00, 0x00, 0x00, // uncompressed size (5)
+    0x08, 0x00,             // name length (8)
+    0x00, 0x00,             // extra length (0)
+    // filename: "test.txt"
+    0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74,
+    // content: "hello"
+    0x68, 0x65, 0x6c, 0x6c, 0x6f
+  ]);
+
+  writeFile("external.zip", zipBytes);
+
+  // check zipinfo
+  const ctxExt = makeContext();
+  const resExtInfo = await executeSingleCommand("zipinfo external.zip", ctxExt, currentPath);
+  assert(resExtInfo.success, "zipinfo on external zip should succeed");
+  assert(resExtInfo.stdout.some(l => l.includes("Files Count: 1")), "zipinfo files count mismatch on external zip");
+  assert(resExtInfo.stdout.some(l => l.includes("Total Size: 5 bytes")), "zipinfo total size mismatch on external zip");
+
+  // check unzip -l
+  const resExtList = await executeSingleCommand("unzip -l external.zip", ctxExt, currentPath);
+  assert(resExtList.success, "unzip -l on external zip should succeed");
+  assert(resExtList.stdout.some(l => l.includes("test.txt")), "unzip -l listing mismatch on external zip");
+
+  // check unzip extract
+  await run("unzip external.zip");
+  assertStdoutContains("test.txt restored.");
+  assert(readFile("/home/user/test.txt")?.content === "hello", "unzip external zip content mismatch");
+
+  console.log("\n✅ All 19 regression tests passed successfully!\n");
 };
 
 runAllTests().catch(err => {

@@ -9,7 +9,7 @@ interface FSContextType {
   currentPath: string;
   listDirectory: (path?: string) => { name: string; node: FSNode }[];
   readFile: (filePath: string) => FSFile | null;
-  writeFile: (filePath: string, content: string) => boolean;
+  writeFile: (filePath: string, content: string | Uint8Array) => boolean;
   createDirectory: (dirPath: string, name: string) => boolean;
   deleteNode: (nodePath: string) => boolean;
   changeDirectory: (targetPath: string) => boolean;
@@ -138,7 +138,7 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const calculateFolderSize = (node: FSNode): number => {
     if (node.type === "file") {
-      return typeof node.content === "string" ? node.content.length : 0;
+      return node.binaryData ? node.binaryData.length : (typeof node.content === "string" ? node.content.length : 0);
     }
     if (node.type === "directory" && node.children) {
       return Object.values(node.children).reduce(
@@ -212,13 +212,23 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const segments = parsePath(filePath);
     const node = findNode(rootRef.current, segments);
     if (node && node.type === "file") {
+      // Re-hydrate binaryData from plain object or string if needed
+      if (node.binaryData && !(node.binaryData instanceof Uint8Array)) {
+        node.binaryData = new Uint8Array(Object.values(node.binaryData));
+      } else if (!node.binaryData && (node.extension === "zip" || node.name.endsWith(".zip"))) {
+        const arr = new Uint8Array(node.content.length);
+        for (let i = 0; i < node.content.length; i++) {
+          arr[i] = node.content.charCodeAt(i) & 0xff;
+        }
+        node.binaryData = arr;
+      }
       return node;
     }
     return null;
   };
 
   // Write file contents (creates file if not exists)
-  const writeFile = (filePath: string, content: string): boolean => {
+  const writeFile = (filePath: string, content: string | Uint8Array): boolean => {
     const segments = parsePath(filePath);
     if (segments.length === 0) return false;
 
@@ -233,14 +243,33 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       const ext = fileName.includes(".") ? fileName.split(".").pop() : undefined;
       const existing = parentNode.children[fileName];
 
+      let contentStr = "";
+      let binData: Uint8Array | undefined;
+
+      if (content instanceof Uint8Array) {
+        binData = content;
+        for (let i = 0; i < content.length; i++) {
+          contentStr += String.fromCharCode(content[i]);
+        }
+      } else {
+        contentStr = content;
+        if (content.startsWith("PK\x03\x04") || content.startsWith("PK\u0003\u0004") || fileName.endsWith(".zip")) {
+          binData = new Uint8Array(content.length);
+          for (let i = 0; i < content.length; i++) {
+            binData[i] = content.charCodeAt(i) & 0xff;
+          }
+        }
+      }
+
       parentNode.children[fileName] = {
         name: fileName,
         type: "file",
         createdAt: existing ? existing.createdAt : Date.now(),
         updatedAt: Date.now(),
-        content,
-        size: content.length,
+        content: contentStr,
+        size: binData ? binData.length : contentStr.length,
         extension: ext,
+        binaryData: binData,
       };
 
       // Check storage allocation limit

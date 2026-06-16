@@ -1,5 +1,6 @@
 import React from "react";
 import { FSNode, FSFile, FSDirectory } from "@/types/webos/fs";
+import { detectArchiveType, parseStandardZip } from "./ZipCompatibilityEngine";
 
 export interface ShellContext {
   currentPath: string;
@@ -1389,7 +1390,7 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
 
   unzip: {
     desc: "Extract archive files and directories",
-    run: (args, context, localPath) => {
+    run: async (args, context, localPath) => {
       const isList = args.includes("-l");
       const isOverwrite = args.includes("-o");
       const archiveArg = args.find(arg => arg !== "unzip" && !arg.startsWith("-"));
@@ -1404,13 +1405,24 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
         return { success: false, newPath: localPath, stdout: [], stderr: [`unzip: archive not found: ${archiveArg}`] };
       }
 
-      let archiveData: any;
-      try {
-        archiveData = JSON.parse(file.content);
-      } catch (e) {}
+      let items: any[] = [];
+      const archiveType = detectArchiveType(file.binaryData || file.content);
 
-      if (!archiveData || !archiveData.isZipArchive) {
-        return { success: false, newPath: localPath, stdout: [], stderr: [`unzip: not a valid archive file: ${archiveArg}`] };
+      if (archiveType === "STANDARD") {
+        try {
+          items = await parseStandardZip(file.binaryData || file.content);
+        } catch (e) {
+          return { success: false, newPath: localPath, stdout: [], stderr: ["unzip: archive corrupted"] };
+        }
+      } else if (archiveType === "ARESOS") {
+        try {
+          const archiveData = JSON.parse(file.content);
+          items = archiveData.items;
+        } catch (e) {
+          return { success: false, newPath: localPath, stdout: [], stderr: ["unzip: archive corrupted"] };
+        }
+      } else {
+        return { success: false, newPath: localPath, stdout: [], stderr: ["unzip: unsupported archive format"] };
       }
 
       if (isList) {
@@ -1421,7 +1433,7 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
           ""
         ];
         let totalLength = 0;
-        archiveData.items.forEach((item: any) => {
+        items.forEach((item: any) => {
           if (item.type === "file") {
             lines.push(`${String(item.size).padEnd(10)}${item.path}`);
             totalLength += item.size;
@@ -1435,7 +1447,7 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
 
       // Check overwrite protection first if not in force-overwrite mode
       if (!isOverwrite) {
-        for (const item of archiveData.items) {
+        for (const item of items) {
           const destPath = resolveLocalPath(localPath, item.path);
           const destDetails = getNodeDetails(destPath, context);
           if (destDetails.exists) {
@@ -1451,7 +1463,7 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
 
       // Perform extraction
       const stdoutLines: string[] = [];
-      for (const item of archiveData.items) {
+      for (const item of items) {
         const destPath = resolveLocalPath(localPath, item.path);
         if (item.type === "directory") {
           const segments = item.path.split("/").filter(Boolean);
@@ -1480,7 +1492,7 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
 
   zipinfo: {
     desc: "Display zip archive metadata",
-    run: (args, context, localPath) => {
+    run: async (args, context, localPath) => {
       if (args.length < 2) {
         return { success: false, newPath: localPath, stdout: [], stderr: ["zipinfo: missing archive name."] };
       }
@@ -1490,19 +1502,34 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
         return { success: false, newPath: localPath, stdout: [], stderr: [`zipinfo: archive not found: ${args[1]}`] };
       }
 
-      let archiveData: any;
-      try {
-        archiveData = JSON.parse(file.content);
-      } catch (e) {}
+      let items: any[] = [];
+      let archiveName = args[1];
+      let createdAt = file.createdAt || Date.now();
+      const archiveType = detectArchiveType(file.binaryData || file.content);
 
-      if (!archiveData || !archiveData.isZipArchive) {
-        return { success: false, newPath: localPath, stdout: [], stderr: [`zipinfo: not a valid archive file: ${args[1]}`] };
+      if (archiveType === "STANDARD") {
+        try {
+          items = await parseStandardZip(file.binaryData || file.content);
+        } catch (e) {
+          return { success: false, newPath: localPath, stdout: [], stderr: ["zipinfo: archive corrupted"] };
+        }
+      } else if (archiveType === "ARESOS") {
+        try {
+          const archiveData = JSON.parse(file.content);
+          items = archiveData.items;
+          archiveName = archiveData.archiveName || args[1];
+          createdAt = archiveData.createdAt || createdAt;
+        } catch (e) {
+          return { success: false, newPath: localPath, stdout: [], stderr: ["zipinfo: archive corrupted"] };
+        }
+      } else {
+        return { success: false, newPath: localPath, stdout: [], stderr: ["zipinfo: unsupported archive format"] };
       }
 
       let filesCount = 0;
       let dirsCount = 0;
       let totalSize = 0;
-      archiveData.items.forEach((item: any) => {
+      items.forEach((item: any) => {
         if (item.type === "file") {
           filesCount++;
           totalSize += item.size;
@@ -1511,9 +1538,9 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
         }
       });
 
-      const dateStr = new Date(archiveData.createdAt).toISOString();
+      const dateStr = new Date(createdAt).toISOString();
       const stdout = [
-        `Archive Name: ${archiveData.archiveName}`,
+        `Archive Name: ${archiveName}`,
         `Created Date: ${dateStr}`,
         `Files Count: ${filesCount}`,
         `Directories Count: ${dirsCount}`,

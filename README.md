@@ -23,10 +23,10 @@ ARESOS (ARES Operating System) is a premium, highly interactive, and visually st
 
 The default account is available for initial setup and evaluation purposes.
 
-| Field    | Value         |
-| -------- | ------------- |
-| Username | `guest`       |
-| Password | `aresos-demo` |
+| Field    | Value     |
+| -------- | --------- |
+| Username | `guest`   |
+| Password | `1462007` |
 
 > **Note:** These credentials are intended for development and demonstration use only. Change the default password or remove the account before using ARESOS in a production environment.
 
@@ -191,3 +191,76 @@ ARESOS is a collaborative product designed by human ingenuity and developed with
 *   **Terminal & Parser:** Building command interpreters, ping resolvers, auto-completers, and weather integrations.
 *   **Refactoring & Bug Fixes:** Cleaning TypeScript types, optimizing re-renders, and fixing layout spacing issues.
 
+---
+
+# Feature Verification Status
+
+ARESOS v2.0 has completed end-to-end verification of its advertised shell feature set.
+
+## Fully Implemented
+
+The following systems are implemented and verified:
+
+* Shell parser
+* Command chaining (; && ||)
+* Pipes
+* Input/output redirection
+* Variables (export/unset)
+* Aliases
+* History and history expansion (!!, !n)
+* Subshells and grouping
+* Virtual filesystem
+* File operations (ls, cd, mkdir, touch, write, cat, cp, mv, rm)
+* Find and tree
+* Process listing and termination
+* ZIP archive engine
+* External ZIP compatibility (PKZIP)
+* Archive listing (-l)
+* Archive extraction
+* Archive overwrite protection
+* Neofetch telemetry
+* CPU, memory, and storage diagnostics
+
+# Simulation-Based Components
+
+The following commands currently provide simulation behavior and are intended to be replaced by isolated runtime implementations in future releases.
+
+| Command    | Current Status                | Planned Upgrade              |
+| ---------- | ----------------------------- | ---------------------------- |
+| gcc        | Simulation                    | Real compiler sandbox        |
+| clang      | Simulation                    | LLVM-based sandbox           |
+| python     | Simulated REPL                | Secure Python runtime        |
+| node       | Simulated REPL                | Secure Node.js runtime       |
+| npm        | Simulated package sync        | Package registry integration |
+| ssh        | Simulated session             | Virtual networking layer     |
+| scp        | Simulated transfer            | Secure file transport layer  |
+| curl       | Partial simulation            | Sandboxed HTTP client        |
+| wget       | Partial simulation            | Managed download subsystem   |
+| ping       | Simulated network diagnostics | Virtual network stack        |
+| traceroute | Simulated route analysis      | Virtual routing layer        |
+| nslookup   | Simulated DNS resolution      | DNS service integration      |
+| git        | Simulated repository state    | Full VCS backend             |
+| arespkg    | Simulated package manager     | Real package repository      |
+
+# Known Minor Issues
+
+The following non-critical issues remain:
+
+* htop termination message may display "top terminated" instead of "htop terminated".
+* Background job control is intentionally limited and currently operates in simulation mode.
+* Some networking commands currently emulate behavior rather than performing real network operations.
+
+# Future Roadmap
+
+Planned upgrades include:
+
+* Secure Python execution sandbox
+* Secure Node.js execution sandbox
+* Real package management backend
+* Virtual networking stack
+* Persistent background jobs
+* User permissions and ownership model
+* Real compiler toolchains
+* Shell scripting support (.sh)
+* Advanced process scheduling
+* Multi-user environments
