@@ -17,7 +17,7 @@ ARESOS (ARES Operating System) is a premium, highly interactive, and visually st
 ---
 
 
-
+Some developer and networking commands currently operate in simulation mode and are planned for future runtime-backed implementations.
 
 ## Default Login Credentials
 
