@@ -25,7 +25,6 @@ The default account is available for initial setup and evaluation purposes.
 
 | Field    | Value     |
 | -------- | --------- |
-| Username | `guest`   |
 | Password | `1462007` |
 
 > **Note:** These credentials are intended for development and demonstration use only. Change the default password or remove the account before using ARESOS in a production environment.
