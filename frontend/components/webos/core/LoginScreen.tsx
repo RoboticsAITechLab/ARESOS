@@ -40,8 +40,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
     
     const interval = setInterval(() => {
       setScanProgress((prev) => {
-        const next = prev + 5;
-        playScanSound((settings?.volume ?? 80) / 100);
+        const next = prev + 10;
+        // Play scan sound on alternate steps to avoid audio clutter
+        if (next % 20 === 0) {
+          playScanSound((settings?.volume ?? 80) / 100);
+        }
         if (next >= 100) {
           clearInterval(interval);
           setScanState("success");
@@ -50,7 +53,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
         }
         return next;
       });
-    }, 80);
+    }, 45);
   };
 
   const handleLoginSubmit = (e: React.FormEvent) => {
@@ -64,21 +67,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
     }
 
     // Accept any code for debug ease, or match 1234
-    // We will show a 1.2s authenticating state then succeed
+    // We will show a 0.2s authenticating state then succeed
     setScanState("scanning");
     setScanProgress(90);
     playSuccessSound((settings?.volume ?? 80) / 100);
     
     setTimeout(() => {
       onSuccess();
-    }, 1000);
+    }, 200);
   };
 
   // Auto-scan on load to make it feel extremely advanced and responsive
   useEffect(() => {
     const timer = setTimeout(() => {
       handleRetinalScan();
-    }, 1000);
+    }, 250);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

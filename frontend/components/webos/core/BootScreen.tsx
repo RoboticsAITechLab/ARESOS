@@ -57,8 +57,8 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onComplete }) => {
 
   // Dynamic progress increment
   useEffect(() => {
-    const duration = 3800; // 3.8 seconds
-    const intervalTime = 40;
+    const duration = 1000; // 1.0 second
+    const intervalTime = 25;
     const steps = duration / intervalTime;
     const increment = 100 / steps;
 
@@ -71,7 +71,7 @@ export const BootScreen: React.FC<BootScreenProps> = ({ onComplete }) => {
           setGlitch(true);
           setTimeout(() => {
             onComplete();
-          }, 350);
+          }, 150);
           return 100;
         }
         return next;
