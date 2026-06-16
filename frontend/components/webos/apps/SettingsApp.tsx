@@ -19,6 +19,8 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
   
   // Profile Form States
   const [usernameInput, setUsernameInput] = useState(currentUser.username);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState("");
+  const [newPasswordInput, setNewPasswordInput] = useState("");
   
   // Custom Wallpapers States
   const [customWallpaperUrl, setCustomWallpaperUrl] = useState("");
@@ -95,6 +97,52 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
 
     updateUser({ username: usernameInput.trim() });
     addNotification("Profile Sync", `Username updated to ${usernameInput.trim()}`, "success");
+  };
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (typeof window === "undefined") return;
+
+    const actualCurrentPassword = localStorage.getItem("aresos_admin_password") || process.env.NEXT_PUBLIC_LOGIN_PASSWORD || "";
+    
+    // 1. Current password verification check
+    if (actualCurrentPassword && currentPasswordInput !== actualCurrentPassword) {
+      addNotification("Security Settings", "Verification failed: Current pass-key is incorrect.", "error");
+      return;
+    }
+
+    // 2. Format validation check
+    const cleanNewPassword = newPasswordInput;
+    if (!cleanNewPassword) {
+      addNotification("Security Settings", "Validation error: New pass-key cannot be empty.", "error");
+      return;
+    }
+
+    if (cleanNewPassword.length < 4) {
+      addNotification("Security Settings", "Validation error: Pass-key must be at least 4 characters long.", "error");
+      return;
+    }
+
+    if (cleanNewPassword.includes(" ")) {
+      addNotification("Security Settings", "Validation error: Pass-key cannot contain space characters.", "error");
+      return;
+    }
+
+    if (cleanNewPassword === actualCurrentPassword) {
+      addNotification("Security Settings", "Validation error: New pass-key must be different from the current one.", "error");
+      return;
+    }
+
+    // 3. Action and Storage Write Error Handling
+    try {
+      localStorage.setItem("aresos_admin_password", cleanNewPassword);
+      addNotification("Security Settings", "System partition synced: Pass-key updated successfully.", "success");
+      setCurrentPasswordInput("");
+      setNewPasswordInput("");
+    } catch (err) {
+      console.error(err);
+      addNotification("Security Settings", "System error: Failed to save pass-key to localStorage.", "error");
+    }
   };
 
   const handleApplyCustomUrl = (e: React.FormEvent) => {
@@ -454,6 +502,48 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
                     Save
                   </button>
                 </div>
+              </div>
+            </form>
+
+            {/* Change Password Form */}
+            <form onSubmit={handleChangePassword} className="bg-zinc-950/30 border border-zinc-850 p-4 rounded-xl space-y-4 mt-4">
+              <span className="text-[10px] text-zinc-505 uppercase font-bold tracking-wider block border-b border-zinc-850/40 pb-2">
+                🔒 Security Settings & Pass-key
+              </span>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] text-zinc-400 font-medium">Current Pass-key</label>
+                  <input
+                    type="password"
+                    placeholder="Enter current pass-key"
+                    value={currentPasswordInput}
+                    onChange={(e) => setCurrentPasswordInput(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-850 focus:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 outline-none transition"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[9px] text-zinc-400 font-medium">New Pass-key</label>
+                  <input
+                    type="password"
+                    placeholder="Enter new pass-key"
+                    value={newPasswordInput}
+                    onChange={(e) => setNewPasswordInput(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-850 focus:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 outline-none transition"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-xs font-bold text-white rounded-xl transition cursor-pointer"
+                >
+                  Update Pass-key
+                </button>
               </div>
             </form>
           </div>

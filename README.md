@@ -115,6 +115,19 @@ To launch ARESOS on your local system, follow these steps:
 
 ---
 
+## 🔒 Security & Pass-key Configuration
+
+ARESOS features a secure client-side authentication system to prevent unauthorized workspace access:
+
+*   **First-Time Setup:** If no password has been configured in the browser's `localStorage`, the login portal automatically routes you to the **Pass-key Initialization Screen**. Here, you can initialize a custom pass-key to secure your WebOS environment.
+*   **Default Fallback Pass-key:** By default, the system loads the fallback pass-key configured in `frontend/.env` (which defaults to `1462007` if not overridden).
+*   **Updating the Pass-key:** After logging in, you can update your system password at any time by opening the **Settings App** ➡️ **Profile Settings** tab and submitting a new key under **Security Settings**.
+
+> [!WARNING]
+> **Security Suggestion:** Please change the default pass-key (`1462007`) immediately after your first login to ensure your local files remain private and secure.
+
+---
+
 ## 📂 Project Directory Structure
 
 ```text

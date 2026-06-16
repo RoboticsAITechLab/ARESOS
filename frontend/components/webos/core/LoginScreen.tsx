@@ -16,6 +16,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
   const [scanProgress, setScanProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [matrixText, setMatrixText] = useState("");
+
+  const [storedPassword, setStoredPassword] = useState<string | null>(null);
+  const [isFirstTimeSetup, setIsFirstTimeSetup] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const pwd = localStorage.getItem("aresos_admin_password") || process.env.NEXT_PUBLIC_LOGIN_PASSWORD;
+      if (pwd) {
+        setStoredPassword(pwd);
+        setIsFirstTimeSetup(false);
+      } else {
+        setIsFirstTimeSetup(true);
+      }
+    }
+  }, []);
   
   // Matrix text animation loop
   useEffect(() => {
@@ -56,6 +73,42 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
     }, 45);
   };
 
+  const handleSetupPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanPassword = newPassword;
+    if (!cleanPassword) {
+      setErrorMessage("PASS-KEY CANNOT BE EMPTY");
+      return;
+    }
+    if (cleanPassword.length < 4) {
+      setErrorMessage("PASS-KEY MUST BE AT LEAST 4 CHARACTERS");
+      return;
+    }
+    if (cleanPassword.includes(" ")) {
+      setErrorMessage("PASS-KEY CANNOT CONTAIN SPACES");
+      return;
+    }
+    if (cleanPassword !== confirmPassword) {
+      setErrorMessage("CONFIRM PASS-KEY DOES NOT MATCH");
+      return;
+    }
+
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("aresos_admin_password", cleanPassword);
+        setStoredPassword(cleanPassword);
+        setIsFirstTimeSetup(false);
+        setErrorMessage("");
+        
+        // Since it's setup, automatically trigger the retinal scan to proceed to login
+        handleRetinalScan();
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMessage("FAILED TO WRITE SECURITY KEY TO DISK");
+    }
+  };
+
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -66,7 +119,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
       return;
     }
 
-    // Accept any code for debug ease, or match 1234
+    const correctPassword = storedPassword || localStorage.getItem("aresos_admin_password") || process.env.NEXT_PUBLIC_LOGIN_PASSWORD;
+    if (correctPassword && passkey !== correctPassword) {
+      setErrorMessage("INVALID ACCESS KEY");
+      return;
+    }
+
     // We will show a 0.2s authenticating state then succeed
     setScanState("scanning");
     setScanProgress(90);
@@ -79,12 +137,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
 
   // Auto-scan on load to make it feel extremely advanced and responsive
   useEffect(() => {
-    const timer = setTimeout(() => {
-      handleRetinalScan();
-    }, 250);
-    return () => clearTimeout(timer);
+    if (!isFirstTimeSetup) {
+      const timer = setTimeout(() => {
+        handleRetinalScan();
+      }, 250);
+      return () => clearTimeout(timer);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isFirstTimeSetup]);
 
   return (
     <div className="fixed inset-0 w-screen h-screen bg-zinc-950 font-mono text-cyan-400 select-none overflow-hidden z-[99999] flex flex-col items-center justify-center p-6">
@@ -212,46 +272,107 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
           </span>
         </div>
 
-        {/* Authentication Form */}
-        <form onSubmit={handleLoginSubmit} className="w-full space-y-4">
-          
-          {/* Holographic key passcode entry input */}
-          <div className="relative">
-            <span className="absolute left-3.5 top-2.5 text-xs text-cyan-600 select-none">🔑</span>
-            <input
-              type="password"
-              placeholder="ENTER SYSTEM PASS-KEY"
-              value={passkey}
-              onChange={(e) => setPasskey(e.target.value)}
-              className="w-full bg-zinc-950 border border-cyan-500/20 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/20 rounded-xl py-2.5 pl-9 pr-4 text-xs font-mono tracking-widest text-center text-white placeholder-cyan-700/60 outline-none transition"
-            />
-          </div>
-
-          {/* Warning / Error Log Message */}
-          {errorMessage && (
-            <div className="text-[9px] font-bold text-red-500 text-center animate-pulse tracking-wide select-none">
-              ⚠️ {errorMessage}
+        {isFirstTimeSetup ? (
+          /* First Time Password Setup Form */
+          <form onSubmit={handleSetupPassword} className="w-full space-y-4">
+            <div className="text-[9px] text-yellow-500 font-bold uppercase tracking-wider text-center animate-pulse mb-1">
+              ⚠️ NO PASS-KEY DETECTED.<br />CREATE ONE TO SECURE YOUR OS.
             </div>
-          )}
+            
+            <div className="relative">
+              <span className="absolute left-3.5 top-2.5 text-xs text-cyan-600 select-none">🔑</span>
+              <input
+                type="password"
+                placeholder="CREATE PASS-KEY"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full bg-zinc-950 border border-cyan-500/20 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/20 rounded-xl py-2.5 pl-9 pr-4 text-xs font-mono tracking-widest text-center text-white placeholder-cyan-700/60 outline-none transition"
+                required
+              />
+            </div>
 
-          {/* Submit button "[ ENTER ARES ]" */}
-          <button
-            type="submit"
-            className={`w-full py-3 rounded-xl font-black text-xs tracking-widest border transition duration-200 cursor-pointer ${
-              scanState === "success"
-                ? "bg-indigo-600 border-indigo-400 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
-                : "bg-zinc-950 border-cyan-500/25 hover:border-cyan-400/50 hover:bg-cyan-950/20 text-cyan-500"
-            }`}
-          >
-            [ ENTER ARESOS ]
-          </button>
-        </form>
+            <div className="relative">
+              <span className="absolute left-3.5 top-2.5 text-xs text-cyan-650 select-none">🛡️</span>
+              <input
+                type="password"
+                placeholder="CONFIRM PASS-KEY"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full bg-zinc-950 border border-cyan-500/20 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/20 rounded-xl py-2.5 pl-9 pr-4 text-xs font-mono tracking-widest text-center text-white placeholder-cyan-700/60 outline-none transition"
+                required
+              />
+            </div>
+
+            {errorMessage && (
+              <div className="text-[9px] font-bold text-red-500 text-center animate-pulse tracking-wide select-none">
+                ⚠️ {errorMessage}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full py-3 rounded-xl font-black text-xs tracking-widest border transition duration-205 cursor-pointer bg-indigo-650 border-indigo-400 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
+            >
+              [ INITIALIZE PASS-KEY ]
+            </button>
+          </form>
+        ) : (
+          /* Authentication Form */
+          <form onSubmit={handleLoginSubmit} className="w-full space-y-4">
+            
+            {/* Holographic key passcode entry input */}
+            <div className="relative">
+              <span className="absolute left-3.5 top-2.5 text-xs text-cyan-600 select-none">🔑</span>
+              <input
+                type="password"
+                placeholder="ENTER SYSTEM PASS-KEY"
+                value={passkey}
+                onChange={(e) => setPasskey(e.target.value)}
+                className="w-full bg-zinc-950 border border-cyan-500/20 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/20 rounded-xl py-2.5 pl-9 pr-4 text-xs font-mono tracking-widest text-center text-white placeholder-cyan-700/60 outline-none transition"
+              />
+            </div>
+
+            {/* Warning / Error Log Message */}
+            {errorMessage && (
+              <div className="text-[9px] font-bold text-red-500 text-center animate-pulse tracking-wide select-none">
+                ⚠️ {errorMessage}
+              </div>
+            )}
+
+            {/* Submit button "[ ENTER ARES ]" */}
+            <button
+              type="submit"
+              className={`w-full py-3 rounded-xl font-black text-xs tracking-widest border transition duration-200 cursor-pointer ${
+                scanState === "success"
+                  ? "bg-indigo-600 border-indigo-400 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
+                  : "bg-zinc-950 border-cyan-500/25 hover:border-cyan-400/50 hover:bg-cyan-950/20 text-cyan-500"
+              }`}
+            >
+              [ ENTER ARESOS ]
+            </button>
+          </form>
+        )}
 
         {/* Footer HUD elements */}
         <div className="w-full border-t border-cyan-500/10 mt-6 pt-4 flex justify-between items-center text-[8px] text-cyan-700 select-none">
           <span className="font-semibold">IP LINK: SECURE</span>
           <span className="font-bold text-fuchsia-600 animate-pulse">LEVEL-5 ENCRYPTED</span>
         </div>
+      </div>
+
+      {/* Help & Security Documentation Link */}
+      <div className="mt-5 text-center flex flex-col items-center gap-1.5 z-10 max-w-[420px] select-none">
+        <a 
+          href="https://github.com/RoboticsAITechLab/ARESOS/blob/main/README.md" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-[10px] text-cyan-500 hover:text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-1 transition"
+        >
+          <span>📖</span> <span className="underline decoration-cyan-500/30">View README.md on GitHub</span>
+        </a>
+        <p className="text-[9px] text-zinc-500 text-center leading-relaxed">
+          ⚠️ <span className="font-semibold text-zinc-400">Security Suggestion:</span> Please change the default pass-key (<code className="text-cyan-500 bg-zinc-900/60 px-1 py-0.5 rounded border border-cyan-500/15">1462007</code>) after logging in.
+        </p>
       </div>
 
       {/* Side Decorative Diagnostics: Decryption Matrix Panel */}
