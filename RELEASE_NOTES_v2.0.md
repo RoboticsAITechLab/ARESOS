@@ -1,6 +1,6 @@
 # ARESOS v2.0.0 Release Notes
 
-Welcome to the official release of ARESOS v2.0.0. This release establishes robust POSIX-compatible shell capabilities and dynamic binary ZIP archiving tools for our sci-fi themed WebOS environment.
+Welcome to the official release of ARESOS v1.0.0. This release establishes robust POSIX-compatible shell capabilities and dynamic binary ZIP archiving tools for our sci-fi themed WebOS environment.
 
 ## Major Features
 
