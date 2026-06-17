@@ -144,7 +144,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         (prev || []).map((g) => (g.id === id ? { ...g, completed: nextVal } : g))
       );
       if (nextVal) {
-        addNotification("Goal Updated", `Goal Completed: "${targetGoal.text}"`, "success");
+        addNotification("Goal Updated", `Goal Compleed: "${targetGoal.text}"`, "success");
       }
     }
   };

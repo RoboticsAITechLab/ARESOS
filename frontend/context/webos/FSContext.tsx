@@ -106,22 +106,15 @@ const INITIAL_FS: FSDirectory = {
   },
 };
 
+import { getAllNodes, initDB, clearAll, putNode } from "@/utils/webos/storage/IndexedDBStorage";
+import { flatToTree, treeToFlat, migrateLocalStorageToIndexedDB } from "@/utils/webos/storage/VFSPersistence";
+import { persistNodeUpdate, persistNodeDelete } from "@/utils/webos/storage/StorageManager";
+
 export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { settings, addNotification } = useOS();
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  const [root, setRoot] = useState<FSDirectory>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) {
-        try {
-          return JSON.parse(saved) as FSDirectory;
-        } catch (e) {
-          console.error("Failed to parse virtual file system from storage, using default", e);
-        }
-      }
-    }
-    return INITIAL_FS;
-  });
+  const [root, setRoot] = useState<FSDirectory>(INITIAL_FS);
 
   const rootRef = useRef<FSDirectory>(root);
   useEffect(() => {
@@ -130,6 +123,36 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const [currentPath, _setCurrentPath] = useState<string>("/home/user");
   const currentPathRef = useRef<string>(currentPath);
+
+  useEffect(() => {
+    async function loadVFS() {
+      if (typeof window === "undefined") return;
+      try {
+        const migrated = await migrateLocalStorageToIndexedDB();
+        if (migrated) {
+          addNotification("System Update", "Migrated virtual filesystem to IndexedDB successfully.", "success");
+        }
+
+        let flatNodes = await getAllNodes();
+        if (flatNodes.length === 0) {
+          const initialFlat = treeToFlat(INITIAL_FS);
+          for (const node of initialFlat) {
+            await putNode(node);
+          }
+          flatNodes = initialFlat;
+        }
+
+        const tree = flatToTree(flatNodes);
+        rootRef.current = tree;
+        setRoot(tree);
+      } catch (e) {
+        console.error("IndexedDB VFS init failed:", e);
+      } finally {
+        setIsLoaded(true);
+      }
+    }
+    loadVFS();
+  }, []);
 
   const setCurrentPath = (path: string) => {
     currentPathRef.current = path;
@@ -160,16 +183,92 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       localStorage.removeItem("aresos_browser_bookmarks");
       localStorage.removeItem("aresos_terminal_history");
       localStorage.removeItem("aresos_notification_goals");
+
+      clearAll().then(() => {
+        return persistNodeUpdate("/", INITIAL_FS);
+      }).catch(err => {
+        console.error("VFS clear failed:", err);
+      });
     }
   };
 
-  // Save to localStorage on changes
+  async function persistTreeDiff(oldTree: FSDirectory, newTree: FSDirectory) {
+    const oldPaths = new Set<string>();
+    const newPaths = new Set<string>();
+    const oldMap = new Map<string, FSNode>();
+    const newMap = new Map<string, FSNode>();
+
+    function collectPaths(node: FSNode, currentPath: string, paths: Set<string>, map: Map<string, FSNode>) {
+      const path = currentPath;
+      paths.add(path);
+      map.set(path, node);
+      if (node.type === "directory" && node.children) {
+        for (const [name, child] of Object.entries(node.children)) {
+          const childPath = path === "/" ? `/${name}` : `${path}/${name}`;
+          collectPaths(child, childPath, paths, map);
+        }
+      }
+    }
+
+    collectPaths(oldTree, "/", oldPaths, oldMap);
+    collectPaths(newTree, "/", newPaths, newMap);
+
+    const completedOps: { type: "delete" | "update"; path: string; oldNode?: FSNode }[] = [];
+
+    try {
+      for (const path of oldPaths) {
+        if (!newPaths.has(path)) {
+          await persistNodeDelete(path);
+          completedOps.push({ type: "delete", path, oldNode: oldMap.get(path) });
+        }
+      }
+
+      for (const path of newPaths) {
+        const newNode = newMap.get(path)!;
+        const oldNode = oldMap.get(path);
+        if (!oldNode || oldNode !== newNode || oldNode.updatedAt !== newNode.updatedAt) {
+          await persistNodeUpdate(path, newNode);
+          completedOps.push({ type: "update", path, oldNode });
+        }
+      }
+    } catch (err) {
+      // Rollback successfully written items in DB
+      for (const op of completedOps.reverse()) {
+        try {
+          if (op.type === "delete" && op.oldNode) {
+            await persistNodeUpdate(op.path, op.oldNode);
+          } else if (op.type === "update") {
+            if (op.oldNode) {
+              await persistNodeUpdate(op.path, op.oldNode);
+            } else {
+              await persistNodeDelete(op.path);
+            }
+          }
+        } catch (rollbackErr) {
+          console.error("Critical error: rollback of database node failed:", rollbackErr);
+        }
+      }
+      throw err;
+    }
+  }
+
   const saveFileSystem = (newRoot: FSDirectory) => {
+    const oldRoot = rootRef.current;
+    // Set rootRef.current to newRoot temporarily during execution
     rootRef.current = newRoot;
     setRoot(newRoot);
+    const promise = persistTreeDiff(oldRoot, newRoot).then(() => {
+      // Keep newRoot
+    }).catch(err => {
+      // Rollback in-memory tree
+      rootRef.current = oldRoot;
+      setRoot(oldRoot);
+      throw err;
+    });
     if (typeof window !== "undefined") {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newRoot));
+      (window as any).aresos_last_vfs_sync = promise;
     }
+    return promise;
   };
 
   // Helper to split a path into segment arrays
@@ -523,7 +622,7 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         formatFileSystem,
       }}
     >
-      {children}
+      {isLoaded ? children : null}
     </FSContext.Provider>
   );
 };

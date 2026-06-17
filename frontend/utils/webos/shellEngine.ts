@@ -1,6 +1,8 @@
 import React from "react";
 import { FSNode, FSFile, FSDirectory } from "@/types/webos/fs";
 import { detectArchiveType, parseStandardZip } from "./ZipCompatibilityEngine";
+import { getStorageStats } from "./storage/StorageManager";
+import { initDB, putNode, deleteNodeFromDB } from "./storage/IndexedDBStorage";
 
 export interface ShellContext {
   currentPath: string;
@@ -1645,6 +1647,92 @@ export const COMMAND_REGISTRY: Record<string, CommandHandler> = {
     }
   },
 
+  storageinfo: {
+    desc: "Display IndexedDB filesystem storage metrics",
+    run: async (args, context, localPath) => {
+      function formatBytes(bytes: number): string {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+      }
+
+      try {
+        const stats = await getStorageStats();
+        const stdout = [
+          `Storage Backend: ${stats.backend}`,
+          `Quota: ${formatBytes(stats.quota)}`,
+          `Used: ${formatBytes(stats.used)}`,
+          `Available: ${formatBytes(stats.available)}`
+        ];
+        return { success: true, newPath: localPath, stdout, stderr: [] };
+      } catch (e: any) {
+        return { success: false, newPath: localPath, stdout: [], stderr: [`storageinfo: failed to retrieve stats: ${e.message || e}`] };
+      }
+    }
+  },
+
+  storagecheck: {
+    desc: "Verify IndexedDB operations and perform health checks",
+    run: async (args, context, localPath) => {
+      function formatBytes(bytes: number): string {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+      }
+
+      const stdout = [
+        "Running storage diagnostics checks..."
+      ];
+      try {
+        const db = await initDB();
+        stdout.push("  IndexedDB Availability: SUCCESS (ARESOS_DB opened)");
+        
+        const stats = await getStorageStats();
+        stdout.push(`  Quota Diagnostics: SUCCESS (Quota=${formatBytes(stats.quota)}, Available=${formatBytes(stats.available)})`);
+
+        const testPath = "/.storage_test_temp_node";
+        const testNode = {
+          path: testPath,
+          name: ".storage_test_temp_node",
+          type: "file" as const,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          content: "storage_check_test_content",
+          size: 26
+        };
+        await putNode(testNode);
+        stdout.push("  Read/Write Integrity: SUCCESS (Node written)");
+
+        const binData = new Uint8Array([0x50, 0x4B, 0x03, 0x04, 0x00, 0x01, 0x02, 0x03]);
+        const testBinNode = {
+          path: "/.storage_test_temp_bin",
+          name: ".storage_test_temp_bin",
+          type: "file" as const,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          content: "",
+          size: 8,
+          binaryData: binData
+        };
+        await putNode(testBinNode);
+        stdout.push("  Binary Persistence Integrity: SUCCESS (Binary data written)");
+
+        await deleteNodeFromDB(testPath);
+        await deleteNodeFromDB("/.storage_test_temp_bin");
+        stdout.push("  Database Cleanup: SUCCESS");
+
+        stdout.push("All 4 storage diagnostics checks passed successfully!");
+        return { success: true, newPath: localPath, stdout, stderr: [] };
+      } catch (err: any) {
+        return { success: false, newPath: localPath, stdout, stderr: [`storagecheck: test failed: ${err.message || err}`] };
+      }
+    }
+  },
+
   bg: {
     desc: "Send job to background simulation",
     run: (args, context, localPath) => {
@@ -2850,6 +2938,23 @@ export const executeSingleCommand = async (
     };
   }
   const result = await executeAST(ast, context, localPath, stdin);
+
+  // Await the background VFS sync promise if one was registered during the command execution.
+  if (typeof window !== "undefined" && (window as any).aresos_last_vfs_sync) {
+    try {
+      await (window as any).aresos_last_vfs_sync;
+    } catch (err: any) {
+      // The persistence failed, so VFS was rolled back. We must report command failure.
+      result.success = false;
+      result.exitCode = 1;
+      const syncErrMsg = `sh: storage persistence failed: ${err.message || err}`;
+      result.stderr = [...result.stderr, syncErrMsg];
+      result.interleaved = [...(result.interleaved || []), syncErrMsg];
+    } finally {
+      (window as any).aresos_last_vfs_sync = null;
+    }
+  }
+
   if (expansionOccurred) {
     result.stdout = [expanded, ...result.stdout];
     result.interleaved = [expanded, ...(result.interleaved || [...result.stdout, ...result.stderr])];

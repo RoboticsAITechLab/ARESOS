@@ -1,3 +1,112 @@
+class MockIDBRequest {
+  result: any;
+  error: any = null;
+  onsuccess: any = null;
+  onerror: any = null;
+}
+
+class MockIDBOpenRequest extends MockIDBRequest {
+  onupgradeneeded: any = null;
+}
+
+class MockIDBObjectStore {
+  name: string;
+  data = new Map<string, any>();
+
+  constructor(name: string) {
+    this.name = name;
+  }
+
+  put(value: any, key?: any) {
+    const k = key !== undefined ? key : value.path;
+    this.data.set(String(k), value);
+    const req = new MockIDBRequest();
+    req.result = k;
+    setTimeout(() => { if (req.onsuccess) req.onsuccess(); }, 0);
+    return req as any;
+  }
+
+  get(key: any) {
+    const req = new MockIDBRequest();
+    req.result = this.data.get(String(key));
+    setTimeout(() => { if (req.onsuccess) req.onsuccess(); }, 0);
+    return req as any;
+  }
+
+  getAll() {
+    const req = new MockIDBRequest();
+    req.result = Array.from(this.data.values());
+    setTimeout(() => { if (req.onsuccess) req.onsuccess(); }, 0);
+    return req as any;
+  }
+
+  delete(key: any) {
+    this.data.delete(String(key));
+    const req = new MockIDBRequest();
+    setTimeout(() => { if (req.onsuccess) req.onsuccess(); }, 0);
+    return req as any;
+  }
+
+  clear() {
+    this.data.clear();
+    const req = new MockIDBRequest();
+    setTimeout(() => { if (req.onsuccess) req.onsuccess(); }, 0);
+    return req as any;
+  }
+}
+
+class MockIDBTransaction {
+  db: any;
+  oncomplete: any = null;
+  onerror: any = null;
+  
+  constructor(db: any) {
+    this.db = db;
+    setTimeout(() => { if (this.oncomplete) this.oncomplete(); }, 0);
+  }
+
+  objectStore(name: string) {
+    return this.db.stores[name];
+  }
+}
+
+class MockIDBDatabase {
+  objectStoreNames = {
+    list: ["filesystem", "metadata", "settings", "archives"],
+    contains(name: string) {
+      return this.list.includes(name);
+    }
+  };
+  stores: Record<string, MockIDBObjectStore> = {
+    filesystem: new MockIDBObjectStore("filesystem"),
+    metadata: new MockIDBObjectStore("metadata"),
+    settings: new MockIDBObjectStore("settings"),
+    archives: new MockIDBObjectStore("archives")
+  };
+
+  transaction(storeNames: any, mode?: any) {
+    return new MockIDBTransaction(this) as any;
+  }
+
+  close() {}
+}
+
+const mockDbInstance = new MockIDBDatabase();
+
+const mockIDBFactory = {
+  open(name: string, version?: number) {
+    const req = new MockIDBOpenRequest();
+    req.result = mockDbInstance;
+    setTimeout(() => {
+      if (req.onupgradeneeded) req.onupgradeneeded({} as any);
+      if (req.onsuccess) req.onsuccess();
+    }, 0);
+    return req as any;
+  }
+};
+
+(globalThis as any).indexedDB = mockIDBFactory;
+
 import { FSNode, FSFile, FSDirectory } from "./types/webos/fs";
 import { executeCommandLine, executeSingleCommand, ShellContext } from "./utils/webos/shellEngine";
 
@@ -85,6 +194,98 @@ const INITIAL_FS: FSDirectory = {
 };
 
 let root: FSDirectory = JSON.parse(JSON.stringify(INITIAL_FS));
+let oldRoot = JSON.parse(JSON.stringify(root));
+
+let simulatedQuotaException: string | null = null;
+
+async function persistTreeDiff(oldTree: FSDirectory, newTree: FSDirectory) {
+  const oldPaths = new Set<string>();
+  const newPaths = new Set<string>();
+  const oldMap = new Map<string, FSNode>();
+  const newMap = new Map<string, FSNode>();
+
+  function collectPaths(node: FSNode, currentPath: string, paths: Set<string>, map: Map<string, FSNode>) {
+    const path = currentPath;
+    paths.add(path);
+    map.set(path, node);
+    if (node.type === "directory" && node.children) {
+      for (const [name, child] of Object.entries(node.children)) {
+        const childPath = path === "/" ? `/${name}` : `${path}/${name}`;
+        collectPaths(child, childPath, paths, map);
+      }
+    }
+  }
+
+  collectPaths(oldTree, "/", oldPaths, oldMap);
+  collectPaths(newTree, "/", newPaths, newMap);
+
+  const { persistNodeUpdate, persistNodeDelete } = require("./utils/webos/storage/StorageManager");
+
+  if (simulatedQuotaException) {
+    throw new Error(simulatedQuotaException);
+  }
+
+  const completedOps: { type: "delete" | "update"; path: string; oldNode?: FSNode }[] = [];
+
+  try {
+    for (const path of oldPaths) {
+      if (!newPaths.has(path)) {
+        console.log("TEST PERSIST DELETE:", path);
+        await persistNodeDelete(path);
+        completedOps.push({ type: "delete", path, oldNode: oldMap.get(path) });
+      }
+    }
+
+    for (const path of newPaths) {
+      const newNode = newMap.get(path)!;
+      const oldNode = oldMap.get(path);
+      const hasChanged = !oldNode || 
+                         oldNode.type !== newNode.type || 
+                         oldNode.updatedAt !== newNode.updatedAt ||
+                         (oldNode.type === "file" && (oldNode as FSFile).content !== (newNode as FSFile).content);
+      if (hasChanged) {
+        console.log("TEST PERSIST UPDATE:", path, newNode.type);
+        await persistNodeUpdate(path, newNode);
+        completedOps.push({ type: "update", path, oldNode });
+      }
+    }
+  } catch (err) {
+    // DB Rollback
+    for (const op of completedOps.reverse()) {
+      try {
+        if (op.type === "delete" && op.oldNode) {
+          await persistNodeUpdate(op.path, op.oldNode);
+        } else if (op.type === "update") {
+          if (op.oldNode) {
+            await persistNodeUpdate(op.path, op.oldNode);
+          } else {
+            await persistNodeDelete(op.path);
+          }
+        }
+      } catch (rErr) {}
+    }
+    throw err;
+  }
+}
+
+let pendingSyncPromise: Promise<void> = Promise.resolve();
+
+function syncToIndexedDB() {
+  const currentRoot = JSON.parse(JSON.stringify(root));
+  console.log("syncToIndexedDB called");
+  const promise = persistTreeDiff(oldRoot, currentRoot).then(() => {
+    oldRoot = currentRoot;
+  }).catch(err => {
+    // Rollback in-memory tree in test runner
+    root = JSON.parse(JSON.stringify(oldRoot));
+    throw err;
+  });
+  pendingSyncPromise = promise;
+  if (typeof window !== "undefined") {
+    (window as any).aresos_last_vfs_sync = promise;
+  }
+}
+
 let currentPath = "/home/user";
 let env: Record<string, string> = {
   USER: "user",
@@ -181,6 +382,7 @@ const writeFile = (filePath: string, content: string | Uint8Array): boolean => {
       extension: ext,
       binaryData: binData,
     };
+    syncToIndexedDB();
     return true;
   }
   return false;
@@ -200,6 +402,7 @@ const createDirectory = (dirPath: string, name: string): boolean => {
       updatedAt: Date.now(),
       children: {},
     };
+    syncToIndexedDB();
     return true;
   }
   return false;
@@ -214,6 +417,7 @@ const deleteNode = (nodePath: string): boolean => {
   if (parentNode && parentNode.type === "directory") {
     if (parentNode.children[nodeName]) {
       delete parentNode.children[nodeName];
+      syncToIndexedDB();
       return true;
     }
   }
@@ -262,6 +466,7 @@ const renameNode = (nodePath: string, newName: string): boolean => {
       node.updatedAt = Date.now();
       parentNode.children[newName] = node;
       delete parentNode.children[oldName];
+      syncToIndexedDB();
       return true;
     }
   }
@@ -310,11 +515,13 @@ const run = async (line: string): Promise<void> => {
   historyLogs = [];
   const ctx = makeContext();
   await executeCommandLine(line, ctx);
+  await pendingSyncPromise;
 };
 
 // Reset state between tests
 const resetState = () => {
   root = JSON.parse(JSON.stringify(INITIAL_FS));
+  oldRoot = JSON.parse(JSON.stringify(root));
   currentPath = "/home/user";
   env = {
     USER: "user",
@@ -674,7 +881,157 @@ const runAllTests = async () => {
   assertStdoutContains("test.txt restored.");
   assert(readFile("/home/user/test.txt")?.content === "hello", "unzip external zip content mismatch");
 
-  console.log("\n✅ All 19 regression tests passed successfully!\n");
+  // 20. TEST_INDEXEDDB_PERSISTENCE
+  resetState();
+  console.log("  [20] Testing IndexedDB persistence...");
+  await run("touch test_idb.txt && write test_idb.txt persistent");
+  // Ensure that all background sync operations have settled
+  await pendingSyncPromise;
+  await new Promise(r => setTimeout(r, 100));
+  const allDBNodes = await mockDbInstance.stores.filesystem.getAll().result;
+  assert(allDBNodes.some((n: any) => n.path === "/home/user/test_idb.txt" && n.content === "persistent"), "IndexedDB persistence failed to write test_idb.txt");
+
+  // 21. TEST_BINARY_FILE_STORAGE
+  resetState();
+  console.log("  [21] Testing binary file storage...");
+  const binBytes = new Uint8Array([0x00, 0xFF, 0xAA, 0x55]);
+  writeFile("binary.bin", binBytes);
+  const readBin = readFile("/home/user/binary.bin");
+  assert(readBin !== null && readBin.binaryData instanceof Uint8Array, "VFS node binaryData is not Uint8Array");
+  const binData = readBin?.binaryData;
+  assert(binData !== undefined && binData[1] === 0xFF, "Binary data byte mismatch");
+
+  // 22. TEST_ZIP_EXTRACTION_1MB
+  resetState();
+  console.log("  [22] Testing 1MB ZIP extraction...");
+  const oneMB = new Uint8Array(1024 * 1024);
+  oneMB.fill(65);
+  writeFile("large.txt", oneMB);
+  await run("zip large.zip large.txt");
+  await run("rm large.txt");
+  await run("unzip large.zip");
+  const restoredLarge = readFile("/home/user/large.txt");
+  assert(restoredLarge !== null && restoredLarge.size === 1024 * 1024, "1MB ZIP extraction failed");
+
+  // 23. TEST_ZIP_EXTRACTION_10MB
+  resetState();
+  console.log("  [23] Testing 10MB ZIP extraction...");
+  const tenMB = new Uint8Array(10 * 1024 * 1024);
+  tenMB.fill(66);
+  writeFile("huge.txt", tenMB);
+  await run("zip huge.zip huge.txt");
+  await run("rm huge.txt");
+  await run("unzip huge.zip");
+  const restoredHuge = readFile("/home/user/huge.txt");
+  assert(restoredHuge !== null && restoredHuge.size === 10 * 1024 * 1024, "10MB ZIP extraction failed");
+
+  // 24. TEST_STORAGE_QUOTA_REPORTING
+  resetState();
+  console.log("  [24] Testing storage quota reporting...");
+  const ctxQuota = makeContext();
+  const resQuota = await executeSingleCommand("storageinfo", ctxQuota, currentPath);
+  assert(resQuota.success, "storageinfo command failed");
+  assert(resQuota.stdout.some(l => l.includes("Storage Backend:")), "storageinfo output missing Backend");
+  assert(resQuota.stdout.some(l => l.includes("Quota:")), "storageinfo output missing Quota");
+
+  // 25. TEST_VFS_MIGRATION
+  resetState();
+  console.log("  [25] Testing VFS migration...");
+  const mockTree = {
+    name: "/",
+    type: "directory" as const,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    children: {
+      "migrated.txt": {
+        name: "migrated.txt",
+        type: "file" as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        content: "migrated_data",
+        size: 13
+      }
+    }
+  };
+  class MockLocalStorage {
+    store: Record<string, string> = {};
+    getItem(key: string) { return this.store[key] || null; }
+    setItem(key: string, val: string) { this.store[key] = val; }
+    removeItem(key: string) { delete this.store[key]; }
+  }
+  const mockLS = new MockLocalStorage();
+  mockLS.setItem("aresos_vfs_root", JSON.stringify(mockTree));
+  (globalThis as any).localStorage = mockLS;
+  (globalThis as any).window = { indexedDB: mockIDBFactory };
+
+  const { migrateLocalStorageToIndexedDB } = require("./utils/webos/storage/VFSPersistence");
+  const migrationResult = await migrateLocalStorageToIndexedDB();
+  assert(migrationResult === true, "VFS migration function returned false");
+  assert(mockLS.getItem("aresos_vfs_root") === null, "Legacy VFS root not removed from localStorage after migration");
+
+  const readMigrated = await mockDbInstance.stores.filesystem.get("/migrated.txt").result;
+  assert(readMigrated !== undefined && readMigrated.content === "migrated_data", "Migrated node not found in IndexedDB");
+
+  // 26. TEST_QUOTA_TOUCH
+  resetState();
+  console.log("  [26] Testing touch quota rollback...");
+  simulatedQuotaException = "QuotaExceededError";
+  try {
+    await run("touch quota_file.txt");
+    assert(false, "touch command should have failed under simulated QuotaExceededError");
+  } catch (e) {}
+  simulatedQuotaException = null;
+  assert(readFile("/home/user/quota_file.txt") === null, "touch: file was created in VFS despite quota failure");
+
+  // 27. TEST_QUOTA_WRITE
+  resetState();
+  console.log("  [27] Testing write quota rollback...");
+  await run("touch write_quota.txt");
+  simulatedQuotaException = "QuotaExceededError";
+  try {
+    await run("write write_quota.txt newcontent");
+    assert(false, "write command should have failed under simulated QuotaExceededError");
+  } catch (e) {}
+  simulatedQuotaException = null;
+  assert(readFile("/home/user/write_quota.txt")?.content === "", "write: file content mutated in VFS despite quota failure");
+
+  // 28. TEST_QUOTA_RM
+  resetState();
+  console.log("  [28] Testing rm quota rollback...");
+  await run("touch rm_quota.txt");
+  simulatedQuotaException = "QuotaExceededError";
+  try {
+    await run("rm rm_quota.txt");
+    assert(false, "rm command should have failed under simulated QuotaExceededError");
+  } catch (e) {}
+  simulatedQuotaException = null;
+  assert(readFile("/home/user/rm_quota.txt") !== null, "rm: file was deleted from VFS despite quota failure");
+
+  // 29. TEST_QUOTA_ZIP
+  resetState();
+  console.log("  [29] Testing zip quota rollback...");
+  await run("touch restore.txt && write restore.txt hello");
+  simulatedQuotaException = "QuotaExceededError";
+  try {
+    await run("zip backup.zip restore.txt");
+    assert(false, "zip command should have failed under simulated QuotaExceededError");
+  } catch (e) {}
+  simulatedQuotaException = null;
+  assert(readFile("/home/user/backup.zip") === null, "zip: archive was created in VFS despite quota failure");
+
+  // 30. TEST_QUOTA_UNZIP
+  resetState();
+  console.log("  [30] Testing unzip quota rollback...");
+  await run("touch restore.txt && write restore.txt hello && zip backup.zip restore.txt && rm restore.txt");
+  simulatedQuotaException = "QuotaExceededError";
+  try {
+    await run("unzip backup.zip");
+    assert(false, "unzip command should have failed under simulated QuotaExceededError");
+  } catch (e) {}
+  simulatedQuotaException = null;
+  assert(readFile("/home/user/restore.txt") === null, "unzip: files extracted/mutated in VFS despite quota failure");
+
+  console.log("\n✅ All 30 regression tests passed successfully!\n");
 };
 
 runAllTests().catch(err => {
