@@ -3,6 +3,7 @@ import { GameManager } from "@/games/equation-racers/evolution/GameManager";
 import { TrackGenerator } from "@/games/equation-racers/track/TrackGenerator";
 import { AnimationManager } from "@/games/equation-racers/evolution/AnimationManager";
 import { CameraManager, CameraMode } from "@/games/equation-racers/evolution/CameraManager";
+import { WebGLRenderer } from "@/games/equation-racers/evolution/WebGLRenderer";
 import { VehicleRenderer } from "@/games/equation-racers/evolution/VehicleRenderer";
 import { s } from "framer-motion/client";
 
@@ -173,6 +174,16 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
 
   // Zone entry banner & milestone refs
   const bannerRef = useRef<{ title: string; subtitle: string; timer: number; isMilestone?: boolean } | null>(null);
+  
+  // WebGL Renderer Refs and States
+  const webglCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const webglRendererRef = useRef<WebGLRenderer | null>(null);
+  const [webglSupported, setWebglSupported] = useState(false);
+  const [useWebGL, setUseWebGL] = useState(true);
+  
+  // Offscreen player vehicle canvas
+  const offscreenCarCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const offscreenCarCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const lastActiveZoneRef = useRef<string>("highway");
   const lastMilestoneRef = useRef<number>(0);
 
@@ -494,6 +505,32 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [gameMode]);
 
+  // WebGL context & offscreen canvas initialization hook
+  useEffect(() => {
+    if (gameMode !== "Start") {
+      const webglCanvas = webglCanvasRef.current;
+      if (webglCanvas && !webglRendererRef.current) {
+        const renderer = new WebGLRenderer(webglCanvas);
+        if (renderer.isSupported()) {
+          webglRendererRef.current = renderer;
+          setWebglSupported(true);
+          console.log("WebGL2 context initialized successfully");
+        } else {
+          setWebglSupported(false);
+          console.log("WebGL2 not supported, falling back to Canvas 2D");
+        }
+      }
+      
+      if (typeof document !== "undefined" && !offscreenCarCanvasRef.current) {
+        const osc = document.createElement("canvas");
+        osc.width = 128;
+        osc.height = 128;
+        offscreenCarCanvasRef.current = osc;
+        offscreenCarCtxRef.current = osc.getContext("2d");
+      }
+    }
+  }, [gameMode]);
+
   // Main animation frame loop
   const loop = (timestamp: number) => {
     const gm = gameManagerRef.current;
@@ -646,7 +683,11 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
     });
     floatersRef.current = floatersRef.current.filter(f => f.age < 1.0);
 
-    drawFrame(dt);
+    if (webglSupported && useWebGL) {
+      drawFrameWebGL(dt);
+    } else {
+      drawFrame(dt);
+    }
 
     if (gm.gameMode !== "GameOver") {
       animationFrameId.current = requestAnimationFrame(loop);
@@ -715,6 +756,320 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
     ctx.fillRect(9, 7, 3, 9);    // Rear Right
 
     ctx.restore();
+  };
+
+  const drawFrameWebGL = (dt = 0.016) => {
+    const canvas = webglCanvasRef.current;
+    const wr = webglRendererRef.current;
+    if (!canvas || !wr) return;
+
+    const gm = gameManagerRef.current;
+    const track = trackRef.current;
+    const cameraManager = cameraManagerRef.current;
+    const animationManager = animationManagerRef.current;
+    if (!gm || !track) return;
+    const speedRatio = gm.speed / gm.baseSpeed;
+
+    // Resize viewport if bounds changed
+    if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+      wr.resize(canvas.width, canvas.height);
+    }
+
+    const W = canvas.width;
+    const H = canvas.height;
+
+    // Clear with sky color
+    const getZoneSkyColors = (zone: "highway" | "city" | "mountain" | "bridge" | "tunnel") => {
+      if (zone === "city") return "#0b0b14";
+      if (zone === "mountain") return "#0c1524";
+      if (zone === "bridge") return "#082f49";
+      if (zone === "tunnel") return "#050508";
+      return "#020617";
+    };
+    const skyColor = getZoneSkyColors(gm.activeZone);
+    wr.clear(skyColor);
+
+    const carY = gm.carY;
+    const cameraX = cameraManager ? cameraManager.cameraX : gm.laneManager.carX;
+    const horizonY = H * 0.40 + (cameraManager ? cameraManager.verticalOffset : 0);
+
+    // Draw ground background quad (from horizonY to bottom)
+    const getZoneGroundColor = (zone: "highway" | "city" | "mountain" | "bridge" | "tunnel") => {
+      if (zone === "city") return "#1e293b";
+      if (zone === "mountain") return "#1c1917";
+      if (zone === "bridge") return "#0284c7";
+      if (zone === "tunnel") return "#09090b";
+      return "#14532d";
+    };
+    const groundColor = getZoneGroundColor(gm.activeZone);
+    wr.drawRoadQuad(0, horizonY, W, horizonY, W, H, 0, H, groundColor);
+
+    // Draw parallax background assets (skyscrapers or mountains)
+    if (gm.activeZone === "city") {
+      const cityOffset = (cameraX * 0.04) % 180;
+      for (let bx = -100; bx < W + 100; bx += 80) {
+        const blockH = 50 + Math.sin(bx * 0.05) * 35;
+        wr.drawAtlasSprite("skyscraper", bx - cityOffset, horizonY - blockH * 0.5, blockH / 64, 48, 64, [0.08, 0.08, 0.12, 1.0]);
+      }
+    } else if (gm.activeZone === "mountain") {
+      const mountOffset = (cameraX * 0.02) % 240;
+      for (let bx = -120; bx < W + 120; bx += 140) {
+        wr.drawAtlasSprite("mountain_cliff", bx - mountOffset, horizonY - 30, 2.5, 64, 64, [0.05, 0.05, 0.08, 1.0]);
+      }
+    }
+
+    const visibleSegments = track.getSegmentsInYRange(carY - 1200, carY + 150);
+    const getSegmentInVisible = (y: number) => {
+      for (let idx = 0; idx < visibleSegments.length; idx++) {
+        const seg = visibleSegments[idx];
+        if (y <= seg.yStart && y >= (seg.yStart - seg.length)) return seg;
+      }
+      return null;
+    };
+    const getElevationAtVisible = (y: number) => {
+      const seg = getSegmentInVisible(y);
+      if (!seg) return 0;
+      const progress = (seg.yStart - y) / seg.length;
+      return seg.startElevation + (seg.endElevation - seg.startElevation) * progress;
+    };
+    const getCenterXAtVisible = (y: number) => {
+      const seg = getSegmentInVisible(y);
+      if (!seg) return 400;
+      const progress = (seg.yStart - y) / seg.length;
+      if (seg.type.includes("curve") || seg.type.includes("hairpin") || seg.type.includes("s_curve")) {
+        const t = progress * progress * (3 - 2 * progress);
+        return seg.startCenterX + (seg.endCenterX - seg.startCenterX) * t;
+      }
+      return seg.startCenterX + (seg.endCenterX - seg.startCenterX) * progress;
+    };
+    const getWidthAtVisible = (y: number) => {
+      const seg = getSegmentInVisible(y);
+      if (!seg) return 300;
+      const progress = (seg.yStart - y) / seg.length;
+      return seg.startWidth + (seg.endWidth - seg.startWidth) * progress;
+    };
+
+    const getScale = (z: number) => {
+      const focalLength = cameraManager ? cameraManager.focalLength : 0.82;
+      return (H * 0.32 * focalLength) / (z + 55);
+    };
+
+    const project = (worldX: number, worldY: number) => {
+      const zOffset = cameraManager ? cameraManager.cameraZOffset : 45;
+      const z = carY - worldY + zOffset;
+      const scale = getScale(z);
+      const el = getElevationAtVisible(worldY);
+      const elCar = getElevationAtVisible(carY);
+      const horizon = H * 0.40 + (cameraManager ? cameraManager.verticalOffset : 0);
+      const camHeight = cameraManager ? cameraManager.cameraHeight : 155;
+      const sx = W / 2 + (worldX - cameraX) * scale;
+      const sy = horizon + (camHeight - (el - elCar)) * scale;
+      return { sx, sy, scale, z };
+    };
+
+    // Draw Road segments quads
+    const numLanes = gm.laneManager.numLanes;
+    for (let y = carY - 1200; y <= carY + 150; y += 15) {
+      const y1 = y;
+      const y2 = y + 15;
+
+      const cx1 = getCenterXAtVisible(y1);
+      const w1 = getWidthAtVisible(y1);
+      const cx2 = getCenterXAtVisible(y2);
+      const w2 = getWidthAtVisible(y2);
+
+      const p1 = project(cx1, y1);
+      const p2 = project(cx2, y2);
+
+      if (p1.z <= 0 && p2.z <= 0) continue;
+
+      const seg1 = getSegmentInVisible(y1);
+      const zone = seg1 ? seg1.zone : "highway";
+
+      const x1_left = p1.sx - (w1 / 2) * p1.scale;
+      const x1_right = p1.sx + (w1 / 2) * p1.scale;
+      const x2_left = p2.sx - (w2 / 2) * p2.scale;
+      const x2_right = p2.sx + (w2 / 2) * p2.scale;
+
+      let roadColor = "#1c1c1e";
+      if (zone === "city") roadColor = "#27272a";
+      else if (zone === "mountain") roadColor = "#292524";
+      else if (zone === "bridge") roadColor = "#3f3f46";
+      else if (zone === "tunnel") roadColor = "#18181b";
+
+      wr.drawRoadQuad(x1_left, p1.sy, x1_right, p1.sy, x2_right, p2.sy, x2_left, p2.sy, roadColor);
+
+      // Curb shoulders
+      const i = Math.floor(y1 / 20);
+      let curbColor = "#ef4444";
+      let curbWidth = 10 * p1.scale;
+      if (zone === "city") {
+        curbColor = i % 2 === 0 ? "#eab308" : "#1f2937";
+        curbWidth = 12 * p1.scale;
+      } else if (zone === "mountain") {
+        curbColor = "#78716c";
+        curbWidth = 6 * p1.scale;
+      } else if (zone === "bridge") {
+        curbColor = i % 2 === 0 ? "#52525b" : "#a1a1aa";
+        curbWidth = 14 * p1.scale;
+      } else if (zone === "tunnel") {
+        curbColor = "#27272a";
+        curbWidth = 8 * p1.scale;
+      } else {
+        curbColor = i % 2 === 0 ? "#ef4444" : "#ffffff";
+        curbWidth = 10 * p1.scale;
+      }
+
+      // Left curb
+      wr.drawRoadQuad(x1_left - curbWidth, p1.sy, x1_left, p1.sy, x2_left, p2.sy, x2_left - curbWidth, p2.sy, curbColor);
+      // Right curb
+      wr.drawRoadQuad(x1_right, p1.sy, x1_right + curbWidth, p1.sy, x2_right + curbWidth, p2.sy, x2_right, p2.sy, curbColor);
+
+      // Dash lines
+      const laneInterval1 = w1 / numLanes;
+      const laneInterval2 = w2 / numLanes;
+      if (Math.floor(y1 / 30) % 2 === 0) {
+        const dashColor = "#ffffff";
+        const dashW = Math.max(1, 2.5 * p1.scale);
+        for (let l = 1; l < numLanes; l++) {
+          const lx1 = p1.sx - (w1 / 2) * p1.scale + l * laneInterval1 * p1.scale;
+          const lx2 = p2.sx - (w2 / 2) * p2.scale + l * laneInterval2 * p2.scale;
+          wr.drawRoadQuad(lx1 - dashW / 2, p1.sy, lx1 + dashW / 2, p1.sy, lx2 + dashW / 2, p2.sy, lx2 - dashW / 2, p2.sy, dashColor);
+        }
+      }
+    }
+
+    wr.flushRoad(gm.activeZone);
+
+    // 5. Gather all draw tasks depth-sorted
+    interface WebGLTask {
+      z: number;
+      draw: () => void;
+    }
+    const glTasks: WebGLTask[] = [];
+
+    // Coins
+    const coinsList = gm.collectibleManager.getCollectibles();
+    for (const c of coinsList) {
+      const z = carY - c.y + 45;
+      if (z > 0 && z < 1200) {
+        glTasks.push({
+          z,
+          draw: () => {
+            const cx = track.getCenterXAt(c.y);
+            const w = track.getWidthAt(c.y);
+            const laneWidth = w / numLanes;
+            const wx = cx + (c.lane - (numLanes - 1) / 2) * laneWidth;
+            const p = project(wx, c.y);
+            wr.drawAtlasSprite("coin", p.sx, p.sy, p.scale, 32, 32);
+          }
+        });
+      }
+    }
+
+    // Obstacles
+    const obstaclesList = gm.obstacleManager.getObstacles();
+    for (const o of obstaclesList) {
+      const z = carY - o.y + 45;
+      if (z > 0 && z < 1200) {
+        glTasks.push({
+          z,
+          draw: () => {
+            const cx = track.getCenterXAt(o.y);
+            const w = track.getWidthAt(o.y);
+            const laneWidth = w / numLanes;
+            const wx = cx + (o.lane - (numLanes - 1) / 2) * laneWidth;
+            const p = project(wx, o.y);
+            wr.drawAtlasSprite("barrier", p.sx, p.sy, p.scale, 48, 48);
+          }
+        });
+      }
+    }
+
+    // Civilian Traffic
+    const trafficList = gm.trafficManager.getActiveVehicles();
+    for (const v of trafficList) {
+      const z = carY - v.y + 45;
+      if (z > 0 && z < 1200) {
+        glTasks.push({
+          z,
+          draw: () => {
+            const cx = track.getCenterXAt(v.y);
+            const w = track.getWidthAt(v.y);
+            const laneWidth = w / numLanes;
+            const vx = cx + (v.lane - (numLanes - 1) / 2) * laneWidth;
+            const p = project(vx, v.y);
+            const spriteName = v.type === "truck" ? "civilian_truck" : v.type === "motorcycle" ? "civilian_moto" : "civilian_sedan";
+            wr.drawAtlasSprite(spriteName, p.sx, p.sy, p.scale, 64, 64);
+          }
+        });
+      }
+    }
+
+    // Roadside Scenery
+    for (const seg of visibleSegments) {
+      if (seg.scenery) {
+        for (const s of seg.scenery) {
+          const itemY = seg.yStart - s.offsetY;
+          const z = carY - itemY + 45;
+          if (z > 0 && z < 1200) {
+            glTasks.push({
+              z,
+              draw: () => {
+                const cx = getCenterXAtVisible(itemY);
+                const w = getWidthAtVisible(itemY);
+                const sideOffset = s.side === "left" ? -w / 2 - 38 : w / 2 + 38;
+                const p = project(cx + sideOffset, itemY);
+                const sType = s.type as string;
+                const spriteName = sType === "rock" ? "rock" : sType === "sign" ? "sign" : sType === "cliff" ? "mountain_cliff" : sType === "pine" ? "pine" : "tree";
+                wr.drawAtlasSprite(spriteName, p.sx, p.sy, p.scale, 64, 64);
+              }
+            });
+          }
+        }
+      }
+    }
+
+    // Player Car offscreen canvas raster drawing
+    if (!cameraManager || cameraManager.mode !== CameraMode.CockpitCamera) {
+      glTasks.push({
+        z: 45,
+        draw: () => {
+          const osc = offscreenCarCanvasRef.current;
+          const oscCtx = offscreenCarCtxRef.current;
+          if (osc && oscCtx && vehicleRendererRef.current) {
+            oscCtx.clearRect(0, 0, 128, 128);
+            oscCtx.save();
+            oscCtx.translate(64, 82);
+            oscCtx.scale(1.25, 1.25);
+            vehicleRendererRef.current.draw(
+              oscCtx,
+              0,
+              0,
+              gm.roadAngle,
+              gm.laneManager.steerAngle,
+              speedRatio,
+              gm.vehicleState,
+              gm.isBraking,
+              dt,
+              equippedSkin
+            );
+            oscCtx.restore();
+
+            const pCar = project(gm.laneManager.carX, carY);
+            wr.drawPlayerCarTexture(osc, pCar.sx, pCar.sy, pCar.scale, 85, 85);
+          }
+        }
+      });
+    }
+
+    glTasks.sort((a, b) => b.z - a.z);
+    glTasks.forEach(t => t.draw());
+
+    // Flush all sprites to GPU
+    wr.flushSprites(wr["atlasTexture"]!, [1.0, 1.0, 1.0, 1.0], gm.activeZone);
   };
 
   // Canvas drawing orchestrator
@@ -2876,6 +3231,17 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
                     className="accent-indigo-600 h-3.5 w-3.5 cursor-pointer"
                   />
                 </label>
+                {webglSupported && (
+                  <label className="flex items-center justify-between cursor-pointer hover:bg-zinc-850 p-1.5 rounded-lg border border-transparent hover:border-zinc-800 text-indigo-400 font-semibold">
+                    <span>WebGL Hardware Acceleration</span>
+                    <input
+                      type="checkbox"
+                      checked={useWebGL}
+                      onChange={(e) => setUseWebGL(e.target.checked)}
+                      className="accent-indigo-600 h-3.5 w-3.5 cursor-pointer"
+                    />
+                  </label>
+                )}
               </div>
             </div>
 
@@ -2903,7 +3269,11 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       {gameMode !== "Start" && (
         <>
           {/* Background Canvas */}
-          <canvas ref={canvasRef} className="w-full h-full block" />
+          {webglSupported && useWebGL ? (
+            <canvas ref={webglCanvasRef} className="w-full h-full block absolute top-0 left-0" />
+          ) : (
+            <canvas ref={canvasRef} className="w-full h-full block absolute top-0 left-0" />
+          )}
 
           {/* Active Question Top HUD Card */}
           {gameMode === "Running" && getActiveGate() && (
@@ -3064,6 +3434,17 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
                   className="accent-indigo-600 h-3 w-3"
                 />
               </label>
+              {webglSupported && (
+                <label className="flex items-center justify-between cursor-pointer p-1 rounded hover:bg-zinc-800 text-indigo-400 font-semibold">
+                  <span>WebGL Hardware Acceleration</span>
+                  <input
+                    type="checkbox"
+                    checked={useWebGL}
+                    onChange={(e) => setUseWebGL(e.target.checked)}
+                    className="accent-indigo-600 h-3 w-3 cursor-pointer"
+                  />
+                </label>
+              )}
             </div>
 
             {/* Solved Question History list */}
