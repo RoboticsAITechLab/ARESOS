@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useOS } from "@/hooks/webos/useOS";
 import { playClickSound } from "@/utils/webos/audio";
+import { REGISTERED_APPS } from "@/config/webos/apps.config";
 
 interface TaskbarProps {
   onToggleNotifications: () => void;
@@ -16,29 +17,65 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     focusWindow,
     minimizeWindow,
     launchApp,
+    terminateApp,
     isStartMenuOpen,
     setStartMenuOpen,
     settings,
   } = useOS();
 
   const [bouncingAppId, setBouncingAppId] = useState<string | null>(null);
+  
+  // Custom right-click context menu state
+  const [contextMenu, setContextMenu] = useState<{ appId: string; x: number; y: number } | null>(null);
 
-  // App catalog map for Dock icons
-  const dockApps = [
-    { id: "start", title: "ARES Menu", icon: "🏠" },
-    { id: "file-manager", title: "File Explorer", icon: "📁" },
-    { id: "browser", title: "Web Browser", icon: "🌐" },
-    { id: "text-editor", title: "Notepad", icon: "📒" },
-    { id: "calendar", title: "Calendar", icon: "📅" },
-    { id: "todo", title: "Todo checklist", icon: "✅" },
-    { id: "terminal", title: "Command Shell", icon: "💻" },
-    { id: "calculator", title: "Calculator", icon: "🧮" },
-    { id: "clock", title: "System Clock", icon: "⏰" },
-    { id: "settings", title: "Settings", icon: "⚙️" },
-  ];
+  // Initialize pinned apps from localStorage or system defaults
+  const [pinnedAppIds, setPinnedAppIds] = useState<string[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const defaults = [
+        "file-manager",
+        "browser",
+        "text-editor",
+        "calendar",
+        "todo",
+        "terminal",
+        "calculator",
+        "clock",
+        "settings"
+      ];
+      const saved = localStorage.getItem("aresos_pinned_apps");
+      if (saved) {
+        try {
+          setPinnedAppIds(JSON.parse(saved));
+        } catch (e) {
+          setPinnedAppIds(defaults);
+        }
+      } else {
+        setPinnedAppIds(defaults);
+      }
+      setIsLoaded(true);
+    }
+  }, []);
+
+  // Save pinned apps to localStorage on change
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("aresos_pinned_apps", JSON.stringify(pinnedAppIds));
+    }
+  }, [pinnedAppIds, isLoaded]);
+
+  // Click handler to close context menu
+  useEffect(() => {
+    const handleWindowClick = () => {
+      setContextMenu(null);
+    };
+    window.addEventListener("click", handleWindowClick);
+    return () => window.removeEventListener("click", handleWindowClick);
+  }, []);
 
   const handleIconClick = (appId: string) => {
-    // Play subtle click audio beep
     playClickSound((settings?.volume ?? 80) / 100);
 
     if (appId === "start") {
@@ -68,6 +105,67 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     }
   };
 
+  const handleContextMenu = (e: React.MouseEvent, appId: string) => {
+    e.preventDefault();
+    if (appId === "start") return; // start menu cannot be pinned/unpinned
+    
+    // Open context menu near mouse coordinates, offset to render above the taskbar
+    setContextMenu({
+      appId,
+      x: Math.min(e.clientX, window.innerWidth - 180),
+      y: e.clientY - 85,
+    });
+  };
+
+  const togglePinApp = (appId: string) => {
+    setPinnedAppIds((prev) => {
+      if (prev.includes(appId)) {
+        return prev.filter((id) => id !== appId);
+      } else {
+        return [...prev, appId];
+      }
+    });
+  };
+
+  const handleCloseApp = (appId: string) => {
+    const runningProcs = processes.filter((p) => p.appId === appId);
+    runningProcs.forEach((p) => {
+      terminateApp(p.pid);
+    });
+  };
+
+  // Compile active visible taskbar apps list:
+  // Special Home (start) + Pinned Apps + Running Unpinned Apps
+  const visibleApps: { id: string; title: string; icon: string }[] = [
+    { id: "start", title: "ARES Menu", icon: "🏠" }
+  ];
+
+  // Add all pinned apps configurations
+  pinnedAppIds.forEach((appId) => {
+    const config = REGISTERED_APPS.find((app) => app.id === appId);
+    if (config) {
+      visibleApps.push({
+        id: appId,
+        title: config.title,
+        icon: config.icon
+      });
+    }
+  });
+
+  // Find running apps not already in pinned list
+  processes.forEach((proc) => {
+    const alreadyVisible = visibleApps.some((app) => app.id === proc.appId);
+    if (!alreadyVisible) {
+      const config = REGISTERED_APPS.find((app) => app.id === proc.appId);
+      if (config) {
+        visibleApps.push({
+          id: proc.appId,
+          title: config.title,
+          icon: config.icon
+        });
+      }
+    }
+  });
 
   const theme = settings?.theme || "dark";
 
@@ -88,7 +186,6 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     dividerClasses += "bg-teal-950/40";
     notifyHoverClass = "hover:bg-white/10";
   } else {
-    // dark
     dockClasses += "bg-zinc-950/40 border-zinc-800/40 shadow-black/40";
     dividerClasses += "bg-zinc-850";
     notifyHoverClass = "hover:bg-white/10";
@@ -110,10 +207,50 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
         }
       `}</style>
 
+      {/* Dynamic Right-Click Context Menu */}
+      {contextMenu && (
+        <div
+          style={{
+            position: "fixed",
+            left: `${contextMenu.x}px`,
+            top: `${contextMenu.y}px`,
+          }}
+          className="bg-zinc-900/95 border border-zinc-800/80 rounded-xl py-1.5 shadow-2xl backdrop-blur-md z-[1000] w-44 animate-in fade-in zoom-in-95 duration-100"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Pin / Unpin Button */}
+          <button
+            onClick={() => {
+              togglePinApp(contextMenu.appId);
+              setContextMenu(null);
+            }}
+            className="w-full text-left px-3.5 py-2 text-xs text-zinc-300 hover:bg-white/10 flex items-center gap-2 font-medium"
+          >
+            <span>📌</span>
+            <span>
+              {pinnedAppIds.includes(contextMenu.appId) ? "Unpin from Taskbar" : "Pin to Taskbar"}
+            </span>
+          </button>
+
+          {/* Close App option (if app is running) */}
+          {processes.some((p) => p.appId === contextMenu.appId) && (
+            <button
+              onClick={() => {
+                handleCloseApp(contextMenu.appId);
+                setContextMenu(null);
+              }}
+              className="w-full text-left px-3.5 py-2 text-xs text-rose-400 hover:bg-rose-500/10 border-t border-zinc-800/60 flex items-center gap-2 font-medium"
+            >
+              <span>❌</span>
+              <span>Close Application</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Floating glassmorphic Dock container */}
       <div className={dockClasses}>
-        {dockApps.map((app) => {
-          // Check if process of this app is running
+        {visibleApps.map((app) => {
           const isRunning = processes.some((p) => p.appId === app.id);
           const isFocused = processes.some((p) => p.appId === app.id && activePid === p.pid);
 
@@ -145,7 +282,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
                 dotClasses += "bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)] scale-110";
               }
             } else {
-              dotClasses += theme === "light" ? "bg-slate-400" :"bg-zinc-500";
+              dotClasses += theme === "light" ? "bg-slate-400" : "bg-zinc-500";
             }
           }
 
@@ -153,6 +290,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
             <div
               key={app.id}
               className="flex flex-col items-center justify-end relative group"
+              onContextMenu={(e) => handleContextMenu(e, app.id)}
             >
               {/* App Title tooltip on hover */}
               <div className="absolute bottom-16 bg-zinc-950/90 text-white border border-zinc-850 px-2.5 py-1 rounded-lg text-[10px] font-semibold tracking-wide shadow-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none select-none">
