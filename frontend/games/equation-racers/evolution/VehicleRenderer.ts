@@ -1,5 +1,14 @@
 export type VehicleState = "Idle" | "Cruising" | "Turning" | "Hard Turning" | "Near Crash" | "Low Lives";
 
+interface SmokeParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  alpha: number;
+}
+
 export class VehicleRenderer {
   // Visual state variables for springy behavior
   private wheelRotation = 0;
@@ -8,18 +17,13 @@ export class VehicleRenderer {
   private currentSteerAngle = 0;
   private lowLivesFlashTimer = 0;
 
+  // Weight and suspension physics
+  private lastSteer = 0;
+  private bounceVelocity = 0;
+  private smokeParticles: SmokeParticle[] = [];
+
   /**
    * Main draw call for the player vehicle in pseudo-3D rear-quarter perspective
-   * @param ctx Canvas 2D context
-   * @param x Screen center X coordinate of the vehicle
-   * @param y Screen center Y coordinate of the vehicle
-   * @param roadAngle Track heading angle (radians)
-   * @param laneChangeSteer Lateral swerve steer angle (radians)
-   * @param speedRatio Current speed / base speed
-   * @param state Active vehicle state
-   * @param isBraking Whether vehicle is decelerating
-   * @param dt Frame delta time
-   * @param skin Equipped vehicle skin cosmetic
    */
   public draw(
     ctx: CanvasRenderingContext2D,
@@ -37,50 +41,63 @@ export class VehicleRenderer {
     this.wheelRotation += 20 * speedRatio * dt;
     this.lowLivesFlashTimer += 8 * dt;
 
-    // Body roll damping (lean opposite to swerve direction for centrifugal force weight shift)
-    const targetRoll = -laneChangeSteer * 0.9;
-    this.currentRoll += (targetRoll - this.currentRoll) * Math.min(1.0, 14 * dt);
-
     // Front wheels steer direction damping
     const targetSteer = laneChangeSteer * 1.35;
     this.currentSteerAngle += (targetSteer - this.currentSteerAngle) * Math.min(1.0, 18 * dt);
 
-    // Dynamic vertical suspension bounce (settles dynamically)
-    if (state === "Hard Turning") {
-      this.currentBounceY = Math.sin(performance.now() * 0.045) * 1.6;
-    } else if (state === "Cruising" && speedRatio > 1.2) {
-      this.currentBounceY = Math.sin(performance.now() * 0.025) * 0.7 * speedRatio;
-    } else {
-      this.currentBounceY += (0 - this.currentBounceY) * Math.min(1.0, 10 * dt);
-    }
+    // Body roll damping (lean opposite to swerve direction for centrifugal weight transfer)
+    const targetRoll = -laneChangeSteer * 1.15; // Enhanced lean response
+    this.currentRoll += (targetRoll - this.currentRoll) * Math.min(1.0, 12 * dt);
 
-    // Speed-based road vibration
+    // Suspension Spring Bobbing vertical bounce (wobble on lane switches)
+    const steerDelta = Math.abs(laneChangeSteer - this.lastSteer);
+    this.lastSteer = laneChangeSteer;
+    if (steerDelta > 0.015) {
+      // Bob the chassis down in response to sudden swerve force
+      this.bounceVelocity += steerDelta * 110;
+    }
+    // Spring harmonic physics oscillation
+    const springForce = -210 * this.currentBounceY - 13 * this.bounceVelocity;
+    this.bounceVelocity += springForce * dt;
+    this.currentBounceY += this.bounceVelocity * dt;
+    // Damp settling when cruising normally
+    if (steerDelta === 0 && Math.abs(this.currentBounceY) < 0.1) {
+      this.currentBounceY = 0;
+      this.bounceVelocity = 0;
+    }
+    this.currentBounceY = Math.max(-10, Math.min(10, this.currentBounceY));
+
+    // Speed-based vibration
     let vibrationX = 0;
     let vibrationY = 0;
-    if (state === "Cruising") {
-      vibrationX = (Math.random() - 0.5) * 0.5 * speedRatio;
+    if (state === "Cruising" && speedRatio > 1.35) {
+      vibrationX = (Math.random() - 0.5) * 0.45 * speedRatio;
     } else if (state === "Turning" || state === "Hard Turning") {
-      vibrationX = (Math.random() - 0.5) * 1.1;
+      vibrationX = (Math.random() - 0.5) * 0.9;
     } else if (state === "Near Crash") {
       vibrationX = (Math.random() - 0.5) * 2.2;
     } else if (state === "Low Lives") {
-      vibrationX = (Math.random() - 0.5) * 2.4;
-      vibrationY = (Math.random() - 0.5) * 1.8;
+      vibrationX = (Math.random() - 0.5) * 2.5;
+      vibrationY = (Math.random() - 0.5) * 1.9;
     }
 
-    // Combine road curvature and lane change headings
-    let finalHeading = roadAngle * 0.4 + laneChangeSteer * 0.25;
-    const maxHeading = 0.24; // ~14 degrees
+    // Weight transfer squat/dip offsets
+    const squatY = Math.max(0, (speedRatio - 1.0) * 4.5); // Rear squats down at speed
+    const brakingDipY = isBraking ? -3.5 : 0; // Front dips down (bumper rises in rear perspective)
+
+    // Road Connection Alignment: final rotation heading matches centerline curvature
+    let finalHeading = roadAngle * 0.7 + laneChangeSteer * 0.3;
+    const maxHeading = 0.28;
     if (finalHeading > maxHeading) finalHeading = maxHeading;
     if (finalHeading < -maxHeading) finalHeading = -maxHeading;
 
     ctx.save();
     
-    // Position car with vibration jitter
-    ctx.translate(x + vibrationX, y + vibrationY + this.currentBounceY);
+    // Position car with vibration jitter and vertical weight squat/dip
+    ctx.translate(x + vibrationX, y + vibrationY + this.currentBounceY + squatY + brakingDipY);
     ctx.rotate(finalHeading);
 
-    // 2. Draw soft shadow under the vehicle (scales and stretches at speed)
+    // 2. Draw soft shadow under the vehicle
     ctx.save();
     let shadowOpacity = 0.40;
     if (state === "Hard Turning") shadowOpacity = 0.55;
@@ -119,8 +136,8 @@ export class VehicleRenderer {
     // Apply visual chassis roll rotation
     ctx.rotate(this.currentRoll);
 
-    // 4. Draw tires (thick 3D rear-quarter profiles)
-    const drawTire3D = (tx: number, ty: number, angle: number) => {
+    // 4. Draw tires (thick 3D profiles)
+    const drawTire3D = (tx: number, ty: number, angle: number, isFront: boolean) => {
       ctx.save();
       ctx.translate(tx, ty);
       ctx.rotate(angle);
@@ -131,23 +148,36 @@ export class VehicleRenderer {
       ctx.roundRect(-4, -10, 8, 20, 3);
       ctx.fill();
       
-      // Tire tread lines to show wheel rotation blur
-      ctx.strokeStyle = "rgba(100, 116, 139, 0.4)";
-      ctx.lineWidth = 1;
-      const spinOffset = (this.wheelRotation % 10) - 5;
-      ctx.beginPath();
-      ctx.moveTo(-4, spinOffset);
-      ctx.lineTo(4, spinOffset);
-      ctx.moveTo(-4, spinOffset + 8 > 10 ? spinOffset - 12 : spinOffset + 8);
-      ctx.lineTo(4, spinOffset + 8 > 10 ? spinOffset - 12 : spinOffset + 8);
-      ctx.stroke();
+      if (isFront || speedRatio <= 1.45) {
+        // Draw tread lines showing rotation
+        ctx.strokeStyle = "rgba(100, 116, 139, 0.4)";
+        ctx.lineWidth = 1;
+        const spinOffset = (this.wheelRotation % 10) - 5;
+        ctx.beginPath();
+        ctx.moveTo(-4, spinOffset);
+        ctx.lineTo(4, spinOffset);
+        ctx.moveTo(-4, spinOffset + 8 > 10 ? spinOffset - 12 : spinOffset + 8);
+        ctx.lineTo(4, spinOffset + 8 > 10 ? spinOffset - 12 : spinOffset + 8);
+        ctx.stroke();
+      } else {
+        // High speed Rear Wheel Blur effect (blurred concentric spin circles)
+        ctx.fillStyle = "rgba(148, 163, 184, 0.35)";
+        ctx.beginPath();
+        ctx.arc(0, -3, 3.5, 0, Math.PI * 2);
+        ctx.arc(0, 3, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       ctx.restore();
     };
 
-    // Draw rear tires (placed wide)
-    drawTire3D(-16, 2, this.currentSteerAngle * 0.3); // Rear Left
-    drawTire3D(16, 2, this.currentSteerAngle * 0.3);  // Rear Right
+    // Draw Front Tires (visible turning steer angles)
+    drawTire3D(-14, -14, this.currentSteerAngle, true);  // Front Left
+    drawTire3D(14, -14, this.currentSteerAngle, true);   // Front Right
+
+    // Draw Rear Tires (spin blurred at high speed)
+    drawTire3D(-16, 2, this.currentSteerAngle * 0.2, false); // Rear Left
+    drawTire3D(16, 2, this.currentSteerAngle * 0.2, false);  // Rear Right
 
     // 5. Draw 3D Rear Car Bumper & Diffuser
     ctx.strokeStyle = "#020205";
@@ -167,16 +197,17 @@ export class VehicleRenderer {
     ctx.arc(-11, 7, 2, 0, Math.PI * 2);
     ctx.arc(11, 7, 2, 0, Math.PI * 2);
     ctx.fill();
-    // Exhaust flame glow at high speeds
+
+    // Nitrous exhaust sparks
     if (speedRatio > 1.4 && Math.random() < 0.6) {
-      ctx.fillStyle = "#38bdf8"; // blue nitrous spark
+      ctx.fillStyle = "#38bdf8";
       ctx.beginPath();
       ctx.arc(-11, 8, 3, 0, Math.PI * 2);
       ctx.arc(11, 8, 3, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // 6. Draw Bumper Panel (Trapezoidal rear bumper face)
+    // 6. Draw Bumper Panel
     ctx.fillStyle = bodyColor;
     ctx.beginPath();
     ctx.moveTo(-18, 3);
@@ -194,25 +225,27 @@ export class VehicleRenderer {
     ctx.fillRect(-10, -12, 3, 7);
     ctx.fillRect(7, -12, 3, 7);
     
-    // Spoiler Wing Board (tilted up)
+    // Spoiler Wing Board (braking tilts it forward)
+    const spoilerAngle = isBraking ? -0.15 : 0;
+    ctx.translate(0, -14);
+    ctx.rotate(spoilerAngle);
     ctx.fillStyle = trimColor;
     ctx.beginPath();
-    ctx.moveTo(-21, -16);
-    ctx.lineTo(21, -16);
-    ctx.lineTo(18, -12);
-    ctx.lineTo(-18, -12);
+    ctx.moveTo(-21, -2);
+    ctx.lineTo(21, -2);
+    ctx.lineTo(18, 2);
+    ctx.lineTo(-18, 2);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
     // Spoiler Side Wings
     ctx.fillStyle = bodyColor;
-    ctx.fillRect(-22, -18, 2, 8);
-    ctx.fillRect(20, -18, 2, 8);
+    ctx.fillRect(-22, -4, 2, 8);
+    ctx.fillRect(20, -4, 2, 8);
     ctx.restore();
 
     // 8. Perspective cabin section (Windshield & Roof)
-    // Horizontal shift simulates looking around corners (3D perspective illusion)
     const turnShiftX = -this.currentSteerAngle * 10;
     
     ctx.fillStyle = accentColor;
@@ -236,7 +269,7 @@ export class VehicleRenderer {
     ctx.fill();
     ctx.stroke();
 
-    // Windshield diagonal glossy reflection sheen
+    // Windshield reflection sheen
     ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -244,7 +277,7 @@ export class VehicleRenderer {
     ctx.lineTo(2 + turnShiftX, -14);
     ctx.stroke();
 
-    // Cabin Roof (carbon fiber black or body color)
+    // Cabin Roof
     ctx.fillStyle = "#0f172a";
     ctx.beginPath();
     ctx.moveTo(-10 + turnShiftX, -16);
@@ -255,37 +288,70 @@ export class VehicleRenderer {
     ctx.fill();
     ctx.stroke();
 
-    // 9. Taillights (Glossy LED stripe look)
+    // 9. Taillights (Glow brake lights)
     const glowBrake = isBraking || state === "Near Crash";
-    ctx.fillStyle = glowBrake ? "#f43f5e" : "#be123c"; // glowing bright rose vs dark crimson red
+    ctx.fillStyle = glowBrake ? "#f43f5e" : "#be123c"; // bright rose red vs dark crimson
     ctx.fillRect(-14, -3, 6, 2.5);
     ctx.fillRect(8, -3, 6, 2.5);
     
     if (glowBrake) {
-      // Draw circular brake halo glows
-      ctx.fillStyle = "rgba(244, 63, 94, 0.4)";
+      ctx.fillStyle = "rgba(244, 63, 94, 0.45)";
       ctx.beginPath();
-      ctx.arc(-11, -2, 7, 0, Math.PI * 2);
-      ctx.arc(11, -2, 7, 0, Math.PI * 2);
+      ctx.arc(-11, -2, 8, 0, Math.PI * 2);
+      ctx.arc(11, -2, 8, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // 10. Low Lives spoiler hazard flashing beacon
-    if (state === "Low Lives" && Math.floor(this.lowLivesFlashTimer) % 2 === 0) {
-      ctx.fillStyle = "#ef4444";
-      ctx.beginPath();
-      ctx.arc(0, -14, 3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(239, 68, 68, 0.6)";
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(0, -14, 7, 0, Math.PI * 2);
-      ctx.stroke();
+    // 10. Low Lives flashing beacon & gray engine damage smoke particles
+    if (state === "Low Lives") {
+      // Beacon warning flash
+      if (Math.floor(this.lowLivesFlashTimer) % 2 === 0) {
+        ctx.fillStyle = "#ef4444";
+        ctx.beginPath();
+        ctx.arc(0, -14, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(239, 68, 68, 0.6)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, -14, 7, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Add smoke particle
+      if (Math.random() < 0.28) {
+        this.smokeParticles.push({
+          x: -4 + Math.random() * 8,
+          y: -10,
+          vx: (Math.random() - 0.5) * 15,
+          vy: -Math.random() * 25 - 15,
+          size: Math.random() * 3 + 2,
+          alpha: 0.65
+        });
+      }
     }
 
-    // 11. Speed wind line overlay (only at high speed)
+    // Tick/Draw local damage smoke particles
+    this.smokeParticles.forEach(p => {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.alpha -= 1.1 * dt;
+      p.size += 4 * dt; // expand slightly as it rises
+    });
+    this.smokeParticles = this.smokeParticles.filter(p => p.alpha > 0);
+
+    ctx.save();
+    ctx.shadowBlur = 0;
+    this.smokeParticles.forEach(p => {
+      ctx.fillStyle = `rgba(120, 113, 108, ${p.alpha * 0.4})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+
+    // 11. High speed wind lines overlay
     if (speedRatio > 1.6) {
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(-17, -25);

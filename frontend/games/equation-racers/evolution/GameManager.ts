@@ -6,6 +6,7 @@ import { CollectibleManager, Collectible } from "./CollectibleManager";
 import { SaveManager } from "./SaveManager";
 import { RunAnalyticsManager } from "./RunAnalyticsManager";
 import { ObstacleManager } from "./ObstacleManager";
+import { TrafficManager, TrafficVehicle } from "./TrafficManager";
 
 export class GameManager {
   public gameMode: "Start" | "Running" | "Paused" | "GameOver" = "Start";
@@ -25,6 +26,7 @@ export class GameManager {
   public difficulty = 1;
   public baseSpeed = 160; // Base forward scroll speed (px/sec)
   public speed = 160; // Active speed
+  public targetSpeed = 160; // Persistent target speed
   public carY = 0; // Auto-forward vertical coordinate
 
   // Focus Mode & Timing parameters
@@ -33,6 +35,15 @@ export class GameManager {
   public focusModeTimer = 0;
   public correctLaneEnteredY: number | null = null;
   public lastScoreMilestone = 0;
+
+  // Final Polish properties
+  public lastCategory: string | null = null;
+  public questionHistory: { text: string; userAnswer: string; correctAnswer: string; isCorrect: boolean }[] = [];
+  public feedbackBannerTimer = 0;
+  public feedbackBannerText = "";
+  public learningMode = true;
+  public currentQuestion: MathQuestion | null = null;
+  public nextQuestion: MathQuestion | null = null;
 
   // Visual & Physics feedback states
   public roadAngle = 0;
@@ -55,9 +66,10 @@ export class GameManager {
   public collectibleManager: CollectibleManager;
   public saveManager: SaveManager;
   public obstacleManager: ObstacleManager;
+  public trafficManager: TrafficManager;
 
   // Track zones & elevation
-  public activeZone: "highway" | "city" | "mountain" = "highway";
+  public activeZone: "highway" | "city" | "mountain" | "bridge" | "tunnel" = "highway";
   public activeChallengeZone: "math_rush" | null = null;
   public elevation = 0;
   public activeWeather: "clear" | "rain" | "fog" | "night" | "storm" = "clear";
@@ -73,6 +85,8 @@ export class GameManager {
   public onScreenShake: () => void = () => {};
   public onMilestoneTrigger: () => void = () => {};
   public onObstacleHit: (type: "cone" | "barrier") => void = () => {};
+  public onTrafficCollision: (type: "sedan" | "truck" | "motorcycle") => void = () => {};
+  public onNearMiss: (phrase: string) => void = () => {};
 
   constructor() {
     this.questionGen = new QuestionGenerator();
@@ -82,6 +96,49 @@ export class GameManager {
     this.saveManager = new SaveManager();
     this.runAnalytics = new RunAnalyticsManager();
     this.obstacleManager = new ObstacleManager();
+    this.trafficManager = new TrafficManager(918237);
+
+    // Bind traffic callbacks
+    this.trafficManager.onCollision = (vehicle) => {
+      this.lives--;
+      this.combo = 0;
+      this.brakingTimer = 0.65;
+      // Reduce speed significantly
+      this.targetSpeed = Math.max(80, this.targetSpeed - 70);
+
+      this.runAnalytics.logEvent({
+        type: "wrong",
+        description: `Collided with AI traffic: ${vehicle.type}`
+      });
+
+      this.onScreenShake();
+      this.onTrafficCollision(vehicle.type);
+
+      if (this.lives <= 0) {
+        this.gameMode = "GameOver";
+        this.saveManager.updateRunStats(
+          this.score,
+          this.coinsCollected,
+          this.distance,
+          this.questionsSolved,
+          this.correctAnswersCount,
+          this.wrongAnswersCount,
+          this.maxCombo
+        );
+        this.onGameOver();
+      }
+    };
+
+    this.trafficManager.onNearMiss = (vehicle) => {
+      this.score += 50;
+      this.combo++;
+      this.maxCombo = Math.max(this.maxCombo, this.combo);
+
+      const phrases = ["NEAR MISS!", "CLOSE CALL!", "INSANE DODGE!"];
+      const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+      this.onNearMiss(phrase);
+    };
+
     this.trackSeed = 918237; // Default seed
     this.init(this.trackSeed);
   }
@@ -116,6 +173,7 @@ export class GameManager {
     this.difficulty = 1;
     this.baseSpeed = 160;
     this.speed = 160;
+    this.targetSpeed = 160;
     this.carY = 0;
     this.nextGateY = -600;
 
@@ -123,6 +181,15 @@ export class GameManager {
     this.focusModeTimer = 0;
     this.correctLaneEnteredY = null;
     this.lastScoreMilestone = 0;
+    this.lastCategory = null;
+    this.questionHistory = [];
+    this.feedbackBannerTimer = 0;
+    this.feedbackBannerText = "";
+    this.learningMode = this.saveManager.getData().settings.learningMode;
+
+    // Pre-populate queue
+    this.currentQuestion = this.generateNextMathQuestion();
+    this.nextQuestion = this.generateNextMathQuestion();
 
     this.roadAngle = 0;
     this.vehicleState = "Cruising";
@@ -136,27 +203,45 @@ export class GameManager {
     this.elevation = 0;
     this.activeWeather = "clear";
     
+    this.trafficManager.reset(seed, this.laneManager.numLanes);
+
     // Spawn first gate and initial coins leading up to it
     this.spawnNextChallenge();
   }
 
-  /**
-   * Spawns a challenge gate and placement of coins
-   */
+  private generateNextMathQuestion(): MathQuestion {
+    // Scale question difficulty based on dynamic score progression brackets
+    let targetDifficulty = 1;
+    if (this.score < 1000) {
+      targetDifficulty = this.rng.range(1, 2);
+    } else if (this.score < 3000) {
+      targetDifficulty = this.rng.range(2, 4);
+    } else {
+      targetDifficulty = this.rng.range(4, 6);
+    }
+
+    // Question Variety Rotation: Filter out last active category to prevent repeating back-to-back
+    let categoriesToUse = this.activeCategories.filter(cat => cat !== this.lastCategory);
+    if (categoriesToUse.length === 0) {
+      categoriesToUse = this.activeCategories;
+    }
+
+    const question = this.questionGen.generateQuestion(categoriesToUse, targetDifficulty, this.rng);
+    this.lastCategory = question.category;
+    return question;
+  }
+
   private spawnNextChallenge(): void {
     const gateId = `gate-${this.questionsSolved}`;
     
-    // Scale question difficulty according to the active zone
-    let targetDifficulty = this.difficulty;
-    if (this.activeZone === "highway") {
-      targetDifficulty = Math.max(1, Math.min(2, this.difficulty));
-    } else if (this.activeZone === "city") {
-      targetDifficulty = Math.max(2, Math.min(4, this.difficulty));
-    } else if (this.activeZone === "mountain") {
-      targetDifficulty = Math.max(3, this.difficulty);
+    if (!this.currentQuestion) {
+      this.currentQuestion = this.generateNextMathQuestion();
     }
+    const question = this.currentQuestion;
 
-    const question = this.questionGen.generateQuestion(this.activeCategories, targetDifficulty, this.rng);
+    // Advance queue instantly
+    this.currentQuestion = this.nextQuestion || this.generateNextMathQuestion();
+    this.nextQuestion = this.generateNextMathQuestion();
     
     // Spawn gate
     this.gateManager.spawnGate(gateId, this.nextGateY, "math", question);
@@ -173,26 +258,27 @@ export class GameManager {
       );
     }
 
-    // Prepare next gate threshold (closer spacing in Math Rush challenge)
-    const spacing = this.activeChallengeZone === "math_rush" ? 380 : 700;
+    // Dynamic Gate Spacing: solve distance based on speed and difficulty, plus 300px cooldown
+    const solveDist = this.getActiveGateSolveDistance({ question });
+    const spacing = solveDist + 300;
     this.nextGateY -= spacing;
   }
 
-  /**
-   * Shifts lane Left
-   */
   public handleLeft(): void {
-    if (this.gameMode === "Running") {
-      this.laneManager.moveLeft();
+    if (this.gameMode === "Running" && this.feedbackBannerTimer <= 0) {
+      const dist = this.getNextGateDistance();
+      if (dist === null || dist >= 100) {
+        this.laneManager.moveLeft();
+      }
     }
   }
 
-  /**
-   * Shifts lane Right
-   */
   public handleRight(): void {
-    if (this.gameMode === "Running") {
-      this.laneManager.moveRight();
+    if (this.gameMode === "Running" && this.feedbackBannerTimer <= 0) {
+      const dist = this.getNextGateDistance();
+      if (dist === null || dist >= 100) {
+        this.laneManager.moveRight();
+      }
     }
   }
 
@@ -212,6 +298,13 @@ export class GameManager {
    */
   public start(): void {
     this.gameMode = "Running";
+  }
+
+  public getActiveGateSolveDistance(gate: any): number {
+    if (!gate || !gate.question) return 800;
+    const diff = gate.question.difficultyVal ?? 1;
+    const solveTime = diff <= 2 ? 4.5 : diff <= 4 ? 6.5 : 8.5;
+    return solveTime * this.speed;
   }
 
   /**
@@ -245,6 +338,30 @@ export class GameManager {
     getElevationAt: (y: number) => number
   ): void {
     if (this.gameMode !== "Running") return;
+
+    // 1. Decrement wrong answer explanation banner timer
+    if (this.feedbackBannerTimer > 0) {
+      this.feedbackBannerTimer -= dt;
+    }
+
+    // 2. Compute active scroll speed based on dynamic speed control and feedback banners
+    let activeSpeed = this.targetSpeed;
+    if (this.feedbackBannerTimer > 0) {
+      activeSpeed = 45; // Slow scroll speed during explanation display so player can read it
+    } else {
+      const activeGate = this.gateManager.getNextActiveGate(this.carY);
+      if (activeGate && activeGate.question) {
+        const qDist = this.carY - activeGate.y;
+        const solveDist = this.getActiveGateSolveDistance(activeGate);
+        if (qDist <= solveDist) {
+          const diffVal = activeGate.question.difficultyVal ?? 1;
+          if (diffVal >= 5) {
+            activeSpeed *= 0.82; // Temporarily reduce speed by 18% for Hard questions
+          }
+        }
+      }
+    }
+    this.speed = activeSpeed;
 
     // Sync current zone metadata and elevation
     const seg = getSegmentAtY(this.carY);
@@ -283,7 +400,7 @@ export class GameManager {
       this.lives--;
       this.combo = 0;
       this.brakingTimer = 0.65;
-      this.speed = Math.max(100, this.speed - 60);
+      this.targetSpeed = Math.max(100, this.targetSpeed - 60);
 
       this.runAnalytics.logEvent({
         type: "wrong",
@@ -313,10 +430,10 @@ export class GameManager {
     this.carY -= this.speed * dt;
     this.distance += (this.speed * dt) * 0.05; // 1 meter per 20px of travel
 
-    // Calculate road curvature angle via numerical differentiation (lookahead of 45px)
-    const cxCurrent = roadCenterXAtY(this.carY);
-    const cxAhead = roadCenterXAtY(this.carY - 45);
-    const rawRoadAngle = Math.atan2(cxAhead - cxCurrent, 45);
+    // Calculate road curvature connection angle using track centerline lookahead
+    const currentCenter = roadCenterXAtY(this.carY);
+    const futureCenter = roadCenterXAtY(this.carY - 50);
+    const rawRoadAngle = Math.atan2(futureCenter - currentCenter, 50);
     // Clamp curvature angle to ±15 degrees (0.26 radians) to preserve option text readability
     const maxClamp = 0.26;
     this.roadAngle = Math.max(-maxClamp, Math.min(maxClamp, rawRoadAngle));
@@ -365,7 +482,7 @@ export class GameManager {
     const roadWidth = roadWidthAtY(this.carY);
     this.laneManager.update(dt, roadCenterX, roadWidth);
 
-    // Update coins collection checks (Magnet defaults to false for 6A MVP)
+    // Update coins collection checks
     const collected = this.collectibleManager.update(
       dt,
       this.laneManager.carX,
@@ -378,7 +495,6 @@ export class GameManager {
     if (collected.length > 0) {
       this.coinsCollected += collected.length;
       for (const item of collected) {
-        // Calculate item's world coordinates to pass to collector callback
         const cx = roadCenterXAtY(item.y);
         const w = roadWidthAtY(item.y);
         const laneWidth = w / this.laneManager.numLanes;
@@ -414,14 +530,26 @@ export class GameManager {
       if (gate.type === "math" && gate.question) {
         this.questionsSolved++;
         const q = gate.question;
+        const isAnswerCorrect = (this.laneManager.currentLane === q.correctLane);
+        const playerAnswerStr = String(q.options[this.laneManager.currentLane]);
+
+        // Push solved question details to questionHistory list
+        this.questionHistory.push({
+          text: q.text,
+          userAnswer: playerAnswerStr,
+          correctAnswer: String(q.correctValue),
+          isCorrect: isAnswerCorrect
+        });
+        if (this.questionHistory.length > 5) {
+          this.questionHistory.shift();
+        }
         
-        if (this.laneManager.currentLane === q.correctLane) {
+        if (isAnswerCorrect) {
           // Correct answer!
           this.correctAnswersCount++;
           this.combo++;
           this.maxCombo = Math.max(this.maxCombo, this.combo);
           
-          // Determine answer swerve timing quality
           let rating: "Perfect" | "Good" | "Clutch Save" = "Good";
           let ratingBonus = 0;
           let ratingText = "GOOD!";
@@ -491,14 +619,22 @@ export class GameManager {
           // Adaptive Difficulty Speed increase
           if (this.combo % 3 === 0) {
             this.difficulty++;
-            this.speed = Math.min(320, this.baseSpeed + this.difficulty * 8);
+            this.targetSpeed = Math.min(320, this.baseSpeed + this.difficulty * 8);
           }
         } else {
           // Incorrect answer!
           this.wrongAnswersCount++;
           this.lives--;
           this.combo = 0;
-          this.brakingTimer = 0.85; // turn on brake lights for mistake shock
+
+          // If Learning Mode is ON, trigger a 1.5 second wrong answer explanation banner
+          if (this.learningMode) {
+            this.feedbackBannerTimer = 1.5;
+            this.feedbackBannerText = `Wrong! Correct Answer: ${q.correctValue}`;
+            this.brakingTimer = 1.5;
+          } else {
+            this.brakingTimer = 0.85; // Default short brake shock
+          }
 
           // Log incorrect event
           this.runAnalytics.logEvent({
@@ -509,14 +645,13 @@ export class GameManager {
 
           // Adaptive Difficulty Speed slowdown on mistakes
           this.difficulty = Math.max(1, this.difficulty - 1);
-          this.speed = Math.max(120, this.baseSpeed + this.difficulty * 8);
+          this.targetSpeed = Math.max(120, this.baseSpeed + this.difficulty * 8);
 
           this.onWrongAnswer();
           this.onScreenShake();
 
           if (this.lives <= 0) {
             this.gameMode = "GameOver";
-            // Commit and save statistics to LocalStorage
             this.saveManager.updateRunStats(
               this.score,
               this.coinsCollected,
@@ -539,9 +674,9 @@ export class GameManager {
     // Dynamic speed adjustment based on run accuracy (smoothly interpolation over time)
     const accuracy = this.questionsSolved > 0 ? (this.correctAnswersCount / this.questionsSolved) : 1.0;
     if (accuracy > 0.85) {
-      this.speed = Math.min(360, this.speed + 4 * dt); // gradually increase
+      this.targetSpeed = Math.min(360, this.targetSpeed + 4 * dt); // gradually increase
     } else if (accuracy < 0.5) {
-      this.speed = Math.max(100, this.speed - 8 * dt); // gradually decrease
+      this.targetSpeed = Math.max(100, this.targetSpeed - 8 * dt); // gradually decrease
     }
 
     // Check score threshold milestones
@@ -554,6 +689,20 @@ export class GameManager {
       });
       this.onMilestoneTrigger();
     }
+
+    // Update traffic vehicles
+    this.trafficManager.update(
+      dt,
+      this.laneManager.carX,
+      this.carY,
+      this.speed,
+      this.gateManager.getGates(),
+      this.activeZone === "city" ? Math.max(3000, this.score + 3000) : this.score,
+      roadCenterXAtY,
+      roadWidthAtY
+    );
+
+    if (this.gameMode !== "Running") return;
 
     // Clean up passed entities
     this.gateManager.cleanUp(this.carY);

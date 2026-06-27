@@ -7,6 +7,7 @@ export interface MathQuestion {
   correctValue: number | string;
   presentationType: "standard" | "split" | "compare";
   category: string;
+  difficultyVal?: number;
 }
 
 export interface QuestionCategory {
@@ -327,6 +328,7 @@ export class ReactionCategory implements QuestionCategory {
 
 export class QuestionGenerator {
   private categories: Map<string, QuestionCategory> = new Map();
+  private lastCorrectLanes: number[] = [];
 
   constructor() {
     this.registerCategory(new AdditionCategory());
@@ -353,6 +355,28 @@ export class QuestionGenerator {
     const finalIds = activeIds.length > 0 ? activeIds : ["addition"];
     const id = rng.choice(finalIds);
     const category = this.categories.get(id)!;
-    return category.generate(difficulty, rng);
+    const q = category.generate(difficulty, rng);
+    q.difficultyVal = difficulty;
+
+    // Balance correct lane to avoid repeating the same lane 3 times consecutively
+    if (this.lastCorrectLanes.length >= 2 && 
+        this.lastCorrectLanes[0] === q.correctLane && 
+        this.lastCorrectLanes[1] === q.correctLane) {
+      const oldLane = q.correctLane;
+      const newLane = (oldLane + 1) % q.options.length;
+      
+      // Swap correct value to the new lane option index
+      const temp = q.options[oldLane];
+      q.options[oldLane] = q.options[newLane];
+      q.options[newLane] = temp;
+      q.correctLane = newLane;
+    }
+
+    this.lastCorrectLanes.unshift(q.correctLane);
+    if (this.lastCorrectLanes.length > 5) {
+      this.lastCorrectLanes.pop();
+    }
+
+    return q;
   }
 }

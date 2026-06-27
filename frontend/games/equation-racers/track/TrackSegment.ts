@@ -11,7 +11,7 @@ export type SegmentType =
 
 export interface SceneryObject {
   id: string;
-  type: "tree" | "billboard" | "lamp";
+  type: "tree" | "billboard" | "lamp" | "rock" | "cliff" | "building" | "roadsign" | "gasstation";
   side: "left" | "right";
   offsetY: number; // relative offset Y from segment start (positive number, absolute world Y = yStart - offsetY)
   scale: number;
@@ -36,7 +36,7 @@ export interface TrackSegment {
   endWidth: number;
   
   // Phase 6A.7 Fields
-  zone: "highway" | "city" | "mountain";
+  zone: "highway" | "city" | "mountain" | "bridge" | "tunnel";
   startElevation: number;
   endElevation: number;
   challengeZone: "math_rush" | null;

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { GameManager } from "@/games/equation-racers/evolution/GameManager";
 import { TrackGenerator } from "@/games/equation-racers/track/TrackGenerator";
 import { AnimationManager } from "@/games/equation-racers/evolution/AnimationManager";
-import { CameraManager } from "@/games/equation-racers/evolution/CameraManager";
+import { CameraManager, CameraMode } from "@/games/equation-racers/evolution/CameraManager";
 import { VehicleRenderer } from "@/games/equation-racers/evolution/VehicleRenderer";
 import { s } from "framer-motion/client";
 
@@ -165,10 +165,16 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
   const [largeTextMode, setLargeTextMode] = useState(false);
   const [colorblindHighlighting, setColorblindHighlighting] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [learningMode, setLearningMode] = useState(true);
   
   // Floating feedback text array
   const floatersRef = useRef<FloatingText[]>([]);
   const nextFloaterId = useRef(0);
+
+  // Zone entry banner & milestone refs
+  const bannerRef = useRef<{ title: string; subtitle: string; timer: number; isMilestone?: boolean } | null>(null);
+  const lastActiveZoneRef = useRef<string>("highway");
+  const lastMilestoneRef = useRef<number>(0);
 
   // Initialize systems
   useEffect(() => {
@@ -196,6 +202,7 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
     setLargeTextMode(data.settings.largeTextMode);
     setColorblindHighlighting(data.settings.colorblindHighlighting);
     setReduceMotion(data.settings.reduceMotion);
+    setLearningMode(data.settings.learningMode ?? true);
     synth.setMute(data.settings.mute);
 
     // Setup GM callbacks
@@ -286,6 +293,42 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       }
     };
 
+    gm.onTrafficCollision = (type) => {
+      synth.playWrong();
+      animationManager.triggerFlash("wrong");
+      if (canvasRef.current) {
+        const W = canvasRef.current.width;
+        const H = canvasRef.current.height;
+        animationManager.spawnSparks(W / 2, H * 0.7, "#ef4444", 25);
+        cameraManager.triggerZoom(0.88);
+        floatersRef.current.push({
+          id: nextFloaterId.current++,
+          x: W / 2,
+          y: H * 0.5,
+          text: `Hit ${type.toUpperCase()}! -1 Life`,
+          color: "#f43f5e",
+          age: 0
+        });
+      }
+    };
+
+    gm.onNearMiss = (phrase) => {
+      synth.playCoin();
+      if (canvasRef.current) {
+        const W = canvasRef.current.width;
+        const H = canvasRef.current.height;
+        animationManager.spawnSparks(W / 2, H * 0.7, "#38bdf8", 8);
+        floatersRef.current.push({
+          id: nextFloaterId.current++,
+          x: W / 2 + (Math.random() - 0.5) * 80,
+          y: H * 0.5 + (Math.random() - 0.5) * 40,
+          text: `${phrase} +50`,
+          color: "#38bdf8",
+          age: 0
+        });
+      }
+    };
+
     gm.onGameOver = () => {
       setGameMode("GameOver");
       setHighScore(gm.saveManager.getData().highScore);
@@ -334,15 +377,30 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
     }
   };
 
+  const toggleLearningMode = () => {
+    if (gameManagerRef.current) {
+      const nextVal = !learningMode;
+      setLearningMode(nextVal);
+      gameManagerRef.current.saveManager.setLearningMode(nextVal);
+      gameManagerRef.current.learningMode = nextVal;
+    }
+  };
+
+  const getActiveGate = () => {
+    const gm = gameManagerRef.current;
+    if (!gm) return null;
+    const gate = gm.gateManager.getNextActiveGate(gm.carY);
+    if (!gate || !gate.question) return null;
+    return gate;
+  };
+
   // Retrieve current active question text with dynamic memory hide checks
   const getActiveQuestionText = () => {
-    const gm = gameManagerRef.current;
-    if (!gm) return "";
-    const gate = gm.gateManager.getNextActiveGate(gm.carY);
+    const gate = getActiveGate();
     if (!gate || !gate.question) return "";
-    
     const q = gate.question;
     if (q.category === "memory") {
+      const gm = gameManagerRef.current!;
       const dist = gm.carY - gate.y;
       if (dist < 280) {
         return `What was the equation that equaled ${q.correctValue}?`;
@@ -370,6 +428,14 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       setDisplayedCoins(0);
       floatersRef.current = [];
       
+      bannerRef.current = {
+        title: "HIGHWAY",
+        subtitle: "Open Roads Ahead",
+        timer: 2.0
+      };
+      lastActiveZoneRef.current = "highway";
+      lastMilestoneRef.current = 0;
+
       if (animationManagerRef.current) animationManagerRef.current.reset();
       if (cameraManagerRef.current) cameraManagerRef.current.reset();
       
@@ -390,6 +456,20 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       }
       if (key === "d" || e.key === "ArrowRight") {
         gameManagerRef.current.handleRight();
+      }
+      if (key === "c") {
+        const cameraManager = cameraManagerRef.current;
+        if (cameraManager) {
+          const modes = [
+            CameraMode.ChaseCamera,
+            CameraMode.FarChase,
+            CameraMode.HoodCamera,
+            CameraMode.CockpitCamera
+          ];
+          const nextIdx = (modes.indexOf(cameraManager.mode) + 1) % modes.length;
+          cameraManager.mode = modes[nextIdx];
+          if (synthRef.current) synthRef.current.playClick();
+        }
       }
       if (e.key === " ") {
         // Space to Pause/Resume
@@ -426,6 +506,14 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
     const dt = Math.min((timestamp - lastTimeRef.current) / 1000, 0.1);
     lastTimeRef.current = timestamp;
 
+    // Decrement banner timer
+    if (bannerRef.current) {
+      bannerRef.current.timer -= dt;
+      if (bannerRef.current.timer <= 0) {
+        bannerRef.current = null;
+      }
+    }
+
     if (gm.gameMode === "Running") {
       // Pass track queries into GameManager
       gm.update(
@@ -435,6 +523,54 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
         (y) => track.getSegmentAtY(y),
         (y) => track.getElevationAt(y)
       );
+
+      // Adjust traffic speed dynamically for Highway zone (without modifying TrafficManager class)
+      const activeVehicles = gm.trafficManager.getActiveVehicles();
+      for (const v of activeVehicles) {
+        if (!v.crashed && gm.activeZone === "highway") {
+          if (!v.id.includes("-hwyboosted")) {
+            v.baseSpeed *= 1.35;
+            v.speed *= 1.35;
+            v.id = v.id + "-hwyboosted";
+          }
+        }
+      }
+
+      // Zone Entry Check
+      const activeZone = gm.activeZone;
+      if (activeZone !== lastActiveZoneRef.current) {
+        lastActiveZoneRef.current = activeZone;
+        let subtitle = "Open Roads Ahead";
+        if (activeZone === "city") subtitle = "Urban Challenge";
+        else if (activeZone === "bridge") subtitle = "Crossing Waters";
+        else if (activeZone === "tunnel") subtitle = "Low Visibility Zone";
+        else if (activeZone === "mountain") subtitle = "Dangerous Curves Ahead";
+
+        bannerRef.current = {
+          title: activeZone.toUpperCase(),
+          subtitle,
+          timer: 2.0
+        };
+      }
+
+      // Distance Milestones Check: 1 KM (1000m), 5 KM (5000m), 10 KM (10000m)
+      const currentDist = Math.round(gm.distance);
+      const targetMilestones = [1000, 5000, 10000];
+      for (const m of targetMilestones) {
+        if (currentDist >= m && lastMilestoneRef.current < m) {
+          lastMilestoneRef.current = m;
+          bannerRef.current = {
+            title: `${m / 1000} KM REACHED`,
+            subtitle: m === 1000 ? "Keep pushing the limit!" : m === 5000 ? "Elite driving in progress!" : "Legendary distance achieved!",
+            timer: 3.0,
+            isMilestone: true
+          };
+          synthRef.current?.playCorrect();
+          if (animationManagerRef.current && canvasRef.current) {
+            animationManagerRef.current.spawnConfetti(canvasRef.current.width / 2, canvasRef.current.height * 0.4, 30);
+          }
+        }
+      }
 
       // Update camera and animation visual tickers
       const motionPrefs = gm.saveManager.getData().settings.reduceMotion;
@@ -448,7 +584,8 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
           gm.roadAngle,
           roadElevation,
           elevationAhead,
-          motionPrefs
+          motionPrefs,
+          gm.lives
         );
       }
       if (animationManager) {
@@ -624,18 +761,56 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
     const carY = gm.carY;
     const cameraX = cameraManager ? cameraManager.cameraX : gm.laneManager.carX;
 
-    // Projection helpers for pseudo-3D perspective mapping
+    // Visible segments query culling to avoid checking all segments in track
+    const visibleSegments = track.getSegmentsInYRange(carY - 1200, carY + 150);
+
+    const getSegmentInVisible = (y: number) => {
+      for (let idx = 0; idx < visibleSegments.length; idx++) {
+        const seg = visibleSegments[idx];
+        if (y <= seg.yStart && y >= (seg.yStart - seg.length)) {
+          return seg;
+        }
+      }
+      return null;
+    };
+
+    const getElevationAtVisible = (y: number) => {
+      const seg = getSegmentInVisible(y);
+      if (!seg) return 0;
+      const progress = (seg.yStart - y) / seg.length;
+      return seg.startElevation + (seg.endElevation - seg.startElevation) * progress;
+    };
+
+    const getCenterXAtVisible = (y: number) => {
+      const seg = getSegmentInVisible(y);
+      if (!seg) return 400;
+      const progress = (seg.yStart - y) / seg.length;
+      if (seg.type.includes("curve") || seg.type.includes("hairpin") || seg.type.includes("s_curve")) {
+        const t = progress * progress * (3 - 2 * progress);
+        return seg.startCenterX + (seg.endCenterX - seg.startCenterX) * t;
+      }
+      return seg.startCenterX + (seg.endCenterX - seg.startCenterX) * progress;
+    };
+
+    const getWidthAtVisible = (y: number) => {
+      const seg = getSegmentInVisible(y);
+      if (!seg) return 300;
+      const progress = (seg.yStart - y) / seg.length;
+      return seg.startWidth + (seg.endWidth - seg.startWidth) * progress;
+    };
+
+    // Projection helpers for pseudo-3D perspective mapping using fast local lookups
     const getScale = (z: number) => {
       const focalLength = cameraManager ? cameraManager.focalLength : 0.82;
       return (H * 0.32 * focalLength) / (z + 55);
     };
 
     const project = (worldX: number, worldY: number) => {
-      // Trailing camera distance offset
-      const z = carY - worldY + 45;
+      const zOffset = cameraManager ? cameraManager.cameraZOffset : 45;
+      const z = carY - worldY + zOffset;
       const scale = getScale(z);
-      const el = track.getElevationAt(worldY);
-      const elCar = track.getElevationAt(carY);
+      const el = getElevationAtVisible(worldY);
+      const elCar = getElevationAtVisible(carY);
       const horizonY = H * 0.40 + (cameraManager ? cameraManager.verticalOffset : 0);
       const camHeight = cameraManager ? cameraManager.cameraHeight : 155;
       const sx = W / 2 + (worldX - cameraX) * scale;
@@ -645,80 +820,194 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
 
     const horizonY = H * 0.40 + (cameraManager ? cameraManager.verticalOffset : 0);
 
+    // Compute zone transition metrics
+    const getZoneTransitionState = () => {
+      const currentSeg = getSegmentInVisible(carY);
+      if (!currentSeg) return { currentZone: "highway" as const, nextZone: "highway" as const, factor: 0 };
+
+      const currentZone = currentSeg.zone;
+      let nextZone = currentZone;
+      let distanceToChange = 99999;
+
+      const allSegs = track.getSegments();
+      const currentIdx = allSegs.indexOf(currentSeg);
+      if (currentIdx !== -1) {
+        for (let i = currentIdx + 1; i < allSegs.length; i++) {
+          const seg = allSegs[i];
+          if (seg.zone !== currentZone) {
+            nextZone = seg.zone;
+            distanceToChange = carY - seg.yStart;
+            break;
+          }
+        }
+      }
+
+      const blendDistance = 800;
+      let factor = 0;
+      if (distanceToChange <= blendDistance) {
+        factor = 1 - (distanceToChange / blendDistance);
+        factor = Math.max(0, Math.min(1, factor));
+      }
+
+      return { currentZone, nextZone, factor };
+    };
+
+    const transitionState = getZoneTransitionState();
+
     // 1. Draw Parallax Background (sky, scrolling mountains/hills anchored to horizonY)
+    const getZoneSkyColors = (zone: "highway" | "city" | "mountain" | "bridge" | "tunnel") => {
+      if (zone === "city") {
+        return { top: "#0b0b14", bottom: "#1e1e2f" };
+      } else if (zone === "mountain") {
+        return { top: "#0c1524", bottom: "#1e293b" };
+      } else if (zone === "bridge") {
+        return { top: "#082f49", bottom: "#0284c7" };
+      } else if (zone === "tunnel") {
+        return { top: "#050508", bottom: "#0c0c12" };
+      } else { // highway
+        return { top: "#020617", bottom: "#0f172a" };
+      }
+    };
+
+    const getZoneGroundColors = (zone: "highway" | "city" | "mountain" | "bridge" | "tunnel") => {
+      if (zone === "city") return "#1e293b";
+      if (zone === "mountain") return "#1c1917";
+      if (zone === "bridge") return "#0284c7";
+      if (zone === "tunnel") return "#09090b";
+      return "#14532d";
+    };
+
+    const lerpColor = (c1: string, c2: string, ratio: number) => {
+      const parseHex = (hex: string) => {
+        const num = parseInt(hex.substring(1), 16);
+        return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+      };
+      const color1 = parseHex(c1);
+      const color2 = parseHex(c2);
+      const r = Math.round(color1.r + (color2.r - color1.r) * ratio);
+      const g = Math.round(color1.g + (color2.g - color1.g) * ratio);
+      const b = Math.round(color1.b + (color2.b - color1.b) * ratio);
+      return `rgb(${r},${g},${b})`;
+    };
+
     // Draw sky gradient
     const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
     if (gm.focusModeActive) {
       skyGrad.addColorStop(0, "#09090b");
       skyGrad.addColorStop(1, "#180828");
     } else {
-      skyGrad.addColorStop(0, gm.activeZone === "city" ? "#0f172a" : gm.activeZone === "mountain" ? "#082f49" : "#020617");
-      skyGrad.addColorStop(1, gm.activeZone === "city" ? "#1e293b" : gm.activeZone === "mountain" ? "#0c4a6e" : "#0f172a");
+      const currentSky = getZoneSkyColors(transitionState.currentZone);
+      const nextSky = getZoneSkyColors(transitionState.nextZone);
+      skyGrad.addColorStop(0, lerpColor(currentSky.top, nextSky.top, transitionState.factor));
+      skyGrad.addColorStop(1, lerpColor(currentSky.bottom, nextSky.bottom, transitionState.factor));
     }
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, W, horizonY);
 
-    // Draw distant mountains (scrolling slowly with cameraX)
-    ctx.save();
-    ctx.fillStyle = gm.focusModeActive 
-      ? "#120d24" 
-      : gm.activeZone === "city" ? "#0f172a" : gm.activeZone === "mountain" ? "#064e3b" : "#14532d";
-    ctx.beginPath();
-    ctx.moveTo(0, horizonY);
-    for (let x = 0; x <= W; x += 15) {
-      const yPeak = horizonY - 20 + Math.sin((x + cameraX * 0.04) * 0.005) * 45 + Math.cos((x + cameraX * 0.04) * 0.012) * 15;
-      ctx.lineTo(x, yPeak);
-    }
-    ctx.lineTo(W, horizonY);
-    ctx.closePath();
-    ctx.fill();
+    // Parallax background renderer
+    const drawParallaxBackground = (zone: "highway" | "city" | "mountain" | "bridge" | "tunnel", opacity: number) => {
+      if (opacity <= 0 || zone === "tunnel") return;
+      ctx.save();
+      ctx.globalAlpha = opacity;
 
-    // Draw mid-distance hills (scrolling slightly faster)
-    ctx.fillStyle = gm.focusModeActive 
-      ? "#1c1236" 
-      : gm.activeZone === "city" ? "#1e293b" : gm.activeZone === "mountain" ? "#0f766e" : "#166534";
-    ctx.beginPath();
-    ctx.moveTo(0, horizonY);
-    for (let x = 0; x <= W; x += 15) {
-      const yPeak = horizonY - 8 + Math.sin((x + cameraX * 0.12) * 0.010) * 22 + Math.cos((x + cameraX * 0.12) * 0.022) * 8;
-      ctx.lineTo(x, yPeak);
+      if (zone === "city") {
+        ctx.fillStyle = "#11111e";
+        const cityOffset = (cameraX * 0.05) % 180;
+        for (let bx = -100; bx < W + 100; bx += 30) {
+          const blockH = 50 + Math.sin(bx * 0.05) * 35 + Math.cos(bx * 0.1) * 15;
+          ctx.fillRect(bx - cityOffset, horizonY - blockH, 25, blockH);
+        }
+      } else if (zone === "mountain") {
+        ctx.fillStyle = "#0c0a09";
+        ctx.beginPath();
+        ctx.moveTo(0, horizonY);
+        for (let x = 0; x <= W; x += 20) {
+          const yPeak = horizonY - 40 + Math.sin((x + cameraX * 0.04) * 0.008) * 60 + Math.cos((x + cameraX * 0.04) * 0.02) * 20;
+          ctx.lineTo(x, yPeak);
+        }
+        ctx.lineTo(W, horizonY);
+        ctx.closePath();
+        ctx.fill();
+      } else if (zone === "bridge") {
+        ctx.fillStyle = "#034d73";
+        ctx.beginPath();
+        ctx.moveTo(0, horizonY);
+        for (let x = 0; x <= W; x += 40) {
+          const yPeak = horizonY - 10 + Math.sin((x + cameraX * 0.03) * 0.004) * 15;
+          ctx.lineTo(x, yPeak);
+        }
+        ctx.lineTo(W, horizonY);
+        ctx.closePath();
+        ctx.fill();
+      } else { // highway
+        ctx.fillStyle = gm.focusModeActive ? "#120d24" : "#14532d";
+        ctx.beginPath();
+        ctx.moveTo(0, horizonY);
+        for (let x = 0; x <= W; x += 15) {
+          const yPeak = horizonY - 20 + Math.sin((x + cameraX * 0.04) * 0.005) * 45 + Math.cos((x + cameraX * 0.04) * 0.012) * 15;
+          ctx.lineTo(x, yPeak);
+        }
+        ctx.lineTo(W, horizonY);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    };
+
+    if (transitionState.currentZone !== "tunnel" || transitionState.nextZone !== "tunnel") {
+      drawParallaxBackground(transitionState.currentZone, 1 - transitionState.factor);
+      drawParallaxBackground(transitionState.nextZone, transitionState.factor);
     }
-    ctx.lineTo(W, horizonY);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
 
     // Draw Grass/Ground background below horizon
     if (gm.focusModeActive) {
       ctx.fillStyle = "rgba(9, 9, 11, 0.95)";
+      ctx.fillRect(0, horizonY, W, H - horizonY);
     } else {
-      if (gm.activeZone === "city") {
-        ctx.fillStyle = "#111827"; // deep grey/black urban ground
-      } else if (gm.activeZone === "mountain") {
-        ctx.fillStyle = "#06130b"; // dark green pine forest ground
-      } else {
-        ctx.fillStyle = "#132a13"; // standard green highway grass
+      const currentGround = getZoneGroundColors(transitionState.currentZone);
+      const nextGround = getZoneGroundColors(transitionState.nextZone);
+      ctx.fillStyle = lerpColor(currentGround, nextGround, transitionState.factor);
+      ctx.fillRect(0, horizonY, W, H - horizonY);
+
+      // Render scrolling water waves if either zone is a Bridge
+      if (transitionState.currentZone === "bridge" || transitionState.nextZone === "bridge") {
+        const bridgeWeight = transitionState.currentZone === "bridge" ? (1 - transitionState.factor) : transitionState.factor;
+        ctx.save();
+        ctx.globalAlpha = bridgeWeight;
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 1;
+        const waveOffset = (carY * 0.04) % 40;
+        for (let wy = horizonY + waveOffset; wy < H; wy += 40) {
+          ctx.beginPath();
+          ctx.moveTo(0, wy);
+          for (let wx = 0; wx <= W; wx += 20) {
+            ctx.lineTo(wx, wy + Math.sin((wx + carY) * 0.02) * 2);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
       }
     }
-    ctx.fillRect(0, horizonY, W, H - horizonY);
 
     // 2. Draw curving asphalt road polygon and borders segment by segment (far-to-near)
     const numLanes = gm.laneManager.numLanes;
-    // Step from far (carY - 1200) to near (carY + 150)
     for (let y = carY - 1200; y <= carY + 150; y += 15) {
       const y1 = y;
       const y2 = y + 15;
 
-      const cx1 = track.getCenterXAt(y1);
-      const w1 = track.getWidthAt(y1);
-      const cx2 = track.getCenterXAt(y2);
-      const w2 = track.getWidthAt(y2);
+      const cx1 = getCenterXAtVisible(y1);
+      const w1 = getWidthAtVisible(y1);
+      const cx2 = getCenterXAtVisible(y2);
+      const w2 = getWidthAtVisible(y2);
 
       const p1 = project(cx1, y1);
       const p2 = project(cx2, y2);
 
       // Clip if both are behind camera
       if (p1.z <= 0 && p2.z <= 0) continue;
+
+      const seg1 = getSegmentInVisible(y1);
+      const zone = seg1 ? seg1.zone : "highway";
 
       const x1_left = p1.sx - (w1 / 2) * p1.scale;
       const x1_right = p1.sx + (w1 / 2) * p1.scale;
@@ -732,22 +1021,36 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       ctx.lineTo(x2_right, p2.sy);
       ctx.lineTo(x2_left, p2.sy);
       ctx.closePath();
-      ctx.fillStyle = gm.activeZone === "city" ? "#2f3238" : gm.activeZone === "mountain" ? "#161e18" : "#1c1c1e";
+      let roadColor = "#1c1c1e";
+      if (zone === "city") {
+        roadColor = "#27272a";
+      } else if (zone === "mountain") {
+        roadColor = "#292524";
+      } else if (zone === "bridge") {
+        roadColor = "#3f3f46";
+      } else if (zone === "tunnel") {
+        roadColor = "#18181b";
+      }
+      ctx.fillStyle = roadColor;
       ctx.fill();
 
       // Draw side curb borders
       const i = Math.floor(y1 / 20);
       let curbColor = "#ef4444";
-      const seg1 = track.getSegmentAtY(y1);
-      const zone = seg1 ? seg1.zone : "highway";
       let curbWidth = 10 * p1.scale;
 
       if (zone === "city") {
         curbColor = i % 2 === 0 ? "#eab308" : "#1f2937";
         curbWidth = 12 * p1.scale;
       } else if (zone === "mountain") {
-        curbColor = "#9ca3af";
+        curbColor = "#78716c";
         curbWidth = 6 * p1.scale;
+      } else if (zone === "bridge") {
+        curbColor = i % 2 === 0 ? "#52525b" : "#a1a1aa";
+        curbWidth = 14 * p1.scale;
+      } else if (zone === "tunnel") {
+        curbColor = "#27272a";
+        curbWidth = 8 * p1.scale;
       } else {
         curbColor = i % 2 === 0 ? "#ef4444" : "#ffffff";
         curbWidth = 10 * p1.scale;
@@ -764,6 +1067,261 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       ctx.moveTo(x1_right, p1.sy);
       ctx.lineTo(x2_right, p2.sy);
       ctx.stroke();
+
+      // Highway-specific: Draw steel guardrails along the road edges
+      if (zone === "highway") {
+        ctx.strokeStyle = "#9ca3af";
+        ctx.lineWidth = Math.max(1, 2.5 * p1.scale);
+        ctx.beginPath();
+        ctx.moveTo(x1_left - 2 * p1.scale, p1.sy - 8 * p1.scale);
+        ctx.lineTo(x2_left - 2 * p2.scale, p2.sy - 8 * p2.scale);
+        ctx.moveTo(x1_right + 2 * p1.scale, p1.sy - 8 * p1.scale);
+        ctx.lineTo(x2_right + 2 * p2.scale, p2.sy - 8 * p2.scale);
+        ctx.stroke();
+
+        if (i % 2 === 0) {
+          ctx.fillStyle = "#4b5563"; // post support
+          ctx.fillRect(x1_left - 3 * p1.scale, p1.sy - 8 * p1.scale, 1.5 * p1.scale, 8 * p1.scale);
+          ctx.fillRect(x1_right + 1.5 * p1.scale, p1.sy - 8 * p1.scale, 1.5 * p1.scale, 8 * p1.scale);
+        }
+      }
+
+      // City-specific: Draw perpendicular side road junctions branching out
+      if (zone === "city" && i % 12 === 0) {
+        ctx.fillStyle = "#27272a";
+        ctx.beginPath();
+        ctx.moveTo(x1_left, p1.sy);
+        ctx.lineTo(x1_left - 200 * p1.scale, p1.sy - 30 * p1.scale);
+        ctx.lineTo(x2_left - 200 * p2.scale, p2.sy + 30 * p2.scale);
+        ctx.lineTo(x2_left, p2.sy);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(x1_right, p1.sy);
+        ctx.lineTo(x1_right + 200 * p1.scale, p1.sy - 30 * p1.scale);
+        ctx.lineTo(x2_right + 200 * p2.scale, p2.sy + 30 * p2.scale);
+        ctx.lineTo(x2_right, p2.sy);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // City-specific: Draw crosswalks on the road floor
+      if (zone === "city" && i % 20 === 0) {
+        ctx.fillStyle = "#ffffff";
+        const stripeW = w1 / 10;
+        const stripeCount = 6;
+        for (let s = 1; s <= stripeCount; s++) {
+          const sx = x1_left + s * (w1 / (stripeCount + 1)) * p1.scale;
+          ctx.fillRect(sx - stripeW * p1.scale / 2, p1.sy - 2, stripeW * p1.scale, 4);
+        }
+      }
+
+      // Mountain-specific: Draw wooden rope fence barrier along the canyon drop-off side
+      if (zone === "mountain") {
+        let cliffSide: "left" | "right" = "left";
+        if (seg1 && seg1.scenery) {
+          const firstCliff = seg1.scenery.find(sc => sc.type === "cliff" || sc.type === "rock");
+          if (firstCliff) {
+            cliffSide = firstCliff.side;
+          }
+        }
+        const dropOffSide = cliffSide === "left" ? "right" : "left";
+
+        const x1_drop = dropOffSide === "left" ? x1_left - 3 * p1.scale : x1_right + 3 * p1.scale;
+        const x2_drop = dropOffSide === "left" ? x2_left - 3 * p2.scale : x2_right + 3 * p2.scale;
+
+        ctx.strokeStyle = "#854d0e"; // dark rope brown
+        ctx.lineWidth = Math.max(1, 1 * p1.scale);
+        ctx.beginPath();
+        ctx.moveTo(x1_drop, p1.sy - 6 * p1.scale);
+        ctx.lineTo(x2_drop, p2.sy - 6 * p2.scale);
+        ctx.stroke();
+
+        if (i % 2 === 0) {
+          ctx.fillStyle = "#78350f"; // wood post
+          ctx.fillRect(x1_drop - 1.5 * p1.scale, p1.sy - 8 * p1.scale, 3 * p1.scale, 8 * p1.scale);
+        }
+      }
+
+      // Draw Bridge structural details and side railings
+      if (zone === "bridge") {
+        // Draw concrete curb extensions
+        ctx.fillStyle = "#71717a";
+        ctx.beginPath();
+        ctx.moveTo(x1_left, p1.sy);
+        ctx.lineTo(x1_left - 8 * p1.scale, p1.sy);
+        ctx.lineTo(x2_left - 8 * p2.scale, p2.sy);
+        ctx.lineTo(x2_left, p2.sy);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(x1_right, p1.sy);
+        ctx.lineTo(x1_right + 8 * p1.scale, p1.sy);
+        ctx.lineTo(x2_right + 8 * p2.scale, p2.sy);
+        ctx.lineTo(x2_right, p2.sy);
+        ctx.closePath();
+        ctx.fill();
+
+        // Draw vertical railing posts
+        ctx.strokeStyle = "#d4d4d8";
+        ctx.lineWidth = Math.max(1, 2 * p1.scale);
+        ctx.beginPath();
+        ctx.moveTo(x1_left - 4 * p1.scale, p1.sy);
+        ctx.lineTo(x1_left - 4 * p1.scale, p1.sy - 22 * p1.scale);
+        ctx.moveTo(x1_right + 4 * p1.scale, p1.sy);
+        ctx.lineTo(x1_right + 4 * p1.scale, p1.sy - 22 * p1.scale);
+        ctx.stroke();
+
+        // Draw horizontal safety rails
+        ctx.beginPath();
+        ctx.moveTo(x1_left - 4 * p1.scale, p1.sy - 20 * p1.scale);
+        ctx.lineTo(x2_left - 4 * p2.scale, p2.sy - 20 * p2.scale);
+        ctx.moveTo(x1_left - 4 * p1.scale, p1.sy - 10 * p1.scale);
+        ctx.lineTo(x2_left - 4 * p2.scale, p2.sy - 10 * p2.scale);
+
+        ctx.moveTo(x1_right + 4 * p1.scale, p1.sy - 20 * p1.scale);
+        ctx.lineTo(x2_right + 4 * p2.scale, p2.sy - 20 * p2.scale);
+        ctx.moveTo(x1_right + 4 * p1.scale, p1.sy - 10 * p1.scale);
+        ctx.lineTo(x2_right + 4 * p2.scale, p2.sy - 10 * p2.scale);
+        ctx.stroke();
+
+        // Draw massive bridge pillars underneath at periodic Y marks
+        if (i % 3 === 0) {
+          ctx.fillStyle = "#3f3f46";
+          ctx.fillRect(x1_left - 30 * p1.scale, p1.sy, 22 * p1.scale, H - p1.sy);
+          ctx.fillRect(x1_right + 8 * p1.scale, p1.sy, 22 * p1.scale, H - p1.sy);
+        }
+
+        // Draw massive concrete pylons and suspension cables across the deck
+        if (i % 8 === 0 && y1 % 60 === 0) {
+          const towerH = 120 * p1.scale;
+          const deckY = p1.sy;
+          const towerW = 6 * p1.scale;
+          const leftPylonX = x1_left - 15 * p1.scale;
+          const rightPylonX = x1_right + 15 * p1.scale;
+
+          ctx.fillStyle = "#52525b";
+          ctx.strokeStyle = "#27272a";
+          ctx.lineWidth = 1;
+
+          // Left Tower
+          ctx.beginPath();
+          ctx.rect(leftPylonX - towerW/2, deckY - towerH, towerW, towerH);
+          ctx.fill(); ctx.stroke();
+
+          // Right Tower
+          ctx.beginPath();
+          ctx.rect(rightPylonX - towerW/2, deckY - towerH, towerW, towerH);
+          ctx.fill(); ctx.stroke();
+
+          // Cross Beams
+          ctx.strokeStyle = "#52525b";
+          ctx.lineWidth = 4 * p1.scale;
+          ctx.beginPath();
+          ctx.moveTo(leftPylonX, deckY - towerH + 20 * p1.scale);
+          ctx.lineTo(rightPylonX, deckY - towerH + 20 * p1.scale);
+          ctx.moveTo(leftPylonX, deckY - towerH * 0.6);
+          ctx.lineTo(rightPylonX, deckY - towerH * 0.6);
+          ctx.stroke();
+
+          // Cables
+          ctx.strokeStyle = "#71717a";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(leftPylonX, deckY - towerH);
+          ctx.quadraticCurveTo((leftPylonX + x2_left) / 2, deckY - 10 * p1.scale, x2_left - 10 * p2.scale, p2.sy);
+          ctx.moveTo(rightPylonX, deckY - towerH);
+          ctx.quadraticCurveTo((rightPylonX + x2_right) / 2, deckY - 10 * p1.scale, x2_right + 10 * p2.scale, p2.sy);
+          ctx.stroke();
+        }
+      }
+
+      // Draw Tunnel structural walls and fluorescent light arches
+      if (zone === "tunnel") {
+        const wallHeight1 = 125 * p1.scale;
+        const wallHeight2 = 125 * p2.scale;
+
+        // Concrete side walls
+        ctx.fillStyle = "#27272a";
+        ctx.beginPath();
+        ctx.moveTo(x1_left, p1.sy);
+        ctx.lineTo(x1_left - 30 * p1.scale, p1.sy - wallHeight1);
+        ctx.lineTo(x2_left - 30 * p2.scale, p2.sy - wallHeight2);
+        ctx.lineTo(x2_left, p2.sy);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(x1_right, p1.sy);
+        ctx.lineTo(x1_right + 30 * p1.scale, p1.sy - wallHeight1);
+        ctx.lineTo(x2_right + 30 * p2.scale, p2.sy - wallHeight2);
+        ctx.lineTo(x2_right, p2.sy);
+        ctx.closePath();
+        ctx.fill();
+
+        // Curved ceiling top arch
+        ctx.fillStyle = "#18181b";
+        ctx.beginPath();
+        ctx.moveTo(x1_left - 30 * p1.scale, p1.sy - wallHeight1);
+        ctx.lineTo(x1_right + 30 * p1.scale, p1.sy - wallHeight1);
+        ctx.lineTo(x2_right + 30 * p2.scale, p2.sy - wallHeight2);
+        ctx.lineTo(x2_left - 30 * p2.scale, p2.sy - wallHeight2);
+        ctx.closePath();
+        ctx.fill();
+
+        // Fluorescent ceiling lights arch patterns
+        if (Math.floor(y1 / 65) % 2 === 0) {
+          ctx.fillStyle = "#fef08a"; // warm glow
+          const lightW1 = 10 * p1.scale;
+          const lightW2 = 10 * p2.scale;
+          const ceilingCx1 = (x1_left + x1_right) / 2;
+          const ceilingCx2 = (x2_left + x2_right) / 2;
+          const ceilingCy1 = p1.sy - wallHeight1;
+          const ceilingCy2 = p2.sy - wallHeight2;
+
+          ctx.beginPath();
+          ctx.moveTo(ceilingCx1 - lightW1, ceilingCy1);
+          ctx.lineTo(ceilingCx1 + lightW1, ceilingCy1);
+          ctx.lineTo(ceilingCx2 + lightW2, ceilingCy2);
+          ctx.lineTo(ceilingCx2 - lightW2, ceilingCy2);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // Draw animated ventilation fans hanging from the ceiling
+        if (i % 5 === 0 && y1 % 45 === 0) {
+          const ceilingCx = (x1_left + x1_right) / 2;
+          const ceilingCy = p1.sy - wallHeight1;
+          const fanSize = 10 * p1.scale;
+
+          ctx.fillStyle = "#3f3f46";
+          ctx.fillRect(ceilingCx - 1.5 * p1.scale, ceilingCy, 3 * p1.scale, 8 * p1.scale);
+
+          ctx.fillStyle = "#18181b";
+          ctx.beginPath();
+          ctx.arc(ceilingCx, ceilingCy + 8 * p1.scale, fanSize, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = "#52525b";
+          ctx.lineWidth = 2 * p1.scale;
+          const angle = (performance.now() * 0.01) % (Math.PI * 2);
+          ctx.beginPath();
+          ctx.moveTo(ceilingCx, ceilingCy + 8 * p1.scale);
+          ctx.lineTo(ceilingCx + Math.cos(angle) * fanSize, ceilingCy + 8 * p1.scale + Math.sin(angle) * fanSize);
+          ctx.moveTo(ceilingCx, ceilingCy + 8 * p1.scale);
+          ctx.lineTo(ceilingCx + Math.cos(angle + Math.PI) * fanSize, ceilingCy + 8 * p1.scale + Math.sin(angle + Math.PI) * fanSize);
+          ctx.stroke();
+        }
+
+        // Draw hazard reflectors on the side walls for low visibility speed feel
+        if (i % 2 === 0) {
+          ctx.fillStyle = "#f97316";
+          ctx.fillRect(x1_left - 15 * p1.scale, p1.sy - wallHeight1 * 0.3, 2.5 * p1.scale, 5 * p1.scale);
+          ctx.fillRect(x1_right + 12.5 * p1.scale, p1.sy - wallHeight1 * 0.3, 2.5 * p1.scale, 5 * p1.scale);
+        }
+      }
 
       if (zone === "mountain" && i % 2 === 0) {
         ctx.fillStyle = "#4b5563"; // post
@@ -822,15 +1380,180 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
     }
     const tasks: RenderTask[] = [];
 
-    // Collect Scenery
-    for (const seg of track.getSegments()) {
+    // Collect Traffic Vehicles
+    const trafficVehicles = gm.trafficManager.getActiveVehicles();
+    for (const v of trafficVehicles) {
+      const z = carY - v.y + 45;
+      if (z > 0 && z < 1200) {
+        tasks.push({
+          z,
+          draw: (ctx) => {
+            const cx = track.getCenterXAt(v.y);
+            const w = track.getWidthAt(v.y);
+            const laneWidth = w / numLanes;
+            const vx = cx + (v.lane - (numLanes - 1) / 2) * laneWidth;
+            const p = project(vx, v.y);
+            if (p.sy < -80 || p.sy > H + 80) return;
+
+            const rotAngle = (v.y * 0.08) % (Math.PI * 2);
+            const drawWheel = (wx: number, wy: number) => {
+              ctx.fillStyle = "#18181b"; // Dark black wheel
+              ctx.fillRect(wx - 2, wy - 5, 4, 10);
+              // Draw spoke line
+              ctx.strokeStyle = "#71717a";
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(wx, wy);
+              ctx.lineTo(wx + Math.cos(rotAngle) * 2, wy + Math.sin(rotAngle) * 5);
+              ctx.stroke();
+            };
+
+            ctx.save();
+            ctx.translate(p.sx, p.sy);
+            ctx.scale(p.scale, p.scale);
+
+            // Draw shadow under the vehicle
+            ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+            ctx.beginPath();
+            ctx.ellipse(0, v.length / 2 - 2, v.width / 2 + 3, v.length / 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Taillights/Brake lights color selection
+            const brakeGlow = v.crashed || v.speed < v.baseSpeed;
+            const taillightColor = brakeGlow ? "#f43f5e" : "#be123c";
+
+            if (v.type === "truck") {
+              // Wheels
+              drawWheel(-v.width / 2 - 1, -v.length / 2 + 8);
+              drawWheel(v.width / 2 + 1, -v.length / 2 + 8);
+              drawWheel(-v.width / 2 - 1, v.length / 2 - 14);
+              drawWheel(v.width / 2 + 1, v.length / 2 - 14);
+              drawWheel(-v.width / 2 - 1, v.length / 2 - 5);
+              drawWheel(v.width / 2 + 1, v.length / 2 - 5);
+
+              // Cab
+              ctx.fillStyle = "#3f3f46";
+              ctx.strokeStyle = "#09090b";
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.roundRect(-v.width / 2, -v.length / 2, v.width, 18, 2);
+              ctx.fill();
+              ctx.stroke();
+
+              // Cab Windshield
+              ctx.fillStyle = "rgba(186, 230, 253, 0.85)";
+              ctx.fillRect(-v.width / 2 + 3, -v.length / 2 + 3, v.width - 6, 4);
+
+              // Cargo Trailer
+              ctx.fillStyle = v.color;
+              ctx.beginPath();
+              ctx.roundRect(-v.width / 2 - 1, -v.length / 2 + 18, v.width + 2, v.length - 18, 3);
+              ctx.fill();
+              ctx.stroke();
+
+              // Red brake lights
+              ctx.fillStyle = taillightColor;
+              ctx.fillRect(-v.width / 2, v.length / 2 - 3, 5, 2.5);
+              ctx.fillRect(v.width / 2 - 5, v.length / 2 - 3, 5, 2.5);
+              
+              if (brakeGlow) {
+                ctx.fillStyle = "rgba(244, 63, 94, 0.3)";
+                ctx.beginPath();
+                ctx.arc(-v.width / 2 + 2.5, v.length / 2 - 2, 5, 0, Math.PI * 2);
+                ctx.arc(v.width / 2 - 2.5, v.length / 2 - 2, 5, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            } else if (v.type === "motorcycle") {
+              // Wheels
+              drawWheel(0, -v.length / 2 + 2);
+              drawWheel(0, v.length / 2 - 2);
+
+              // Chassis
+              ctx.fillStyle = v.color;
+              ctx.strokeStyle = "#09090b";
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.roundRect(-2, -v.length / 2, 4, v.length, 1);
+              ctx.fill();
+              ctx.stroke();
+
+              // Rider
+              ctx.fillStyle = "#1e293b";
+              ctx.beginPath();
+              ctx.arc(0, -2, 4.5, 0, Math.PI * 2);
+              ctx.fill();
+
+              ctx.fillStyle = "#f59e0b"; // Helmet
+              ctx.beginPath();
+              ctx.arc(0, -3.5, 3, 0, Math.PI * 2);
+              ctx.fill();
+
+              // Brake light
+              ctx.fillStyle = taillightColor;
+              ctx.fillRect(-1.5, v.length / 2 - 1, 3, 2);
+              
+              if (brakeGlow) {
+                ctx.fillStyle = "rgba(244, 63, 94, 0.3)";
+                ctx.beginPath();
+                ctx.arc(0, v.length / 2, 4, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            } else {
+              // Sedan
+              drawWheel(-v.width / 2 - 1, -10);
+              drawWheel(v.width / 2 + 1, -10);
+              drawWheel(-v.width / 2 - 1, 10);
+              drawWheel(v.width / 2 + 1, 10);
+
+              // Body
+              ctx.fillStyle = v.color;
+              ctx.strokeStyle = "#09090b";
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.roundRect(-v.width / 2, -v.length / 2, v.width, v.length, 4);
+              ctx.fill();
+              ctx.stroke();
+
+              // Windshield (rear)
+              ctx.fillStyle = "rgba(186, 230, 253, 0.85)";
+              ctx.fillRect(-v.width / 2 + 3, 5, v.width - 6, 4);
+
+              // Windshield (front)
+              ctx.fillRect(-v.width / 2 + 3, -v.length / 2 + 6, v.width - 6, 5);
+
+              // Roof panel (dark accent)
+              ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
+              ctx.fillRect(-v.width / 2 + 2, -v.length / 2 + 11, v.width - 4, 13);
+
+              // Red brake lights
+              ctx.fillStyle = taillightColor;
+              ctx.fillRect(-v.width / 2 + 2, v.length / 2 - 3, 4, 2.5);
+              ctx.fillRect(v.width / 2 - 6, v.length / 2 - 3, 4, 2.5);
+
+              if (brakeGlow) {
+                ctx.fillStyle = "rgba(244, 63, 94, 0.3)";
+                ctx.beginPath();
+                ctx.arc(-v.width / 2 + 4, v.length / 2 - 2, 5, 0, Math.PI * 2);
+                ctx.arc(v.width / 2 - 4, v.length / 2 - 2, 5, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            }
+
+            ctx.restore();
+          }
+        });
+      }
+    }
+
+    // Collect Scenery from visible segments only (Culling!)
+    for (const seg of visibleSegments) {
       if (seg.scenery) {
         for (const sc of seg.scenery) {
           const worldY = seg.yStart - sc.offsetY;
           const z = carY - worldY + 45;
           if (z > 0 && z < 1200) {
-            const cx = track.getCenterXAt(worldY);
-            const w = track.getWidthAt(worldY);
+            const cx = getCenterXAtVisible(worldY);
+            const w = getWidthAtVisible(worldY);
             const borderX = sc.side === "left" ? cx - w / 2 : cx + w / 2;
             const xOffset = sc.side === "left" ? -28 * sc.scale : 28 * sc.scale;
             const worldX = borderX + xOffset;
@@ -848,31 +1571,33 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
 
                 if (sc.type === "tree") {
                   if (seg.zone === "mountain") {
-                    ctx.fillStyle = "#1e3f20";
+                    // Pine/Conifer tree with nice shading trunk
+                    ctx.fillStyle = "#164e63"; // dark blue-green
                     ctx.beginPath();
-                    ctx.moveTo(0, -22);
-                    ctx.lineTo(-8, -10);
-                    ctx.lineTo(-5, -10);
-                    ctx.lineTo(-12, 2);
-                    ctx.lineTo(-7, 2);
-                    ctx.lineTo(-16, 14);
-                    ctx.lineTo(16, 14);
-                    ctx.lineTo(7, 2);
-                    ctx.lineTo(12, 2);
-                    ctx.lineTo(5, -10);
-                    ctx.lineTo(8, -10);
+                    ctx.moveTo(0, -26);
+                    ctx.lineTo(-9, -12);
+                    ctx.lineTo(-6, -12);
+                    ctx.lineTo(-13, 1);
+                    ctx.lineTo(-8, 1);
+                    ctx.lineTo(-18, 15);
+                    ctx.lineTo(18, 15);
+                    ctx.lineTo(8, 1);
+                    ctx.lineTo(13, 1);
+                    ctx.lineTo(6, -12);
+                    ctx.lineTo(9, -12);
                     ctx.closePath();
                     ctx.fill();
-                    ctx.fillStyle = "#4a2c11";
-                    ctx.fillRect(-2, 14, 4, 6);
+                    ctx.fillStyle = "#451a03"; // trunk
+                    ctx.fillRect(-2.5, 15, 5, 7);
                   } else {
-                    ctx.fillStyle = "#2d6a4f";
+                    // Deciduous tree
+                    ctx.fillStyle = "#15803d"; // bright green
                     ctx.beginPath();
                     ctx.arc(0, -8, 12, 0, Math.PI * 2);
                     ctx.arc(-6, -4, 9, 0, Math.PI * 2);
                     ctx.arc(6, -4, 9, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.fillStyle = "#5c3d2e";
+                    ctx.fillStyle = "#78350f";
                     ctx.fillRect(-3, 4, 6, 8);
                   }
                 } else if (sc.type === "lamp") {
@@ -890,31 +1615,299 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
                   ctx.arc(armOffset, -26, 3.5, 0, Math.PI * 2);
                   ctx.fill();
 
-                  ctx.fillStyle = "rgba(254, 240, 138, 0.08)";
-                  ctx.beginPath();
-                  ctx.moveTo(armOffset, -26);
-                  ctx.lineTo(armOffset - 16, 16);
-                  ctx.lineTo(armOffset + 16, 16);
-                  ctx.closePath();
-                  ctx.fill();
+                  // Render light cone in City or Tunnel zones
+                  if (seg.zone === "city" || seg.zone === "tunnel") {
+                    ctx.fillStyle = "rgba(254, 240, 138, 0.07)";
+                    ctx.beginPath();
+                    ctx.moveTo(armOffset, -26);
+                    ctx.lineTo(armOffset - 18, 16);
+                    ctx.lineTo(armOffset + 18, 16);
+                    ctx.closePath();
+                    ctx.fill();
+                  }
                 } else if (sc.type === "billboard") {
-                  ctx.fillStyle = "#5c3d2e";
-                  ctx.fillRect(-8, 2, 2.5, 14);
-                  ctx.fillRect(5, 2, 2.5, 14);
+                  ctx.fillStyle = "#374151"; // legs
+                  ctx.fillRect(-10, 0, 2.5, 16);
+                  ctx.fillRect(8, 0, 2.5, 16);
 
-                  ctx.fillStyle = "#1e2937";
-                  ctx.strokeStyle = "#e2e8f0";
-                  ctx.lineWidth = 1.2;
-                  ctx.fillRect(-16, -12, 32, 14);
-                  ctx.strokeRect(-16, -12, 32, 14);
+                  ctx.fillStyle = "#0f172a";
+                  ctx.strokeStyle = "#4f46e5"; // glowing border
+                  ctx.lineWidth = 1.5;
+                  ctx.fillRect(-22, -14, 44, 15);
+                  ctx.strokeRect(-22, -14, 44, 15);
 
                   if (sc.text) {
-                    ctx.fillStyle = "#10b981";
-                    ctx.font = "bold 5px monospace";
+                    ctx.fillStyle = "#f8fafc";
+                    ctx.font = "bold 4.5px monospace";
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle";
-                    ctx.fillText(sc.text, 0, -5);
+                    ctx.fillText(sc.text, 0, -6.5);
                   }
+                } else if (sc.type === "roadsign") {
+                  if (seg.zone === "highway") {
+                    // Overhead Highway Gantry spanning across the road
+                    const spanDirection = sc.side === "left" ? 1 : -1;
+                    const spanWidth = (w + 56) * p.scale; // Width of gantry span in screen units
+
+                    ctx.strokeStyle = "#4b5563";
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 16);
+                    ctx.lineTo(0, -32);
+                    ctx.moveTo(spanDirection * spanWidth, 16);
+                    ctx.lineTo(spanDirection * spanWidth, -32);
+                    ctx.moveTo(0, -30);
+                    ctx.lineTo(spanDirection * spanWidth, -30);
+                    ctx.moveTo(0, -25);
+                    ctx.lineTo(spanDirection * spanWidth, -25);
+                    ctx.stroke();
+
+                    // Green highway board
+                    ctx.fillStyle = "#15803d";
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.lineWidth = 1.0;
+                    const signW = 32;
+                    const signH = 14;
+                    const signX = (spanDirection * spanWidth) / 2 - signW / 2;
+                    const signY = -34;
+                    ctx.fillRect(signX, signY, signW, signH);
+                    ctx.strokeRect(signX, signY, signW, signH);
+
+                    ctx.fillStyle = "#ffffff";
+                    ctx.font = "bold 3.5px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText("HWY ARES-OS", signX + signW / 2, signY + 4);
+                    ctx.font = "3.2px sans-serif";
+                    ctx.fillText("KEEP SPEED 120+", signX + signW / 2, signY + 9);
+                  } else if (seg.zone === "mountain") {
+                    let cliffSide: "left" | "right" = "left";
+                    if (seg.scenery) {
+                      const firstCliff = seg.scenery.find(scObj => scObj.type === "cliff" || scObj.type === "rock");
+                      if (firstCliff) {
+                        cliffSide = firstCliff.side;
+                      }
+                    }
+                    if (sc.side !== cliffSide) {
+                      // Draw red/white chevron curve indicator or wooden post
+                      if (Math.floor(worldY / 120) % 2 === 0) {
+                        ctx.fillStyle = "#ffffff";
+                        ctx.fillRect(-5, -6, 10, 8);
+                        ctx.strokeStyle = "#ef4444";
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(-5, -6, 10, 8);
+
+                        ctx.fillStyle = "#ef4444";
+                        ctx.beginPath();
+                        const isLeft = seg.type.includes("left");
+                        if (isLeft) {
+                          ctx.moveTo(2, -5); ctx.lineTo(-2, -2); ctx.lineTo(2, 1);
+                          ctx.lineTo(4, 1); ctx.lineTo(0, -2); ctx.lineTo(4, -5);
+                        } else {
+                          ctx.moveTo(-2, -5); ctx.lineTo(2, -2); ctx.lineTo(-2, 1);
+                          ctx.lineTo(-4, 1); ctx.lineTo(0, -2); ctx.lineTo(-4, -5);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+
+                        ctx.fillStyle = "#71717a";
+                        ctx.fillRect(-1, 2, 2, 14);
+                      } else {
+                        ctx.fillStyle = "#78350f"; // wood fence post
+                        ctx.fillRect(-2, 0, 4, 16);
+                        ctx.fillStyle = "#a16207";
+                        ctx.fillRect(-2, 0, 4, 2);
+                      }
+                    } else {
+                      ctx.fillStyle = "#71717a";
+                      ctx.fillRect(-1, -2, 2, 18);
+                      ctx.fillStyle = "#f59e0b"; // warning diamond
+                      ctx.beginPath();
+                      ctx.moveTo(0, -8);
+                      ctx.lineTo(5, -3);
+                      ctx.lineTo(0, 2);
+                      ctx.lineTo(-5, -3);
+                      ctx.closePath();
+                      ctx.fill();
+                      ctx.fillStyle = "#000000";
+                      ctx.font = "bold 4px sans-serif";
+                      ctx.textAlign = "center";
+                      ctx.fillText("⚠", 0, -2.5);
+                    }
+                  } else if (seg.zone === "city") {
+                    ctx.fillStyle = "#71717a";
+                    ctx.fillRect(-1, 0, 2, 16);
+
+                    if (Math.floor(worldY / 150) % 2 === 0) {
+                      ctx.fillStyle = "#b91c1c"; // Stop hex sign
+                      ctx.beginPath();
+                      ctx.moveTo(-4, -8);
+                      ctx.lineTo(4, -8);
+                      ctx.lineTo(6, -5);
+                      ctx.lineTo(6, -2);
+                      ctx.lineTo(4, 1);
+                      ctx.lineTo(-4, 1);
+                      ctx.lineTo(-6, -2);
+                      ctx.lineTo(-6, -5);
+                      ctx.closePath();
+                      ctx.fill();
+
+                      ctx.fillStyle = "#ffffff";
+                      ctx.font = "bold 3.5px sans-serif";
+                      ctx.textAlign = "center";
+                      ctx.textBaseline = "middle";
+                      ctx.fillText("STOP", 0, -3.5);
+                    } else {
+                      ctx.fillStyle = "#047857"; // green street name sign
+                      ctx.fillRect(-10, -7, 20, 5);
+                      ctx.strokeStyle = "#ffffff";
+                      ctx.strokeRect(-10, -7, 20, 5);
+
+                      ctx.fillStyle = "#ffffff";
+                      ctx.font = "bold 2.5px monospace";
+                      ctx.textAlign = "center";
+                      ctx.textBaseline = "middle";
+                      ctx.fillText(sc.side === "left" ? "BROADWAY" : "WALL ST", 0, -4.5);
+                    }
+                  } else {
+                    ctx.fillStyle = "#71717a";
+                    ctx.fillRect(-1.5, -4, 3, 20);
+
+                    ctx.fillStyle = "#ffffff";
+                    ctx.strokeStyle = "#be123c";
+                    ctx.lineWidth = 1.2;
+                    ctx.beginPath();
+                    ctx.arc(0, -8, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = "#000000";
+                    ctx.font = "bold 5px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText("120", 0, -8);
+                  }
+                } else if (sc.type === "gasstation") {
+                  ctx.fillStyle = "#1d4ed8";
+                  ctx.fillRect(-15, -14, 30, 4);
+                  ctx.fillStyle = "#71717a";
+                  ctx.fillRect(-13, -10, 2, 22);
+                  ctx.fillRect(11, -10, 2, 22);
+                  ctx.fillStyle = "#d4d4d8";
+                  ctx.fillRect(-3, 0, 6, 12);
+                  ctx.fillStyle = "#3b82f6";
+                  ctx.fillRect(-2, 2, 4, 3);
+                } else if (sc.type === "building") {
+                  const idHash = sc.id.split("-").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                  const bType = idHash % 3;
+
+                  ctx.save();
+                  ctx.strokeStyle = "#09090b";
+                  ctx.lineWidth = 1.5;
+
+                  if (bType === 0) {
+                    // Tech Skyscraper with neon pink edge trims
+                    const bW = 24;
+                    const bH = 80;
+                    ctx.fillStyle = "#0f172a";
+                    ctx.fillRect(-bW / 2, -bH, bW, bH);
+                    ctx.strokeRect(-bW / 2, -bH, bW, bH);
+
+                    ctx.strokeStyle = "#ec4899";
+                    ctx.lineWidth = 1.0;
+                    ctx.beginPath();
+                    ctx.moveTo(-bW / 2, -bH);
+                    ctx.lineTo(-bW / 2, 0);
+                    ctx.moveTo(bW / 2, -bH);
+                    ctx.lineTo(bW / 2, 0);
+                    ctx.stroke();
+
+                    ctx.fillStyle = "#fef08a";
+                    for (let wy = -bH + 8; wy < -5; wy += 8) {
+                      for (let wx = -bW / 2 + 3; wx < bW / 2 - 2; wx += 4) {
+                        if ((wx + wy) % 5 > 1) {
+                          ctx.fillRect(wx, wy, 1.5, 3);
+                        }
+                      }
+                    }
+                  } else if (bType === 1) {
+                    // Corporate tower with top spire beacon
+                    const bW = 28;
+                    const bH = 70;
+                    ctx.fillStyle = "#1e293b";
+                    ctx.fillRect(-bW / 2, -bH, bW, bH);
+                    ctx.strokeRect(-bW / 2, -bH, bW, bH);
+
+                    ctx.strokeStyle = "#38bdf8";
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -bH);
+                    ctx.lineTo(0, -bH - 12);
+                    ctx.stroke();
+                    ctx.fillStyle = "#ef4444"; // red blinking light
+                    ctx.beginPath();
+                    ctx.arc(0, -bH - 12, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = "#38bdf8"; // blue windows
+                    for (let wy = -bH + 6; wy < -5; wy += 6) {
+                      for (let wx = -bW / 2 + 4; wx < bW / 2 - 3; wx += 5) {
+                        if ((wx + wy) % 7 > 2) {
+                          ctx.fillRect(wx, wy, 2.5, 2.5);
+                        }
+                      }
+                    }
+                  } else {
+                    // Standard brick style apartment
+                    const bW = 32;
+                    const bH = 60;
+                    ctx.fillStyle = "#1f2937";
+                    ctx.fillRect(-bW / 2, -bH, bW, bH);
+                    ctx.strokeRect(-bW / 2, -bH, bW, bH);
+
+                    ctx.fillStyle = "#eab308";
+                    for (let wy = -bH + 8; wy < -5; wy += 8) {
+                      for (let wx = -bW / 2 + 4; wx < bW / 2 - 3; wx += 6) {
+                        if ((wx + wy) % 4 > 1) {
+                          ctx.fillRect(wx, wy, 3, 4);
+                        }
+                      }
+                    }
+                  }
+                  ctx.restore();
+                } else if (sc.type === "rock") {
+                  ctx.fillStyle = "#57534e";
+                  ctx.strokeStyle = "#292524";
+                  ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  ctx.moveTo(-10, 12);
+                  ctx.lineTo(-11, 2);
+                  ctx.lineTo(-5, -6);
+                  ctx.lineTo(6, -8);
+                  ctx.lineTo(10, 2);
+                  ctx.lineTo(9, 12);
+                  ctx.closePath();
+                  ctx.fill();
+                  ctx.stroke();
+                } else if (sc.type === "cliff") {
+                  ctx.fillStyle = "#44403c";
+                  ctx.strokeStyle = "#1c1917";
+                  ctx.lineWidth = 1.5;
+                  ctx.beginPath();
+                  if (sc.side === "left") {
+                    ctx.moveTo(-18, 12);
+                    ctx.lineTo(-24, -30);
+                    ctx.lineTo(-4, -28);
+                    ctx.lineTo(3, 12);
+                  } else {
+                    ctx.moveTo(18, 12);
+                    ctx.lineTo(24, -30);
+                    ctx.lineTo(4, -28);
+                    ctx.lineTo(-3, 12);
+                  }
+                  ctx.closePath();
+                  ctx.fill();
+                  ctx.stroke();
                 }
                 ctx.restore();
               }
@@ -1065,7 +2058,7 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
     const nextActiveGate = gm.gateManager.getNextActiveGate(gm.carY);
     for (const gate of gates) {
       if (gate.passed) continue;
-      const z = carY - gate.y + 45;
+      const z = carY - gate.y + 45 - 5;
       if (z > 0 && z < 1200) {
         tasks.push({
           z,
@@ -1085,8 +2078,9 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
             ctx.lineTo(pRight.sx, pRight.sy);
             ctx.stroke();
 
-            // Draw option boxes inside the lanes
-            if (gate.question) {
+            // Draw option boxes inside the lanes if within 500px preview threshold
+            const distToGate = carY - gate.y;
+            if (gate.question && distToGate < 500) {
               const q = gate.question;
               const numOptions = q.options.length;
               
@@ -1095,17 +2089,29 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
               const baseBoxH = hasLargeText ? 36 : 28;
               const baseFontSize = hasLargeText ? 16 : 13;
               
+              // Option Reveal Animation: 300ms transition over 60px of travel below 500px
+              const revealFactor = Math.min(1.0, (500 - distToGate) / 60);
+              const boxOpacity = revealFactor;
+              const boxScaleMultiplier = 0.7 + 0.3 * revealFactor;
+              const boxYOffset = -15 * (1 - revealFactor);
+
+              // Proximity Approach Sizing: grow up to 35% under 400px
+              const approachScale = distToGate < 400 ? 1.0 + ((400 - distToGate) / 400) * 0.35 : 1.0;
+              const totalScale = boxScaleMultiplier * approachScale;
+
               for (let laneIdx = 0; laneIdx < numOptions; laneIdx++) {
                 const lX = cx + (laneIdx - (numLanes - 1) / 2) * laneWidth;
                 const pBox = project(lX, gate.y);
 
-                // Depth scaling and clamped minimum sizing for math readability
-                const boxW = Math.max(40, baseBoxW * pBox.scale);
-                const boxH = Math.max(22, baseBoxH * pBox.scale);
-                const fontSize = Math.max(10, baseFontSize * pBox.scale);
+                const boxW = Math.max(40, baseBoxW * pBox.scale * totalScale);
+                const boxH = Math.max(22, baseBoxH * pBox.scale * totalScale);
+                const fontSize = Math.max(10, baseFontSize * pBox.scale * totalScale);
 
                 const bx = pBox.sx - boxW / 2;
-                const by = pBox.sy - boxH / 2;
+                const by = pBox.sy - boxH / 2 + boxYOffset * pBox.scale;
+
+                ctx.save();
+                ctx.globalAlpha = boxOpacity;
 
                 // Draw glowing option box
                 ctx.fillStyle = "#1e1b4b";
@@ -1126,26 +2132,9 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
                 ctx.font = `bold ${fontSize}px monospace`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.fillText(textToDraw, pBox.sx, pBox.sy);
+                ctx.fillText(textToDraw, pBox.sx, pBox.sy + boxYOffset * pBox.scale);
 
-                // Proximity Danger Zone Warning chevron arrow
-                if (gm.isNearGate() && gate === nextActiveGate) {
-                  if (laneIdx === q.correctLane) {
-                    const arrowY = by - (12 * pBox.scale) - (Math.sin(performance.now() * 0.01) * 4);
-                    ctx.fillStyle = "#10b981";
-                    ctx.beginPath();
-                    const arrowScale = Math.max(0.6, pBox.scale);
-                    ctx.moveTo(pBox.sx, arrowY);
-                    ctx.lineTo(pBox.sx - 6 * arrowScale, arrowY - 8 * arrowScale);
-                    ctx.lineTo(pBox.sx - 3 * arrowScale, arrowY - 8 * arrowScale);
-                    ctx.lineTo(pBox.sx - 3 * arrowScale, arrowY - 14 * arrowScale);
-                    ctx.lineTo(pBox.sx + 3 * arrowScale, arrowY - 14 * arrowScale);
-                    ctx.lineTo(pBox.sx + 3 * arrowScale, arrowY - 8 * arrowScale);
-                    ctx.lineTo(pBox.sx + 6 * arrowScale, arrowY - 8 * arrowScale);
-                    ctx.closePath();
-                    ctx.fill();
-                  }
-                }
+                ctx.restore();
               }
             }
           }
@@ -1154,30 +2143,79 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
     }
 
     // Add Player Car Task (fixed at Z = 45 relative to camera)
-    tasks.push({
-      z: 45,
-      draw: (ctx) => {
-        if (vehicleRendererRef.current) {
-          const pCar = project(gm.laneManager.carX, carY);
+    if (!cameraManager || cameraManager.mode !== CameraMode.CockpitCamera) {
+      tasks.push({
+        z: 45,
+        draw: (ctx) => {
+          if (vehicleRendererRef.current) {
+            const pCar = project(gm.laneManager.carX, carY);
+            ctx.save();
+            ctx.translate(pCar.sx, pCar.sy);
+            ctx.scale(pCar.scale, pCar.scale);
+            vehicleRendererRef.current.draw(
+              ctx,
+              0,
+              0,
+              gm.roadAngle,
+              gm.laneManager.steerAngle,
+              speedRatio,
+              gm.vehicleState,
+              gm.isBraking,
+              dt,
+              equippedSkin
+            );
+            ctx.restore();
+          }
+        }
+      });
+    }
+
+    // Collect Headlight projections
+    if (gm.activeZone === "tunnel") {
+      tasks.push({
+        z: 44.5,
+        draw: (ctx) => {
+          const pLeft = project(gm.laneManager.carX - 8, carY - 18);
+          const pRight = project(gm.laneManager.carX + 8, carY - 18);
+          
+          const targetY = carY - 450;
+          const cxAhead = getCenterXAtVisible(targetY);
+          const wAhead = getWidthAtVisible(targetY);
+          
+          const pTargetLeft = project(cxAhead - wAhead * 0.35, targetY);
+          const pTargetRight = project(cxAhead + wAhead * 0.35, targetY);
+
           ctx.save();
-          ctx.translate(pCar.sx, pCar.sy);
-          ctx.scale(pCar.scale, pCar.scale);
-          vehicleRendererRef.current.draw(
-            ctx,
-            0,
-            0,
-            gm.roadAngle,
-            gm.laneManager.steerAngle,
-            speedRatio,
-            gm.vehicleState,
-            gm.isBraking,
-            dt,
-            equippedSkin
-          );
+          ctx.globalCompositeOperation = "screen";
+
+          // Left Headlight Cone
+          const gradL = ctx.createLinearGradient(pLeft.sx, pLeft.sy, pTargetLeft.sx, pTargetLeft.sy);
+          gradL.addColorStop(0, "rgba(254, 240, 138, 0.4)");
+          gradL.addColorStop(1, "rgba(254, 240, 138, 0.0)");
+          ctx.fillStyle = gradL;
+          ctx.beginPath();
+          ctx.moveTo(pLeft.sx, pLeft.sy);
+          ctx.lineTo(pTargetLeft.sx - 35, pTargetLeft.sy);
+          ctx.lineTo(pTargetLeft.sx + 35, pTargetLeft.sy);
+          ctx.closePath();
+          ctx.fill();
+
+          // Right Headlight Cone
+          const gradR = ctx.createLinearGradient(pRight.sx, pRight.sy, pTargetRight.sx, pTargetRight.sy);
+          gradR.addColorStop(0, "rgba(254, 240, 138, 0.4)");
+          gradR.addColorStop(1, "rgba(254, 240, 138, 0.0)");
+          ctx.fillStyle = gradR;
+          ctx.beginPath();
+          ctx.moveTo(pRight.sx, pRight.sy);
+          ctx.lineTo(pTargetRight.sx - 35, pTargetRight.sy);
+          ctx.lineTo(pTargetRight.sx + 35, pTargetRight.sy);
+          ctx.closePath();
+          ctx.fill();
+
           ctx.restore();
         }
-      }
-    });
+      });
+    }
 
     // Sort all rendering tasks by depth ( Painters algorithm: Far to Near / Descending Z )
     tasks.sort((a, b) => b.z - a.z);
@@ -1261,6 +2299,138 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       ctx.fillRect(0, 0, W, H);
     }
 
+    // 9.5 High Speed Wind Lines / Speed Lines
+    if (speedRatio > 1.45) {
+      ctx.save();
+      const alphaPulse = Math.min(0.35, (speedRatio - 1.45) * 0.5) * (0.8 + Math.random() * 0.2);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${alphaPulse})`;
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2 + (performance.now() * 0.0002);
+        const startRadius = H * 0.2;
+        const endRadius = H * 0.8;
+        const sx = W / 2 + Math.cos(angle) * startRadius;
+        const sy = H * 0.4 + Math.sin(angle) * startRadius;
+        const ex = W / 2 + Math.cos(angle) * endRadius;
+        const ey = H * 0.4 + Math.sin(angle) * endRadius;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 9.6 Low Lives Red Pulsing border overlay
+    if (gm.lives <= 1) {
+      ctx.save();
+      const redPulse = Math.abs(Math.sin(performance.now() * 0.005));
+      ctx.strokeStyle = `rgba(239, 68, 68, ${redPulse * 0.35})`;
+      ctx.lineWidth = 6;
+      ctx.strokeRect(0, 0, W, H);
+      
+      const grad = ctx.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, W * 0.8);
+      grad.addColorStop(0, "rgba(239, 68, 68, 0)");
+      grad.addColorStop(1, `rgba(239, 68, 68, ${redPulse * 0.18})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+
+    // 9.7 Cockpit Dashboard & Windshield Frame HUD overlay
+    if (cameraManager && cameraManager.mode === CameraMode.CockpitCamera) {
+      ctx.save();
+      
+      // A-pillars (left & right Windshield frames)
+      ctx.fillStyle = "#18181b"; // Zinc 900
+      ctx.strokeStyle = "#09090b";
+      ctx.lineWidth = 2;
+
+      // Left Pillar
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      ctx.lineTo(W * 0.08, H);
+      ctx.lineTo(W * 0.20, 0);
+      ctx.lineTo(0, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Right Pillar
+      ctx.beginPath();
+      ctx.moveTo(W, H);
+      ctx.lineTo(W * 0.92, H);
+      ctx.lineTo(W * 0.80, 0);
+      ctx.lineTo(W, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Top Windshield Frame Border
+      ctx.fillRect(0, 0, W, 25);
+      ctx.strokeRect(0, 0, W, 25);
+
+      // Bottom Dashboard Panel
+      ctx.fillStyle = "#1c1917"; // Stone 900
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      ctx.lineTo(0, H - 75);
+      ctx.lineTo(W * 0.22, H - 75);
+      // Gauge Cluster Hood arch in the center
+      ctx.arc(W / 2, H - 75, 60, Math.PI, 0);
+      ctx.lineTo(W * 0.78, H - 75);
+      ctx.lineTo(W, H - 75);
+      ctx.lineTo(W, H);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Steering Wheel
+      ctx.save();
+      ctx.translate(W / 2, H - 40);
+      const steerRotation = gm.laneManager.steerAngle * 1.8;
+      ctx.rotate(steerRotation);
+      ctx.strokeStyle = "#0c0a09"; // Dark stone
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.arc(0, 0, 42, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Steering struts
+      ctx.strokeStyle = "#1c1917";
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(-42, 0);
+      ctx.lineTo(42, 0);
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, 42);
+      ctx.stroke();
+      ctx.restore();
+
+      // Dashboard gauges
+      // Speedometer Gauge Cluster (digital speed text under gauge hood)
+      ctx.fillStyle = "#38bdf8"; // Light Blue
+      ctx.font = "bold 13px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(`${Math.round(gm.speed)} km/h`, W / 2, H - 32);
+
+      // Gear indicator
+      const activeGear = Math.max(1, Math.min(6, 1 + Math.floor(gm.combo / 4)));
+      ctx.fillStyle = gm.combo > 0 ? "#10b981" : "#78716c";
+      ctx.font = "bold 8px monospace";
+      ctx.fillText(`GEAR ${activeGear}`, W / 2, H - 18);
+
+      // Low Lives indicator flashing warning light
+      if (gm.lives <= 1 && Math.floor(performance.now() * 0.005) % 2 === 0) {
+        ctx.fillStyle = "#ef4444";
+        ctx.beginPath();
+        ctx.arc(W / 2 - 32, H - 35, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
     // 10. Full screen color flash chimes
     if (animationManager) {
       if (animationManager.correctFlash > 0) {
@@ -1279,41 +2449,118 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
 
     // 11. Draw HUD minimap on screen (static overlays)
     if (gm.gameMode === "Running") {
-      const miniW = 28;
-      const miniH = 150;
-      const miniX = W - miniW - 20;
-      const miniY = H * 0.3;
+      const miniW = 32;
+      const miniH = 160;
+      const miniX = W - miniW - 30;
+      const miniY = H * 0.32;
 
+      // Draw Active Zone text box above minimap
       ctx.save();
+      ctx.fillStyle = "rgba(9, 9, 11, 0.85)";
+      ctx.strokeStyle = "rgba(99, 102, 241, 0.4)";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.roundRect(miniX - 25, miniY - 28, miniW + 50, 18, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 8px monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(gm.activeZone.toUpperCase(), miniX + miniW / 2, miniY - 19);
+
+      // Draw Minimap box container
       ctx.fillStyle = "rgba(9, 9, 11, 0.75)";
       ctx.strokeStyle = "rgba(99, 102, 241, 0.4)";
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.roundRect(miniX - 4, miniY - 4, miniW + 8, miniH + 8, 6);
+      ctx.roundRect(miniX - 8, miniY - 6, miniW + 16, miniH + 12, 6);
       ctx.fill();
       ctx.stroke();
 
-      // Render color-coded zone track paths on minimap
-      ctx.lineWidth = 3;
-      for (let j = 0; j < 9; j++) {
-        const y1 = carY - j * 260;
-        const y2 = carY - (j + 1) * 260;
+      // Render color-coded zone track paths on minimap (far-to-near)
+      ctx.lineWidth = 3.5;
+      let lastZoneLabelDrawn = "";
+
+      for (let j = 0; j < 10; j++) {
+        const y1 = carY - j * 240;
+        const y2 = carY - (j + 1) * 240;
+
         const cx1 = track.getCenterXAt(y1);
         const cx2 = track.getCenterXAt(y2);
+
+        // Curvature exaggeration: scale center offset by 1.6
+        const ex1 = 400 + (cx1 - 400) * 1.6;
+        const ex2 = 400 + (cx2 - 400) * 1.6;
         
-        const mx1 = miniX + ((cx1 - 180) / 440) * miniW;
-        const my1 = miniY + miniH - (j / 9) * miniH;
-        const mx2 = miniX + ((cx2 - 180) / 440) * miniW;
-        const my2 = miniY + miniH - ((j + 1) / 9) * miniH;
+        const mx1 = miniX + ((ex1 - 180) / 440) * miniW;
+        const my1 = miniY + miniH - (j / 10) * miniH;
+        const mx2 = miniX + ((ex2 - 180) / 440) * miniW;
+        const my2 = miniY + miniH - ((j + 1) / 10) * miniH;
 
         const seg = track.getSegmentAtY(y2);
-        const zoneColor = seg ? (seg.zone === "mountain" ? "#f59e0b" : seg.zone === "city" ? "#9ca3af" : "#10b981") : "#10b981";
+        let zoneColor = "#10b981"; // highway green
+        let zoneName = "HWY";
+        if (seg) {
+          if (seg.zone === "city") {
+            zoneColor = "#a1a1aa";
+            zoneName = "CITY";
+          } else if (seg.zone === "mountain") {
+            zoneColor = "#f97316";
+            zoneName = "MTN";
+          } else if (seg.zone === "bridge") {
+            zoneColor = "#06b6d4";
+            zoneName = "BRG";
+          } else if (seg.zone === "tunnel") {
+            zoneColor = "#d97706"; // amber
+            zoneName = "TNL";
+          }
+        }
 
         ctx.strokeStyle = zoneColor;
         ctx.beginPath();
         ctx.moveTo(mx1, my1);
         ctx.lineTo(mx2, my2);
         ctx.stroke();
+
+        // Tunnel brackets on minimap path
+        if (seg && seg.zone === "tunnel") {
+          ctx.strokeStyle = "rgba(217, 119, 6, 0.4)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(mx1 - 4, my1); ctx.lineTo(mx2 - 4, my2);
+          ctx.moveTo(mx1 + 4, my1); ctx.lineTo(mx2 + 4, my2);
+          ctx.stroke();
+          ctx.lineWidth = 3.5; // restore
+        }
+
+        // Bridge brackets on minimap path
+        if (seg && seg.zone === "bridge") {
+          ctx.strokeStyle = "rgba(6, 182, 212, 0.4)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(mx1 - 4.5, my1); ctx.lineTo(mx2 - 4.5, my2);
+          ctx.moveTo(mx1 + 4.5, my1); ctx.lineTo(mx2 + 4.5, my2);
+          ctx.stroke();
+          ctx.lineWidth = 3.5; // restore
+        }
+
+        // Inline Upcoming Zone Changes Labels
+        if (seg && zoneName !== lastZoneLabelDrawn && j > 0) {
+          lastZoneLabelDrawn = zoneName;
+          ctx.fillStyle = zoneColor;
+          ctx.font = "bold 6.5px monospace";
+          ctx.textAlign = "right";
+          ctx.fillText(zoneName, miniX - 12, (my1 + my2) / 2);
+          // Small pointer line
+          ctx.strokeStyle = "rgba(255,255,255,0.2)";
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(miniX - 9, (my1 + my2) / 2);
+          ctx.lineTo(miniX - 2, (my1 + my2) / 2);
+          ctx.stroke();
+        }
       }
 
       // Draw upcoming gates ticks on minimap
@@ -1322,7 +2569,7 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
           const progress = (carY - gate.y) / 2400;
           const gMy = miniY + miniH - progress * miniH;
           ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 1.8;
           ctx.beginPath();
           ctx.moveTo(miniX, gMy);
           ctx.lineTo(miniX + miniW, gMy);
@@ -1330,24 +2577,29 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
         }
       }
 
-      // Draw upcoming obstacles on minimap
-      const miniObstacles = gm.obstacleManager.getObstacles();
-      for (const obs of miniObstacles) {
-        if (obs.y < carY && obs.y > carY - 2400) {
-          const progress = (carY - obs.y) / 2400;
-          const oMy = miniY + miniH - progress * miniH;
-          const cx = track.getCenterXAt(obs.y);
-          const oMx = miniX + ((cx - 180) / 440) * miniW;
+      // Draw active traffic density markers on minimap path
+      const activeTraffic = gm.trafficManager.getActiveVehicles();
+      for (const v of activeTraffic) {
+        if (v.y < carY && v.y > carY - 2400 && !v.crashed) {
+          const progress = (carY - v.y) / 2400;
+          const tMy = miniY + miniH - progress * miniH;
+          const cx = track.getCenterXAt(v.y);
+          const ex = 400 + (cx - 400) * 1.6;
+          const laneWidth = miniW / 3;
+          const laneOffset = (v.lane - 1) * laneWidth * 0.7;
+          const tMx = miniX + ((ex - 180) / 440) * miniW + laneOffset;
+
           ctx.fillStyle = "#ef4444";
           ctx.beginPath();
-          ctx.arc(oMx, oMy, 2.5, 0, Math.PI * 2);
+          ctx.arc(tMx, tMy, 2.0, 0, Math.PI * 2);
           ctx.fill();
         }
       }
 
       // Render player car dot
       const playerCx = track.getCenterXAt(carY);
-      const playerMx = miniX + ((playerCx - 180) / 440) * miniW;
+      const playerEx = 400 + (playerCx - 400) * 1.6;
+      const playerMx = miniX + ((playerEx - 180) / 440) * miniW;
       const playerMy = miniY + miniH;
       ctx.fillStyle = "#ef4444";
       ctx.beginPath();
@@ -1360,6 +2612,61 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       ctx.beginPath();
       ctx.arc(playerMx, playerMy, 3.5 + Math.sin(performance.now() * 0.015) * 1.5, 0, Math.PI * 2);
       ctx.stroke();
+
+      // Upcoming Turns warning alert
+      let turnDetected = false;
+      let isLeftTurn = false;
+      const checkRange = 600;
+      const testSeg = track.getSegmentAtY(carY - checkRange);
+      if (testSeg && testSeg.type !== "straight") {
+        turnDetected = true;
+        isLeftTurn = testSeg.type.includes("left");
+      }
+
+      if (turnDetected && Math.floor(performance.now() / 250) % 2 === 0) {
+        ctx.fillStyle = "#eab308";
+        ctx.font = "bold 9px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(isLeftTurn ? "◀ CURVE" : "CURVE ▶", miniX + miniW / 2, miniY + miniH + 18);
+      }
+
+      ctx.restore();
+    }
+
+    // Render Cinematic Banner & Milestones overlay
+    if (bannerRef.current) {
+      const banner = bannerRef.current;
+      const progress = banner.timer;
+      let alpha = 1.0;
+      if (progress > 1.7) {
+        alpha = (2.0 - progress) / 0.3;
+      } else if (progress < 0.3) {
+        alpha = progress / 0.3;
+      }
+      alpha = Math.max(0, Math.min(1, alpha));
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      ctx.fillStyle = "rgba(9, 9, 11, 0.88)";
+      ctx.strokeStyle = banner.isMilestone ? "rgba(234, 179, 8, 0.55)" : "rgba(99, 102, 241, 0.55)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const barH = 45;
+      ctx.roundRect(W * 0.15, H * 0.45 - barH / 2, W * 0.7, barH, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = banner.isMilestone ? "#fbbf24" : "#ffffff";
+      ctx.font = "bold 13px monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(banner.title, W / 2, H * 0.45 - 8);
+
+      ctx.fillStyle = "#a1a1aa";
+      ctx.font = "bold 8px monospace";
+      ctx.fillText(banner.subtitle, W / 2, H * 0.45 + 10);
+
       ctx.restore();
     }
   };
@@ -1560,6 +2867,15 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
                     className="accent-indigo-600 h-3.5 w-3.5 cursor-pointer"
                   />
                 </label>
+                <label className="flex items-center justify-between cursor-pointer hover:bg-zinc-850 p-1.5 rounded-lg border border-transparent hover:border-zinc-800">
+                  <span>Learning Mode</span>
+                  <input
+                    type="checkbox"
+                    checked={learningMode}
+                    onChange={toggleLearningMode}
+                    className="accent-indigo-600 h-3.5 w-3.5 cursor-pointer"
+                  />
+                </label>
               </div>
             </div>
 
@@ -1590,22 +2906,55 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
           <canvas ref={canvasRef} className="w-full h-full block" />
 
           {/* Active Question Top HUD Card */}
-          {gameMode === "Running" && gameManagerRef.current?.gateManager.getNextActiveGate(gameManagerRef.current.carY)?.question && (
-            <div className={`absolute top-4 left-1/2 -translate-x-1/2 bg-zinc-900/90 border rounded-2xl px-6 py-3 flex flex-col items-center gap-1 shadow-2xl backdrop-blur-md text-center z-10 transition-all duration-200 ${
-              gameManagerRef.current.isNearGate() 
-                ? "border-amber-500 shadow-amber-950/40 animate-pulse scale-105" 
-                : "border-zinc-800"
-            } ${largeTextMode ? "min-w-[240px]" : "min-w-[180px]"}`}>
-              <span className={`font-bold text-indigo-400 uppercase tracking-widest font-mono ${
-                largeTextMode ? "text-[8.5px]" : "text-[7.5px]"
-              }`}>
-                Solve Challenge
-              </span>
-              <div className={`font-black text-white tracking-wide ${
-                largeTextMode ? "text-xl" : "text-lg"
-              }`}>
-                {getActiveQuestionText()}
+          {gameMode === "Running" && getActiveGate() && (
+            (() => {
+              const gate = getActiveGate()!;
+              const q = gate.question!;
+              const diffVal = q.difficultyVal ?? 1;
+              const difficultyLabel = diffVal <= 2 ? "Easy" : diffVal <= 4 ? "Medium" : "Hard";
+              const difficultyColor = difficultyLabel === "Easy" ? "text-emerald-400 border-emerald-500/30 bg-emerald-950/20" 
+                                    : difficultyLabel === "Medium" ? "text-amber-400 border-amber-500/30 bg-amber-950/20" 
+                                    : "text-rose-400 border-rose-500/30 bg-rose-950/20";
+              const categoryLabel = q.category.charAt(0).toUpperCase() + q.category.slice(1);
+
+              return (
+                <div className={`absolute top-4 left-1/2 -translate-x-1/2 bg-zinc-950/95 border border-zinc-800 rounded-2xl p-4 flex flex-col items-center gap-2.5 shadow-2xl backdrop-blur-md text-center z-30 transition-all duration-350 ${
+                  largeTextMode ? "w-[300px]" : "w-[240px]"
+                }`}>
+                  {/* Badges: Category & Difficulty */}
+                  <div className="flex gap-2 w-full justify-center">
+                    <span className="px-2 py-0.5 rounded-full border border-zinc-800 bg-zinc-900/60 font-bold uppercase tracking-wider font-mono text-[7px] text-zinc-400">
+                      {categoryLabel}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full border font-bold uppercase tracking-wider font-mono text-[7px] ${difficultyColor}`}>
+                      {difficultyLabel}
+                    </span>
+                  </div>
+
+                  {/* Question text */}
+                  <div className={`font-black text-white tracking-wide font-mono ${
+                    largeTextMode ? "text-2xl" : "text-xl"
+                  }`}>
+                    {getActiveQuestionText()}
+                  </div>
+
+                  {/* Context footer */}
+                  <div className="text-[6.5px] text-zinc-500 font-bold uppercase tracking-widest font-mono">
+                    Math Challenge
+                  </div>
+                </div>
+              );
+            })()
+          )}
+
+          {/* Wrong Answer Feedback Banner Overlay */}
+          {gameMode === "Running" && gameManagerRef.current && gameManagerRef.current.feedbackBannerTimer > 0 && (
+            <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-950/95 border border-red-500 rounded-3xl p-6 shadow-2xl backdrop-blur-md text-center z-40 animate-pulse w-[340px] flex flex-col gap-2 font-mono">
+              <span className="text-red-400 font-extrabold text-lg uppercase tracking-wider">❌ INCORRECT!</span>
+              <div className="text-white font-black text-xl">
+                {gameManagerRef.current.feedbackBannerText}
               </div>
+              <span className="text-zinc-400 text-[8px] uppercase tracking-widest mt-1">Reviewing Correct Answer...</span>
             </div>
           )}
 
@@ -1671,7 +3020,7 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       {/* 3. Pause Screen Overlay */}
       {gameMode === "Paused" && (
         <div className="absolute inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-xs w-full shadow-2xl flex flex-col gap-4 text-center">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl flex flex-col gap-4 text-center">
             <h2 className="text-base font-extrabold text-white">⏸ RACE PAUSED</h2>
             <p className="text-zinc-400 text-xs leading-normal">
               Take a breath! Ready to jump back in?
@@ -1706,7 +3055,35 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
                   className="accent-indigo-600 h-3 w-3"
                 />
               </label>
+              <label className="flex items-center justify-between cursor-pointer p-1 rounded hover:bg-zinc-800">
+                <span>Learning Mode</span>
+                <input
+                  type="checkbox"
+                  checked={learningMode}
+                  onChange={toggleLearningMode}
+                  className="accent-indigo-600 h-3 w-3"
+                />
+              </label>
             </div>
+
+            {/* Solved Question History list */}
+            {gameManagerRef.current && gameManagerRef.current.questionHistory.length > 0 && (
+              <div className="flex flex-col gap-2 border-b border-zinc-800 pb-3 text-left font-mono text-[8px]">
+                <div className="text-zinc-400 font-bold uppercase tracking-wider">Solved Questions (Last 5):</div>
+                <div className="flex flex-col gap-1 bg-zinc-950/60 p-2 rounded-lg border border-zinc-850 max-h-[120px] overflow-y-auto">
+                  {gameManagerRef.current.questionHistory.map((h, i) => (
+                    <div key={i} className="flex justify-between items-center py-0.5 border-b border-zinc-900/60 last:border-0">
+                      <span className="text-zinc-300 font-bold">{h.text}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[7.5px] text-zinc-500">Ans: <span className={h.isCorrect ? "text-emerald-400" : "text-rose-400 font-bold"}>{h.userAnswer}</span></span>
+                        <span className="text-[7.5px] text-zinc-500">Correct: <span className="text-emerald-400 font-bold">{h.correctAnswer}</span></span>
+                        <span>{h.isCorrect ? "✅" : "❌"}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col gap-2">
               <button
@@ -1755,9 +3132,17 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
                 <span className="text-[7.5px] text-zinc-550 uppercase font-extrabold">Max Combo</span>
                 <span className="text-emerald-400 font-bold">{gameManagerRef.current?.maxCombo ?? 0}x</span>
               </div>
+              <div className="flex flex-col border-t border-zinc-900 pt-2 text-[8px] text-zinc-400">
+                <span>Total Questions</span>
+                <span className="text-white font-bold">{gameManagerRef.current?.questionsSolved ?? 0}</span>
+              </div>
+              <div className="flex flex-col border-t border-zinc-900 pt-2 text-[8px] text-zinc-400">
+                <span>Correct Answers</span>
+                <span className="text-emerald-400 font-bold">{gameManagerRef.current?.correctAnswersCount ?? 0}</span>
+              </div>
               <div className="flex flex-col col-span-2 border-t border-zinc-900 pt-2 text-[8px] text-zinc-400 flex flex-row justify-around">
                 <div>Distance: <span className="text-white font-bold">{Math.round(gameManagerRef.current?.distance ?? 0)} m</span></div>
-                <div>Accuracy: <span className="text-white font-bold">
+                <div>Accuracy: <span className="text-indigo-400 font-bold">
                   {gameManagerRef.current?.questionsSolved && gameManagerRef.current.questionsSolved > 0
                     ? Math.round((gameManagerRef.current.correctAnswersCount / gameManagerRef.current.questionsSolved) * 100)
                     : 0}%

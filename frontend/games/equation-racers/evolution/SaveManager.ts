@@ -21,6 +21,7 @@ export interface SaveData {
     largeTextMode: boolean;
     colorblindHighlighting: boolean;
     reduceMotion: boolean;
+    learningMode: boolean;
   };
 }
 
@@ -48,7 +49,8 @@ const DEFAULT_SAVE_DATA: SaveData = {
     musicVolume: 50,
     largeTextMode: false,
     colorblindHighlighting: false,
-    reduceMotion: false
+    reduceMotion: false,
+    learningMode: true
   }
 };
 
@@ -177,6 +179,11 @@ export class SaveManager {
 
   public setReduceMotion(val: boolean): void {
     this.activeData.settings.reduceMotion = val;
+    this.save();
+  }
+
+  public setLearningMode(val: boolean): void {
+    this.activeData.settings.learningMode = val;
     this.save();
   }
 
