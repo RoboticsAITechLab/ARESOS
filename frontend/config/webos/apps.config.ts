@@ -102,6 +102,28 @@ export const REGISTERED_APPS: AppConfig[] = [
     defaultHeight: 380,
     isSingleInstance: false,
   },
+  {
+    id: "equation-realms",
+    title: "Equation Realms",
+    icon: "🔮",
+    component: dynamic(() => import("@/components/webos/apps/EquationRealms"), {
+      ssr: false,
+    }),
+    defaultWidth: 800,
+    defaultHeight: 600,
+    isSingleInstance: true,
+  },
+  {
+    id: "equation-racers",
+    title: "Equation Racers",
+    icon: "🏎️",
+    component: dynamic(() => import("@/components/webos/apps/EquationRacers"), {
+      ssr: false,
+    }),
+    defaultWidth: 850,
+    defaultHeight: 600,
+    isSingleInstance: true,
+  },
 ];
 
 export const getAppConfig = (id: string): AppConfig | undefined => {

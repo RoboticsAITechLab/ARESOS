@@ -10,13 +10,13 @@ interface FileManagerProps {
 }
 
 export default function FileManager({ pid }: FileManagerProps) {
-  const { 
+  const {
     root,
-    currentPath, 
-    listDirectory, 
-    changeDirectory, 
-    createDirectory, 
-    deleteNode, 
+    currentPath,
+    listDirectory,
+    changeDirectory,
+    createDirectory,
+    deleteNode,
     writeFile,
     readFile,
     clipboard,
@@ -37,7 +37,7 @@ export default function FileManager({ pid }: FileManagerProps) {
 
   // File list states
   const [items, setItems] = useState<{ name: string; type: "file" | "directory"; size?: number; extension?: string; updatedAt?: number; createdAt?: number }[]>([]);
-  
+
   // Multi-Selection State
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
@@ -49,7 +49,7 @@ export default function FileManager({ pid }: FileManagerProps) {
   const [categoryFilter, setCategoryFilter] = useState<"all" | "folders" | "documents" | "images" | "scripts">("all");
 
   // Sorting columns
-  const [sortField, setSortField] = useState<"name" | "type" | "size" | "date">("name");
+  const [sortFiel, setSortField] = useState<"name" | "type" | "size" | "date">("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   // Sidebar Analytics Tab State
@@ -133,7 +133,7 @@ export default function FileManager({ pid }: FileManagerProps) {
   const getBreadcrumbs = () => {
     const segments = currentPath.split("/").filter(Boolean);
     const breadcrumbs = [{ label: "Root (📁)", path: "/" }];
-    
+
     let cumulativePath = "";
     segments.forEach((seg) => {
       cumulativePath += `/${seg}`;
@@ -164,7 +164,8 @@ export default function FileManager({ pid }: FileManagerProps) {
     } else if (sourceNode.type === "directory") {
       const dir = sourceNode;
       createDirectory(destParentPath, newName);
-      const nextParentPath = destParentPath === "/" ? `/${newName}` : `${destParentPath}/${newName}`;
+      const nextParentPath
+        = destParentPath === "/" ? `/${newName}` : `${destParentPath}/${newName}`;
       Object.entries(dir.children || {}).forEach(([childName, childNode]) => {
         pasteNodeRecursive(childNode, nextParentPath, childName);
       });
@@ -286,7 +287,7 @@ export default function FileManager({ pid }: FileManagerProps) {
   // Clipboard operations (Copy, Cut, Paste)
   const handleCopy = (mode: "copy" | "cut") => {
     if (selectedItems.size === 0) return;
-    const paths = Array.from(selectedItems).map((name) => 
+    const paths = Array.from(selectedItems).map((name) =>
       currentPath === "/" ? `/${name}` : `${currentPath}/${name}`
     );
     copyNode(paths, mode);
@@ -296,7 +297,7 @@ export default function FileManager({ pid }: FileManagerProps) {
 
   const handlePaste = () => {
     if (!clipboard || clipboard.paths.length === 0) return;
-    
+
     const ok = pasteNode(currentPath);
     if (ok) {
       loadItems();
@@ -323,7 +324,7 @@ export default function FileManager({ pid }: FileManagerProps) {
       const ok = deleteNode(targetPath);
       if (ok) successCount++;
     });
-    
+
     loadItems();
     setSelectedItems(new Set());
     setDeleteConfirmModal({ isOpen: false, targetNames: [] });
@@ -410,10 +411,10 @@ export default function FileManager({ pid }: FileManagerProps) {
     const itemPath = currentPath === "/" ? `/${item.name}` : `${currentPath}/${item.name}`;
     const segments = itemPath.split("/").filter(Boolean);
     const node = findNodeByPathSegments(root, segments);
-    
+
     // Calculate mock MD5 and metadata logs
     const mockHash = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
-    
+
     setPropertiesModal({
       isOpen: true,
       targetNode: {
@@ -476,7 +477,7 @@ export default function FileManager({ pid }: FileManagerProps) {
   const handleContextMenu = (e: React.MouseEvent, itemName: string | null) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Set selection focus on item if right-clicked
     if (itemName) {
       if (!selectedItems.has(itemName)) {
@@ -524,10 +525,10 @@ export default function FileManager({ pid }: FileManagerProps) {
 
   // Sorting Handler
   const sortedItems = [...filteredItems].sort((a, b) => {
-    let valA: any = a[sortField === "date" ? "updatedAt" : sortField] || "";
-    let valB: any = b[sortField === "date" ? "updatedAt" : sortField] || "";
+    let valA: any = a[sortFiel === "date" ? "updatedAt" : sortFiel] || "";
+    let valB: any = b[sortFiel === "date" ? "updatedAt" : sortFiel] || "";
 
-    if (sortField === "type") {
+    if (sortFiel === "type") {
       // Prioritize directories over files in visual sorting
       valA = a.type === "directory" ? "a_dir" : `b_file_${a.extension || ""}`;
       valB = b.type === "directory" ? "a_dir" : `b_file_${b.extension || ""}`;
@@ -543,8 +544,8 @@ export default function FileManager({ pid }: FileManagerProps) {
   });
 
   // Column head click handler
-  const handleSortHeader = (field: typeof sortField) => {
-    if (sortField === field) {
+  const handleSortHeader = (field: typeof sortFiel) => {
+    if (sortFiel === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
@@ -623,7 +624,7 @@ export default function FileManager({ pid }: FileManagerProps) {
 
   return (
     <div className="w-full h-full flex bg-zinc-900 text-zinc-100 select-none overflow-hidden font-sans relative">
-      
+
       {/* Sidebar navigation list */}
       <div className="w-44 bg-zinc-950/45 border-r border-zinc-800/60 p-4 space-y-4 flex-shrink-0 flex flex-col justify-between">
         <div className="space-y-4">
@@ -635,11 +636,10 @@ export default function FileManager({ pid }: FileManagerProps) {
               <button
                 key={link.path}
                 onClick={() => navigateTo(link.path)}
-                className={`w-full text-left text-xs px-2.5 py-1.5 rounded-xl transition cursor-pointer font-medium ${
-                  currentPath === link.path
-                    ? "bg-indigo-600/30 text-indigo-200 font-semibold border border-indigo-500/20 shadow-md"
-                    : "hover:bg-zinc-850/40 text-zinc-400 hover:text-zinc-200"
-                }`}
+                className={`w-full text-left text-xs px-2.5 py-1.5 rounded-xl transition cursor-pointer font-medium ${currentPath === link.path
+                  ? "bg-indigo-600/30 text-indigo-200 font-semibold border border-indigo-500/20 shadow-md"
+                  : "hover:bg-zinc-850/40 text-zinc-400 hover:text-zinc-200"
+                  }`}
               >
                 {link.label}
               </button>
@@ -654,7 +654,7 @@ export default function FileManager({ pid }: FileManagerProps) {
             <span className="text-white">{vfsKb} KB / {vfsMaxKb} KB</span>
           </div>
           <div className="w-full bg-zinc-950 h-1.5 rounded-full overflow-hidden border border-zinc-800">
-            <div 
+            <div
               className="bg-indigo-500 h-full rounded-full transition-all duration-300"
               style={{ width: `${storagePercentage}%` }}
             />
@@ -664,7 +664,7 @@ export default function FileManager({ pid }: FileManagerProps) {
       </div>
 
       {/* Main filesystem section */}
-      <div 
+      <div
         className="flex-1 flex flex-col min-w-0"
         onContextMenu={(e) => handleContextMenu(e, null)}
       >
@@ -712,7 +712,7 @@ export default function FileManager({ pid }: FileManagerProps) {
                 />
               </form>
             ) : (
-              <div 
+              <div
                 onClick={() => setIsEditingAddress(true)}
                 className="w-full flex items-center gap-1.5 overflow-x-auto scrollbar-none font-mono text-xs text-zinc-400 bg-zinc-950/70 border border-zinc-850/60 px-2.5 py-1 rounded-lg cursor-text hover:bg-zinc-950 transition animate-in fade-in duration-100"
               >
@@ -799,11 +799,10 @@ export default function FileManager({ pid }: FileManagerProps) {
                 setCategoryFilter(filter);
                 playClickSound();
               }}
-              className={`text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md border transition cursor-pointer ${
-                categoryFilter === filter
-                  ? "bg-indigo-600 border-indigo-500 text-white"
-                  : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"
-              }`}
+              className={`text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md border transition cursor-pointer ${categoryFilter === filter
+                ? "bg-indigo-600 border-indigo-500 text-white"
+                : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"
+                }`}
             >
               {filter}
             </button>
@@ -812,7 +811,7 @@ export default function FileManager({ pid }: FileManagerProps) {
 
         {/* Directory Listing Area */}
         <div className="flex-1 min-h-0 overflow-y-auto p-4 scrollbar-thin relative">
-          
+
           {layoutMode === "grid" ? (
             /* Icon Grid Layout */
             <div className="grid grid-cols-[repeat(auto-fill,minmax(85px,1fr))] auto-rows-[90px] gap-4 content-start">
@@ -828,16 +827,15 @@ export default function FileManager({ pid }: FileManagerProps) {
                     onClick={(e) => handleItemClick(item.name, e)}
                     onDoubleClick={() => handleItemExecute(item.name, item.type)}
                     onContextMenu={(e) => handleContextMenu(e, item.name)}
-                    className={`flex flex-col items-center justify-center p-2 rounded-xl transition duration-150 cursor-pointer relative group text-center border ${
-                      isSelected
-                        ? "bg-indigo-600/20 border-indigo-500/40 shadow-sm"
-                        : "bg-transparent border-transparent hover:bg-white/5"
-                    } ${isCut ? "opacity-40" : ""}`}
+                    className={`flex flex-col items-center justify-center p-2 rounded-xl transition duration-150 cursor-pointer relative group text-center border ${isSelected
+                      ? "bg-indigo-600/20 border-indigo-500/40 shadow-sm"
+                      : "bg-transparent border-transparent hover:bg-white/5"
+                      } ${isCut ? "opacity-40" : ""}`}
                   >
                     {/* Multi select checkbox toggle */}
                     <div className="absolute top-1 left-1.5 opacity-0 group-hover:opacity-100 transition">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={isSelected}
                         onChange={(e) => {
                           e.stopPropagation();
@@ -869,16 +867,16 @@ export default function FileManager({ pid }: FileManagerProps) {
               <thead>
                 <tr className="text-zinc-500 border-b border-zinc-800/60 pb-1">
                   <th className="py-2 font-bold cursor-pointer hover:text-white" onClick={() => handleSortHeader("name")}>
-                    Name {sortField === "name" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+                    Name {sortFiel === "name" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
                   </th>
                   <th className="font-bold cursor-pointer hover:text-white" onClick={() => handleSortHeader("type")}>
-                    Type {sortField === "type" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+                    Type {sortFiel === "type" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
                   </th>
                   <th className="font-bold cursor-pointer hover:text-white" onClick={() => handleSortHeader("size")}>
-                    Size {sortField === "size" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+                    Size {sortFiel === "size" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
                   </th>
                   <th className="font-bold cursor-pointer hover:text-white" onClick={() => handleSortHeader("date")}>
-                    Date Modified {sortField === "date" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
+                    Date Modified {sortFiel === "date" ? (sortDirection === "asc" ? "▲" : "▼") : ""}
                   </th>
                 </tr>
               </thead>
@@ -889,19 +887,18 @@ export default function FileManager({ pid }: FileManagerProps) {
                     currentPath === "/" ? `/${item.name}` : `${currentPath}/${item.name}`
                   );
                   const dateStr = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : "-";
-                  
+
                   return (
                     <tr
                       key={item.name}
                       onClick={(e) => handleItemClick(item.name, e)}
                       onDoubleClick={() => handleItemExecute(item.name, item.type)}
                       onContextMenu={(e) => handleContextMenu(e, item.name)}
-                      className={`border-b border-zinc-850/50 hover:bg-white/5 transition cursor-pointer ${
-                        isSelected ? "bg-indigo-600/15 text-white" : "text-zinc-300"
-                      } ${isCut ? "opacity-45" : ""}`}
+                      className={`border-b border-zinc-850/50 hover:bg-white/5 transition cursor-pointer ${isSelected ? "bg-indigo-600/15 text-white" : "text-zinc-300"
+                        } ${isCut ? "opacity-45" : ""}`}
                     >
                       <td className="py-2.5 flex items-center gap-2.5 font-semibold">
-                        <input 
+                        <input
                           type="checkbox"
                           checked={isSelected}
                           onClick={(e) => e.stopPropagation()}
@@ -947,28 +944,26 @@ export default function FileManager({ pid }: FileManagerProps) {
             <div className="flex border-b border-zinc-850 text-[10px] font-bold">
               <button
                 onClick={() => setSidebarTab("properties")}
-                className={`flex-1 text-center py-2 transition ${
-                  sidebarTab === "properties" 
-                    ? "bg-zinc-900 text-white border-b-2 border-indigo-500" 
-                    : "text-zinc-500 hover:bg-zinc-900/50 hover:text-zinc-350"
-                }`}
+                className={`flex-1 text-center py-2 transition ${sidebarTab === "properties"
+                  ? "bg-zinc-900 text-white border-b-2 border-indigo-500"
+                  : "text-zinc-500 hover:bg-zinc-900/50 hover:text-zinc-350"
+                  }`}
               >
                 PROPERTIES
               </button>
               <button
                 onClick={() => setSidebarTab("analyzer")}
-                className={`flex-1 text-center py-2 transition ${
-                  sidebarTab === "analyzer" 
-                    ? "bg-zinc-900 text-white border-b-2 border-indigo-500" 
-                    : "text-zinc-500 hover:bg-zinc-900/50 hover:text-zinc-350"
-                }`}
+                className={`flex-1 text-center py-2 transition ${sidebarTab === "analyzer"
+                  ? "bg-zinc-900 text-white border-b-2 border-indigo-500"
+                  : "text-zinc-500 hover:bg-zinc-900/50 hover:text-zinc-350"
+                  }`}
               >
                 HEX ANALYZER
               </button>
             </div>
 
             <div className="p-4 flex-1 overflow-y-auto space-y-4 scrollbar-thin">
-              
+
               {sidebarTab === "properties" ? (
                 /* Tab 1: Standard Properties & Visual Previews */
                 <div className="space-y-4">
@@ -1012,19 +1007,19 @@ export default function FileManager({ pid }: FileManagerProps) {
                   {selectedNode.type === "file" && rawPreviewContent !== null && (
                     <div className="space-y-2.5">
                       <span className="text-[8px] text-zinc-500 uppercase font-bold tracking-wider">File Rendering Preview</span>
-                      
+
                       {/* Image Viewer */}
                       {selectedNode.name.match(/\.(png|jpg|jpeg|gif|svg|webp)$/i) ? (
                         <div className="border border-zinc-800 rounded-lg p-2 bg-zinc-950 flex items-center justify-center max-h-36 overflow-hidden">
                           {rawPreviewContent.startsWith("data:image") || rawPreviewContent.startsWith("http") ? (
-                            <img 
-                              src={rawPreviewContent} 
+                            <img
+                              src={rawPreviewContent}
                               alt="VFS Preview"
                               className="max-h-32 max-w-full object-contain rounded"
                             />
                           ) : (
                             <div className="text-[9px] text-zinc-500 text-center font-mono py-6">
-                              🖼️ IMAGE MOCK PREVIEW<br/>
+                              🖼️ IMAGE MOCK PREVIEW<br />
                               <span className="text-[8px] text-zinc-650">No Base64 data available</span>
                             </div>
                           )}
@@ -1108,7 +1103,7 @@ export default function FileManager({ pid }: FileManagerProps) {
             >
               {selectedNode.type === "directory" ? "📂 Open Folder" : "✏️ Open File"}
             </button>
-            
+
             <div className="grid grid-cols-2 gap-1.5">
               <button
                 onClick={() => triggerRename(selectedNode.name)}
@@ -1152,7 +1147,7 @@ export default function FileManager({ pid }: FileManagerProps) {
           <span className="text-xs font-mono font-semibold text-indigo-200">
             Selected: <span className="text-white font-bold">{selectedItems.size}</span> items
           </span>
-          
+
           <div className="h-4 w-px bg-zinc-855" />
 
           <div className="flex gap-1.5">
@@ -1189,7 +1184,7 @@ export default function FileManager({ pid }: FileManagerProps) {
 
       {/* Custom Context Menu Overlay dropdown */}
       {contextMenu.isOpen && (
-        <div 
+        <div
           className="absolute bg-zinc-950/95 border border-zinc-800 rounded-xl py-1 w-44 shadow-2xl z-40 animate-in fade-in zoom-in-95 duration-100 font-sans"
           style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
           onClick={(e) => e.stopPropagation()}
@@ -1347,7 +1342,7 @@ export default function FileManager({ pid }: FileManagerProps) {
       {/* Modal 1: Create Folder Modal */}
       {createFolderModal.isOpen && (
         <div className="absolute inset-0 bg-zinc-950/65 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <form 
+          <form
             onSubmit={executeCreateFolder}
             className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 w-80 max-w-full space-y-4 shadow-2xl animate-in zoom-in-95 duration-150"
           >
@@ -1386,7 +1381,7 @@ export default function FileManager({ pid }: FileManagerProps) {
       {/* Modal 2: Create File Modal */}
       {createFileModal.isOpen && (
         <div className="absolute inset-0 bg-zinc-950/65 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <form 
+          <form
             onSubmit={executeCreateFile}
             className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 w-80 max-w-full space-y-4 shadow-2xl animate-in zoom-in-95 duration-150"
           >
@@ -1403,7 +1398,7 @@ export default function FileManager({ pid }: FileManagerProps) {
               required
               className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 rounded-xl px-3 py-1.5 text-xs text-white outline-none transition"
             />
-            
+
             {/* Standard format type extensions */}
             <div className="space-y-1">
               <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Format type</span>
@@ -1413,11 +1408,10 @@ export default function FileManager({ pid }: FileManagerProps) {
                     key={ext}
                     type="button"
                     onClick={() => setCreateFileModal((prev) => ({ ...prev, type: ext }))}
-                    className={`py-1 rounded border transition ${
-                      createFileModal.type === ext
-                        ? "bg-indigo-600/35 border-indigo-500 text-indigo-200 font-bold"
-                        : "bg-zinc-950 border-zinc-850 text-zinc-500 hover:text-zinc-350"
-                    }`}
+                    className={`py-1 rounded border transition ${createFileModal.type === ext
+                      ? "bg-indigo-600/35 border-indigo-500 text-indigo-200 font-bold"
+                      : "bg-zinc-950 border-zinc-850 text-zinc-500 hover:text-zinc-350"
+                      }`}
                   >
                     .{ext}
                   </button>
@@ -1447,7 +1441,7 @@ export default function FileManager({ pid }: FileManagerProps) {
       {/* Modal 3: Rename Dialog */}
       {renameModal.isOpen && (
         <div className="absolute inset-0 bg-zinc-950/65 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <form 
+          <form
             onSubmit={executeRename}
             className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 w-80 max-w-full space-y-4 shadow-2xl animate-in zoom-in-95 duration-150"
           >
@@ -1494,7 +1488,7 @@ export default function FileManager({ pid }: FileManagerProps) {
                 Are you sure you want to permanently delete the selected {deleteConfirmModal.targetNames.length} item(s) from VFS?
               </p>
             </div>
-            
+
             <div className="max-h-24 overflow-y-auto border border-zinc-850 rounded-lg p-2 bg-zinc-955 font-mono text-[9px] text-zinc-400 space-y-1 scrollbar-none">
               {deleteConfirmModal.targetNames.map((name) => (
                 <div key={name} className="truncate">❌ {name}</div>
@@ -1561,7 +1555,7 @@ export default function FileManager({ pid }: FileManagerProps) {
                 <span className="text-zinc-500">MD5 Checksum:</span>
                 <span className="text-white tracking-tighter truncate max-w-[150px] select-all">{propertiesModal.targetNode.checksum}</span>
               </div>
-              
+
               {/* Mock system permissions checklist */}
               <div className="space-y-1">
                 <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider block font-sans">Permissions flags</span>
