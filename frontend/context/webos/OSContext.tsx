@@ -57,6 +57,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     brightness: 90,
     wallpaperBrightness: 80,
     maxStorageAllocation: 64,
+    crtFilterEnabled: false,
   });
 
   const [currentUser, setCurrentUser] = useState<SystemUser>({

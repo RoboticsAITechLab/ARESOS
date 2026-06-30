@@ -3,22 +3,31 @@ import {
   ROAD_FRAGMENT_SHADER,
   SPRITE_VERTEX_SHADER,
   SPRITE_FRAGMENT_SHADER,
+  POST_VERTEX_SHADER,
+  POST_FRAGMENT_SHADER,
 } from "./WebGLShaders";
 
 export class WebGLRenderer {
   private gl: WebGL2RenderingContext | null = null;
   private roadProgram: WebGLProgram | null = null;
   private spriteProgram: WebGLProgram | null = null;
+  private postProgram: WebGLProgram | null = null;
 
   // GPU Buffers
   private roadVAO: WebGLVertexArrayObject | null = null;
   private roadVBO: WebGLBuffer | null = null;
   private spriteVAO: WebGLVertexArrayObject | null = null;
   private spriteVBO: WebGLBuffer | null = null;
+  private postVAO: WebGLVertexArrayObject | null = null;
+  private postVBO: WebGLBuffer | null = null;
 
   // Textures
   private atlasTexture: WebGLTexture | null = null;
   private carTexture: WebGLTexture | null = null;
+  
+  // Post processing FBO
+  private fbo: WebGLFramebuffer | null = null;
+  private fboTexture: WebGLTexture | null = null;
 
   // Canvas context sizes
   private width = 800;
@@ -31,10 +40,10 @@ export class WebGLRenderer {
   private atlasAssetMap: Record<string, { uMin: number; vMin: number; uMax: number; vMax: number }> = {};
 
   // Vertex staging lists
-  private roadBufferData = new Float32Array(30000); // 30k elements max per frame
+  private roadBufferData = new Float32Array(90000); // Expanded for 9 attributes per vertex
   private roadBufferIndex = 0;
 
-  private spriteBufferData = new Float32Array(20000); // 20k elements
+  private spriteBufferData = new Float32Array(20000);
   private spriteBufferIndex = 0;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -51,6 +60,7 @@ export class WebGLRenderer {
       if (this.gl) {
         this.initWebGL();
         this.buildSpriteAtlas();
+        this.initFBO();
       }
     } catch (e) {
       console.error("Failed to initialize WebGL2 context", e);
@@ -68,6 +78,7 @@ export class WebGLRenderer {
     // Compile shaders
     this.roadProgram = this.createProgram(gl, ROAD_VERTEX_SHADER, ROAD_FRAGMENT_SHADER);
     this.spriteProgram = this.createProgram(gl, SPRITE_VERTEX_SHADER, SPRITE_FRAGMENT_SHADER);
+    this.postProgram = this.createProgram(gl, POST_VERTEX_SHADER, POST_FRAGMENT_SHADER);
 
     // Setup Road VBO / VAO
     this.roadVAO = gl.createVertexArray();
@@ -76,14 +87,23 @@ export class WebGLRenderer {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.roadVBO);
     gl.bufferData(gl.ARRAY_BUFFER, this.roadBufferData.byteLength, gl.DYNAMIC_DRAW);
 
-    // Layout: position (vec2) + color (vec4) = 6 floats per vertex
+    // Layout: position (vec2) + color (vec4) + depth (float) + uv (vec2) = 9 floats per vertex
+    const stride = 9 * 4;
     const posLoc = gl.getAttribLocation(this.roadProgram!, "position");
     gl.enableVertexAttribArray(posLoc);
-    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 6 * 4, 0);
+    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, stride, 0);
 
     const colLoc = gl.getAttribLocation(this.roadProgram!, "color");
     gl.enableVertexAttribArray(colLoc);
-    gl.vertexAttribPointer(colLoc, 4, gl.FLOAT, false, 6 * 4, 2 * 4);
+    gl.vertexAttribPointer(colLoc, 4, gl.FLOAT, false, stride, 2 * 4);
+
+    const depLoc = gl.getAttribLocation(this.roadProgram!, "depth");
+    gl.enableVertexAttribArray(depLoc);
+    gl.vertexAttribPointer(depLoc, 1, gl.FLOAT, false, stride, 6 * 4);
+
+    const uvLoc = gl.getAttribLocation(this.roadProgram!, "uv");
+    gl.enableVertexAttribArray(uvLoc);
+    gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, stride, 7 * 4);
 
     // Setup Sprite VBO / VAO
     this.spriteVAO = gl.createVertexArray();
@@ -97,9 +117,9 @@ export class WebGLRenderer {
     gl.enableVertexAttribArray(sPosLoc);
     gl.vertexAttribPointer(sPosLoc, 2, gl.FLOAT, false, 4 * 4, 0);
 
-    const uvLoc = gl.getAttribLocation(this.spriteProgram!, "uv");
-    gl.enableVertexAttribArray(uvLoc);
-    gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 4 * 4, 2 * 4);
+    const sUvLoc = gl.getAttribLocation(this.spriteProgram!, "uv");
+    gl.enableVertexAttribArray(sUvLoc);
+    gl.vertexAttribPointer(sUvLoc, 2, gl.FLOAT, false, 4 * 4, 2 * 4);
 
     // Enable basic blending
     gl.enable(gl.BLEND);
@@ -116,9 +136,47 @@ export class WebGLRenderer {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   }
 
-  /**
-   * Generates a 2D Canvas in memory containing the high-res emojis, uploads to GPU as a Sprite Atlas
-   */
+  private initFBO(): void {
+    const gl = this.gl!;
+
+    // Create texture to render to
+    this.fboTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.fboTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.width, this.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    // Create FBO
+    this.fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.fboTexture, 0);
+
+    // Fullscreen quad for presentation
+    this.postVAO = gl.createVertexArray();
+    this.postVBO = gl.createBuffer();
+    gl.bindVertexArray(this.postVAO);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.postVBO);
+
+    const quadVertices = new Float32Array([
+      -1.0, -1.0,
+       1.0, -1.0,
+       1.0,  1.0,
+      -1.0, -1.0,
+       1.0,  1.0,
+      -1.0,  1.0,
+    ]);
+    gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
+
+    const posLoc = gl.getAttribLocation(this.postProgram!, "position");
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 2 * 4, 0);
+
+    gl.bindVertexArray(null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
   private buildSpriteAtlas(): void {
     const gl = this.gl!;
     const atlasCanvas = document.createElement("canvas");
@@ -127,10 +185,8 @@ export class WebGLRenderer {
     const ctx = atlasCanvas.getContext("2d");
     if (!ctx) return;
 
-    // Clear canvas transparent
     ctx.clearRect(0, 0, 512, 512);
 
-    // List of environment emoji textures we will bake into the atlas
     const assets = [
       { name: "tree", emoji: "🌳", col: 0, row: 0 },
       { name: "pine", emoji: "🌲", col: 1, row: 0 },
@@ -159,7 +215,6 @@ export class WebGLRenderer {
       const y = a.row * 64 + 32;
       ctx.fillText(a.emoji, x, y);
 
-      // Store UV ratios (0.0 to 1.0)
       this.atlasAssetMap[a.name] = {
         uMin: (a.col * 64) / 512,
         vMin: (a.row * 64) / 512,
@@ -168,7 +223,6 @@ export class WebGLRenderer {
       };
     });
 
-    // Upload to WebGL GPU texture
     this.atlasTexture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.atlasTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlasCanvas);
@@ -178,9 +232,6 @@ export class WebGLRenderer {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   }
 
-  /**
-   * Helper to compile and link shader programs
-   */
   private createProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): WebGLProgram | null {
     const compile = (src: string, type: number) => {
       const shader = gl.createShader(type);
@@ -212,24 +263,28 @@ export class WebGLRenderer {
     return prog;
   }
 
-  /**
-   * Resize viewport size context
-   */
   public resize(width: number, height: number): void {
     if (!this.gl) return;
     this.width = width;
     this.height = height;
-    this.gl.viewport(0, 0, width, height);
+    
+    const gl = this.gl;
+    gl.viewport(0, 0, width, height);
+
+    if (this.fboTexture) {
+      gl.bindTexture(gl.TEXTURE_2D, this.fboTexture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    }
   }
 
-  /**
-   * Clear screen at start of frame
-   */
   public clear(colorHex: string): void {
     if (!this.gl) return;
     const gl = this.gl;
 
-    // Convert hex color to rgb
+    // Bind FBO instead of screen
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
+    gl.viewport(0, 0, this.width, this.height);
+
     const r = parseInt(colorHex.substring(1, 3), 16) / 255;
     const g = parseInt(colorHex.substring(3, 5), 16) / 255;
     const b = parseInt(colorHex.substring(5, 7), 16) / 255;
@@ -237,14 +292,10 @@ export class WebGLRenderer {
     gl.clearColor(r, g, b, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    // Reset buffer indexes
     this.roadBufferIndex = 0;
     this.spriteBufferIndex = 0;
   }
 
-  /**
-   * Convert pixel coordinates (0 to W, 0 to H) to WebGL NDC space (-1.0 to 1.0)
-   */
   private ndcX(x: number): number {
     return (x / this.width) * 2 - 1.0;
   }
@@ -253,20 +304,16 @@ export class WebGLRenderer {
     return -((y / this.height) * 2 - 1.0);
   }
 
-  /**
-   * Queue a single road segment quad into vertex buffer
-   */
   public drawRoadQuad(
-    x1: number, y1: number,
-    x2: number, y2: number,
-    x3: number, y3: number,
-    x4: number, y4: number,
+    x1: number, y1: number, z1: number,
+    x2: number, y2: number, z2: number,
+    x3: number, y3: number, z3: number,
+    x4: number, y4: number, z4: number,
     colorHex: string,
     opacity = 1.0
   ): void {
     if (!this.gl) return;
 
-    // Simple culling: if quad is completely offscreen vertically
     if (Math.min(y1, y2, y3, y4) < 0 && Math.max(y1, y2, y3, y4) < 0) return;
     if (Math.min(y1, y2, y3, y4) > this.height && Math.max(y1, y2, y3, y4) > this.height) return;
 
@@ -275,39 +322,39 @@ export class WebGLRenderer {
     const b = parseInt(colorHex.substring(5, 7), 16) / 255;
 
     const idx = this.roadBufferIndex;
-    // Check buffer overflow limits
-    if (idx + 36 >= this.roadBufferData.length) {
+    // 9 floats per vertex * 6 vertices = 54 floats per quad
+    if (idx + 54 >= this.roadBufferData.length) {
       this.flushRoad();
     }
 
     const data = this.roadBufferData;
     let offset = this.roadBufferIndex;
 
-    const addVertex = (vx: number, vy: number) => {
+    const addVertex = (vx: number, vy: number, depth: number, u: number, v: number) => {
       data[offset++] = this.ndcX(vx);
       data[offset++] = this.ndcY(vy);
       data[offset++] = r;
       data[offset++] = g;
       data[offset++] = b;
       data[offset++] = opacity;
+      data[offset++] = depth;
+      data[offset++] = u;
+      data[offset++] = v;
     };
 
     // Triangle 1: (v1 -> v2 -> v3)
-    addVertex(x1, y1);
-    addVertex(x2, y2);
-    addVertex(x3, y3);
+    addVertex(x1, y1, z1, 0.0, 1.0);
+    addVertex(x2, y2, z2, 1.0, 1.0);
+    addVertex(x3, y3, z3, 1.0, 0.0);
 
     // Triangle 2: (v1 -> v3 -> v4)
-    addVertex(x1, y1);
-    addVertex(x3, y3);
-    addVertex(x4, y4);
+    addVertex(x1, y1, z1, 0.0, 1.0);
+    addVertex(x3, y3, z3, 1.0, 0.0);
+    addVertex(x4, y4, z4, 0.0, 0.0);
 
     this.roadBufferIndex = offset;
   }
 
-  /**
-   * Draw a textured quad utilizing uv atlas segments
-   */
   public drawAtlasSprite(
     assetName: string,
     sx: number, sy: number,
@@ -317,10 +364,8 @@ export class WebGLRenderer {
   ): void {
     if (!this.gl) return;
 
-    // Retrieve asset UV configuration
     const uv = this.atlasAssetMap[assetName] || { uMin: 0, vMin: 0, uMax: 0.125, vMax: 0.125 };
 
-    // Basic Frustum Culling
     const w = baseWidth * scale;
     const h = baseHeight * scale;
     if (sx + w / 2 < -50 || sx - w / 2 > this.width + 50 || sy + h / 2 < -50 || sy - h / 2 > this.height + 50) {
@@ -338,9 +383,6 @@ export class WebGLRenderer {
     );
   }
 
-  /**
-   * Dynamic player car texture upload draw utility
-   */
   public drawPlayerCarTexture(
     carCanvas: HTMLCanvasElement,
     sx: number, sy: number,
@@ -350,7 +392,6 @@ export class WebGLRenderer {
     if (!this.gl) return;
 
     const gl = this.gl;
-    // Bind and upload dynamic player vehicle frame
     gl.bindTexture(gl.TEXTURE_2D, this.carTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, carCanvas);
 
@@ -405,31 +446,26 @@ export class WebGLRenderer {
 
     this.spriteBufferIndex = offset;
 
-    // Immediately flush sprites on single dynamic texture updates (e.g. player car)
     if (tex === this.carTexture) {
       this.flushSprites(tex, tint);
     }
   }
 
-  /**
-   * Flush all buffered road segments to GPU and trigger draw call
-   */
-  public flushRoad(activeZone = "highway"): void {
+  public flushRoad(activeZone = "highway", fogColorHex = "#020617", timeVal = 0, speedVal = 160): void {
     if (!this.gl || this.roadBufferIndex === 0) return;
     const gl = this.gl;
 
     gl.useProgram(this.roadProgram!);
 
-    // Configure basic ambient and sun lighting values based on zone
     let ambient = 0.85;
     let sunColor = [1.0, 1.0, 1.0];
     let sunIntensity = 0.15;
 
     if (activeZone === "tunnel") {
-      ambient = 0.28; // Tunnels are dim
+      ambient = 0.28;
       sunIntensity = 0.0;
     } else if (activeZone === "city") {
-      ambient = 0.50; // Night city lights
+      ambient = 0.50;
       sunColor = [0.75, 0.70, 0.95];
       sunIntensity = 0.10;
     }
@@ -437,20 +473,24 @@ export class WebGLRenderer {
     gl.uniform1f(gl.getUniformLocation(this.roadProgram!, "ambientLight"), ambient);
     gl.uniform3fv(gl.getUniformLocation(this.roadProgram!, "sunColor"), sunColor);
     gl.uniform1f(gl.getUniformLocation(this.roadProgram!, "sunIntensity"), sunIntensity);
+    gl.uniform1f(gl.getUniformLocation(this.roadProgram!, "time"), timeVal);
+    gl.uniform1f(gl.getUniformLocation(this.roadProgram!, "speed"), speedVal);
+
+    const fr = parseInt(fogColorHex.substring(1, 3), 16) / 255;
+    const fg = parseInt(fogColorHex.substring(3, 5), 16) / 255;
+    const fb = parseInt(fogColorHex.substring(5, 7), 16) / 255;
+    gl.uniform3f(gl.getUniformLocation(this.roadProgram!, "fogColor"), fr, fg, fb);
 
     gl.bindVertexArray(this.roadVAO);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.roadVBO);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.roadBufferData.subarray(0, this.roadBufferIndex));
 
-    gl.drawArrays(gl.TRIANGLES, 0, this.roadBufferIndex / 6);
+    gl.drawArrays(gl.TRIANGLES, 0, this.roadBufferIndex / 9);
 
     gl.bindVertexArray(null);
     this.roadBufferIndex = 0;
   }
 
-  /**
-   * Flush all buffered sprite billboards
-   */
   public flushSprites(tex: WebGLTexture, tint = [1.0, 1.0, 1.0, 1.0], activeZone = "highway"): void {
     if (!this.gl || this.spriteBufferIndex === 0) return;
     const gl = this.gl;
@@ -459,7 +499,7 @@ export class WebGLRenderer {
 
     let ambient = 1.0;
     if (activeZone === "tunnel") {
-      ambient = 0.65; // lights illuminate billboards
+      ambient = 0.65;
     }
 
     gl.uniform1f(gl.getUniformLocation(this.spriteProgram!, "ambientLight"), ambient);
@@ -477,5 +517,40 @@ export class WebGLRenderer {
 
     gl.bindVertexArray(null);
     this.spriteBufferIndex = 0;
+  }
+
+  /**
+   * Final post-processing pass: draws fullscreen FBO texture onto the screen canvas
+   */
+  public present(
+    timeVal: number,
+    speedBoostVal: number,
+    hitFeedbackVal: number,
+    zoneVal: number
+  ): void {
+    if (!this.gl) return;
+    const gl = this.gl;
+
+    // Bind back to screen canvas
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, this.width, this.height);
+
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.useProgram(this.postProgram!);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.fboTexture);
+    gl.uniform1i(gl.getUniformLocation(this.postProgram!, "sceneTexture"), 0);
+
+    gl.uniform1f(gl.getUniformLocation(this.postProgram!, "time"), timeVal);
+    gl.uniform1f(gl.getUniformLocation(this.postProgram!, "speedBoost"), speedBoostVal);
+    gl.uniform1f(gl.getUniformLocation(this.postProgram!, "hitFeedback"), hitFeedbackVal);
+    gl.uniform1i(gl.getUniformLocation(this.postProgram!, "zone"), zoneVal);
+
+    gl.bindVertexArray(this.postVAO);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.bindVertexArray(null);
   }
 }

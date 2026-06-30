@@ -93,7 +93,7 @@ export class VehicleRenderer {
 
     ctx.save();
     
-    // Position car with vibration jitter and vertical weight squat/dip
+    // Position car with vibration jitter and vertical weig[ht squat/dip
     ctx.translate(x + vibrationX, y + vibrationY + this.currentBounceY + squatY + brakingDipY);
     ctx.rotate(finalHeading);
 
@@ -177,7 +177,7 @@ export class VehicleRenderer {
 
     // Draw Rear Tires (spin blurred at high speed)
     drawTire3D(-16, 2, this.currentSteerAngle * 0.2, false); // Rear Left
-    drawTire3D(16, 2, this.currentSteerAngle * 0.2, false);  // Rear Right
+    drawTire3D(6, 2, this.currentSteerAngle * 0.2, false);  // Rear Right
 
     // 5. Draw 3D Rear Car Bumper & Diffuser
     ctx.strokeStyle = "#020205";
@@ -207,7 +207,7 @@ export class VehicleRenderer {
       ctx.fill();
     }
 
-    // 6. Draw Bumper Panel
+    // 6. Draw Bumper Panel and Wheel Arches / Widebody Fenders
     ctx.fillStyle = bodyColor;
     ctx.beginPath();
     ctx.moveTo(-18, 3);
@@ -218,34 +218,41 @@ export class VehicleRenderer {
     ctx.fill();
     ctx.stroke();
 
+    // Wheel arches / body kit fenders
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(-18, -10, 3, 14);
+    ctx.fillRect(15, -10, 3, 14);
+    ctx.strokeRect(-18, -10, 3, 14);
+    ctx.strokeRect(15, -10, 3, 14);
+
     // 7. Draw Rear Spoiler struted above bumper
     ctx.save();
     // Struts
     ctx.fillStyle = "#1e293b";
-    ctx.fillRect(-10, -12, 3, 7);
-    ctx.fillRect(7, -12, 3, 7);
+    ctx.fillRect(-12, -12, 3, 7);
+    ctx.fillRect(9, -12, 3, 7);
     
-    // Spoiler Wing Board (braking tilts it forward)
+    // Spoiler Wing Board (braking tilts it forward) - Aggressive sports wide spoiler
     const spoilerAngle = isBraking ? -0.15 : 0;
     ctx.translate(0, -14);
     ctx.rotate(spoilerAngle);
     ctx.fillStyle = trimColor;
     ctx.beginPath();
-    ctx.moveTo(-21, -2);
-    ctx.lineTo(21, -2);
-    ctx.lineTo(18, 2);
-    ctx.lineTo(-18, 2);
+    ctx.moveTo(-25, -2.5);
+    ctx.lineTo(25, -2.5);
+    ctx.lineTo(21, 2);
+    ctx.lineTo(-21, 2);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-
+ 
     // Spoiler Side Wings
     ctx.fillStyle = bodyColor;
-    ctx.fillRect(-22, -4, 2, 8);
-    ctx.fillRect(20, -4, 2, 8);
+    ctx.fillRect(-26, -5, 2.5, 9);
+    ctx.fillRect(23.5, -5, 2.5, 9);
     ctx.restore();
-
-    // 8. Perspective cabin section (Windshield & Roof)
+ 
+    // 8. Perspective cabin section (Windshield, Side Windows & Roof)
     const turnShiftX = -this.currentSteerAngle * 10;
     
     ctx.fillStyle = accentColor;
@@ -258,23 +265,39 @@ export class VehicleRenderer {
     ctx.fill();
     ctx.stroke();
 
+    // Side windows tint
+    ctx.fillStyle = "#0f172a";
+    ctx.beginPath();
+    ctx.moveTo(-14, -6);
+    ctx.lineTo(-9 + turnShiftX, -15);
+    ctx.lineTo(-12 + turnShiftX, -6);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(14, -6);
+    ctx.lineTo(9 + turnShiftX, -15);
+    ctx.lineTo(12 + turnShiftX, -6);
+    ctx.closePath();
+    ctx.fill();
+ 
     // Rear Windshield reflective glass
     ctx.fillStyle = "rgba(186, 230, 253, 0.82)"; // light blue
     ctx.beginPath();
-    ctx.moveTo(-13, -7);
-    ctx.lineTo(13, -7);
-    ctx.lineTo(8 + turnShiftX, -14);
-    ctx.lineTo(-8 + turnShiftX, -14);
+    ctx.moveTo(-11, -7);
+    ctx.lineTo(11, -7);
+    ctx.lineTo(7 + turnShiftX, -14);
+    ctx.lineTo(-7 + turnShiftX, -14);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-
+ 
     // Windshield reflection sheen
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.lineWidth = 1.8;
     ctx.beginPath();
     ctx.moveTo(-4, -7);
-    ctx.lineTo(2 + turnShiftX, -14);
+    ctx.lineTo(3 + turnShiftX, -14);
     ctx.stroke();
 
     // Cabin Roof
@@ -363,4 +386,9 @@ export class VehicleRenderer {
 
     ctx.restore();
   }
-}
+};
+
+ 
+  
+
+  

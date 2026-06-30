@@ -3,7 +3,7 @@ export class LaneManager {
   public numLanes = 3; // Variable lane count configuration (e.g. 3, 4, 5)
   public carX = 400; // Smoothed road coordinate
   public steerAngle = 0; // Visual chassis roll angle
-  public reduceMotion = false; // Accessibility preference to disable spring bounce
+  public reduceMotion = false; // Accessibility preference       able spring bounce
   
   // Spring-harmonic suspension physics parameters
   public springX = 0; // Displacement offset

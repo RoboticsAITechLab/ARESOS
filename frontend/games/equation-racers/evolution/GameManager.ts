@@ -27,6 +27,7 @@ export class GameManager {
   public baseSpeed = 160; // Base forward scroll speed (px/sec)
   public speed = 160; // Active speed
   public targetSpeed = 160; // Persistent target speed
+  public maxSpeed = 360;
   public carY = 0; // Auto-forward vertical coordinate
 
   // Focus Mode & Timing parameters

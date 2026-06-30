@@ -22,4 +22,5 @@ export interface SystemSettings {
   brightness: number; // 0 to 100
   wallpaperBrightness?: number; // 10 to 100
   maxStorageAllocation?: number; // In MB
+  crtFilterEnabled?: boolean;
 }

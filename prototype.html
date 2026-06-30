@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEON DUEL: Cyber Arena</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;700&display=swap');
+        
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #05050a;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+        .orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .neon-glow-cyan {
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.8), 0 0 20px rgba(6, 182, 212, 0.4);
+        }
+        .neon-glow-pink {
+            text-shadow: 0 0 10px rgba(236, 72, 153, 0.8), 0 0 20px rgba(236, 72, 153, 0.4);
+        }
+        .neon-border-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.3), inset 0 0 15px rgba(6, 182, 212, 0.2);
+            border: 2px solid rgba(6, 182, 212, 0.6);
+        }
+        .neon-border-pink {
+            box-shadow: 0 0 15px rgba(236, 72, 153, 0.3), inset 0 0 15px rgba(236, 72, 153, 0.2);
+            border: 2px solid rgba(236, 72, 153, 0.6);
+        }
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.02);
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(6, 182, 212, 0.3);
+            border-radius: 3px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: rgba(6, 182, 212, 0.6);
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex items-center justify-center text-white relative">
+
+    <!-- Web Audio Controller Top-Right -->
+    <div class="absolute top-4 right-4 z-50 flex items-center gap-3 bg-black/40 backdrop-blur-md p-2 rounded-lg border border-white/10">
+        <button id="toggle-music" class="p-2 hover:bg-white/10 rounded-md transition duration-200 text-cyan-400" title="Toggle Synthwave Music">
+            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+        </button>
+        <button id="toggle-sound" class="p-2 hover:bg-white/10 rounded-md transition duration-200 text-cyan-400" title="Toggle SFX">
+            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+        </button>
+    </div>
+
+    <!-- MAIN MENU SCREEN -->
+    <div id="main-menu" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-zinc-950 to-black px-4 overflow-y-auto">
+        <div class="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-30 pointer-events-none"></div>
+
+        <div class="text-center mb-8 relative">
+            <div class="absolute -top-10 left-1/2 transform -translate-x-1/2 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl"></div>
+            <h1 class="orbitron text-5xl md:text-7xl font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-400 to-pink-500 uppercase animate-pulse select-none">
+                NEON DUEL
+            </h1>
+            <p class="text-cyan-400 tracking-[0.3em] font-semibold text-xs md:text-sm mt-2 orbitron">CYBERPUNK ARENA COMBAT</p>
+        </div>
+
+        <div class="w-full max-w-md flex flex-col gap-4 z-10 px-4">
+            <button onclick="selectMode('solo')" class="group relative overflow-hidden bg-gradient-to-r from-cyan-950/40 to-slate-900/60 neon-border-cyan p-5 rounded-xl transition duration-300 transform hover:scale-102 flex items-center justify-between">
+                <div class="text-left">
+                    <span class="orbitron font-bold text-lg md:text-xl tracking-wider text-cyan-400 flex items-center gap-2">
+                        SOLO PLAY
+                    </span>
+                    <p class="text-xs text-slate-400 mt-1">Fight the adaptive Cyber-AI</p>
+                </div>
+                <span class="text-cyan-400 text-xl font-bold">→</span>
+            </button>
+
+            <button onclick="selectMode('duo')" class="group relative overflow-hidden bg-gradient-to-r from-pink-950/40 to-slate-900/60 neon-border-pink p-5 rounded-xl transition duration-300 transform hover:scale-102 flex items-center justify-between">
+                <div class="text-left">
+                    <span class="orbitron font-bold text-lg md:text-xl tracking-wider text-pink-400 flex items-center gap-2">
+                        LOCAL DUO
+                    </span>
+                    <p class="text-xs text-slate-400 mt-1">1v1 combat on a single device</p>
+                </div>
+                <span class="text-pink-400 text-xl font-bold">→</span>
+            </button>
+
+            <div class="grid grid-cols-2 gap-3 mt-4 text-xs font-mono">
+                <div class="bg-slate-900/40 border border-white/5 p-3 rounded-lg">
+                    <span class="text-cyan-400 font-bold block mb-1">P1 CONTROLS</span>
+                    <span class="text-slate-300">
+                        Move: <b class="text-white font-semibold">WASD / Arrows</b><br>
+                        Shoot: <b class="text-white font-semibold">Space / Enter / V / F</b>
+                    </span>
+                </div>
+                <div class="bg-slate-900/40 border border-white/5 p-3 rounded-lg">
+                    <span class="text-pink-400 font-bold block mb-1">P2/AI CONTROLS</span>
+                    <span class="text-slate-300">Move: <b class="text-white font-semibold">Arrows</b><br>Shoot: <b class="text-white font-semibold">Enter / M</b></span>
+                </div>
+            </div>
+
+            <div class="mt-4 bg-slate-950/80 border border-white/10 rounded-xl p-4">
+                <h3 class="orbitron text-xs font-bold text-slate-400 tracking-widest uppercase mb-2">
+                    🏆 Cyber Leaderboard
+                </h3>
+                <div id="local-leaderboard" class="space-y-1.5 max-h-32 overflow-y-auto custom-scroll pr-1 text-sm text-slate-300 font-mono">
+                    <!-- Dynamic Loading -->
+                </div>
+            </div>
+        </div>
+
+        <p class="text-slate-600 text-[10px] absolute bottom-4 tracking-widest select-none">GEMINI ARCADE PROTOCOL v3.0</p>
+    </div>
+
+    <!-- CONFIGURATION SCREEN -->
+    <div id="config-screen" class="hidden absolute inset-0 z-30 flex flex-col items-center justify-center bg-zinc-950/95 px-4 overflow-y-auto">
+        <div class="w-full max-w-2xl bg-slate-900/60 border border-white/10 rounded-2xl p-6 backdrop-blur-xl relative">
+            <h2 id="config-title" class="orbitron text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400 tracking-wider text-center mb-6">
+                PREPARE COMBATANTS
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4 font-mono">
+                <!-- PLAYER 1 SELECTION -->
+                <div class="bg-black/50 p-4 rounded-xl border border-cyan-500/30 flex flex-col items-center">
+                    <span class="orbitron text-sm font-bold text-cyan-400 mb-3 tracking-widest">PLAYER 1 (CYAN)</span>
+                    <div class="flex gap-2 mb-4 w-full justify-center">
+                        <button onclick="setShipDesign(1, 'interceptor')" id="p1-ship-interceptor" class="px-4 py-2 bg-cyan-950/40 border-2 border-cyan-500 rounded-md text-xs orbitron font-bold text-cyan-400 hover:bg-cyan-500/20">
+                            INTERCEPTOR
+                        </button>
+                        <button onclick="setShipDesign(1, 'goliath')" id="p1-ship-goliath" class="px-4 py-2 bg-slate-900/40 border border-slate-700 rounded-md text-xs orbitron font-bold text-slate-400 hover:bg-cyan-500/20">
+                            GOLIATH
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PLAYER 2 / AI SELECTION -->
+                <div id="player2-config" class="bg-black/50 p-4 rounded-xl border border-pink-500/30 flex flex-col items-center">
+                    <span id="p2-config-label" class="orbitron text-sm font-bold text-pink-400 mb-3 tracking-widest">PLAYER 2 / AI (PINK)</span>
+                    
+                    <div id="ai-level-container" class="w-full">
+                      <label class="block text-center text-xs text-slate-400 mb-2">INTELLIGENCE COEFFICIENT</label>
+                      <div class="grid grid-cols-3 gap-2 mb-4">
+                          <button onclick="setAIDifficulty('easy')" id="ai-easy" class="py-1.5 px-3 bg-slate-900 border border-slate-700 text-xs rounded text-slate-400 font-semibold hover:border-pink-500/50">EASY</button>
+                          <button onclick="setAIDifficulty('normal')" id="ai-normal" class="py-1.5 px-3 bg-pink-950/40 border border-pink-500 text-xs rounded text-pink-400 font-semibold hover:border-pink-500/50">MED</button>
+                          <button onclick="setAIDifficulty('hard')" id="ai-hard" class="py-1.5 px-3 bg-slate-900 border border-slate-700 text-xs rounded text-slate-400 font-semibold hover:border-pink-500/50">HARD</button>
+                      </div>
+                    </div>
+
+                    <div class="flex gap-2 w-full justify-center">
+                        <button onclick="setShipDesign(2, 'interceptor')" id="p2-ship-interceptor" class="px-4 py-2 bg-pink-950/40 border border-pink-500 rounded-md text-xs orbitron font-bold text-pink-400 hover:bg-pink-500/20">
+                            INTERCEPTOR
+                        </button>
+                        <button onclick="setShipDesign(2, 'goliath')" id="p2-ship-goliath" class="px-4 py-2 bg-slate-900/40 border border-slate-700 rounded-md text-xs orbitron font-bold text-slate-400 hover:bg-pink-500/20">
+                            GOLIATH
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Arena Theme Selector -->
+            <div class="mb-6 font-mono">
+                <span class="orbitron text-xs font-bold text-slate-400 block text-center mb-2 tracking-widest">SELECT COMBAT ZONE</span>
+                <div class="grid grid-cols-3 gap-3">
+                    <button onclick="setArenaTheme('cybergrid')" id="theme-cybergrid" class="py-2 px-3 rounded bg-cyan-950/30 border border-cyan-500 text-xs text-cyan-400 font-semibold">CYBER GRID</button>
+                    <button onclick="setArenaTheme('hyperdrive')" id="theme-hyperdrive" class="py-2 px-3 rounded bg-slate-900 border border-slate-700 text-xs text-slate-400 font-semibold">HYPERDRIVE</button>
+                    <button onclick="setArenaTheme('abyss')" id="theme-abyss" class="py-2 px-3 rounded bg-slate-900 border border-slate-700 text-xs text-slate-400 font-semibold">NEON ABYSS</button>
+                </div>
+            </div>
+
+            <div class="flex gap-4 font-mono">
+                <button onclick="showMainMenu()" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl font-bold tracking-wider orbitron text-sm transition">
+                    BACK TO MENU
+                </button>
+                <button onclick="launchGame()" class="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-extrabold tracking-widest orbitron text-sm shadow-[0_0_20px_rgba(6,182,212,0.4)] transition">
+                    LAUNCH DUEL
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME OVER / REPLAY MODAL -->
+    <div id="gameover-modal" class="hidden absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-4">
+        <div class="w-full max-w-md bg-zinc-950 border-2 border-slate-800 p-8 rounded-2xl text-center relative overflow-hidden">
+            <div class="absolute -top-10 left-1/2 transform -translate-x-1/2 w-36 h-36 bg-pink-500/10 rounded-full blur-3xl"></div>
+            
+            <h2 id="victory-title" class="orbitron text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-indigo-400 tracking-wider mb-2">
+                SYSTEM CORRUPTED
+            </h2>
+            <p id="victory-subtitle" class="text-slate-400 text-sm tracking-wide mb-6">MATCH CONCLUDED</p>
+
+            <div class="bg-slate-900/50 p-4 rounded-xl border border-white/5 mb-6">
+                <div class="flex justify-around items-center font-mono">
+                    <div>
+                        <span class="text-xs text-cyan-400 orbitron block">P1 SCORE</span>
+                        <span id="final-p1-score" class="text-3xl font-bold">0</span>
+                    </div>
+                    <div class="text-slate-600 text-xl font-bold">vs</div>
+                    <div>
+                        <span id="final-p2-label" class="text-xs text-pink-400 orbitron block">P2 SCORE</span>
+                        <span id="final-p2-score" class="text-3xl font-bold">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-3 font-mono">
+                <button onclick="launchGame()" class="py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-extrabold tracking-wider orbitron text-sm shadow-[0_0_15px_rgba(6,182,212,0.3)] transition">
+                    PLAY AGAIN
+                </button>
+                <button onclick="showMainMenu()" class="py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl font-bold tracking-wider orbitron text-sm text-slate-400 hover:text-white transition">
+                    MAIN MENU
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN GAME LAYOUT -->
+    <div id="game-container" class="hidden relative w-full h-full flex flex-col items-center justify-between p-4">
+        
+        <!-- TOP STATUS HEADER -->
+        <div class="w-full max-w-5xl px-4 py-2 flex justify-between items-center z-10 font-mono">
+            <div class="flex items-center gap-3">
+                <div class="flex flex-col">
+                    <span class="orbitron text-xs font-bold text-cyan-400 tracking-wider">CYAN INTERCEPTOR</span>
+                    <div id="p1-hp-container" class="flex gap-1 mt-1"></div>
+                </div>
+                <div class="bg-cyan-500/10 border border-cyan-500/30 px-3 py-1 rounded orbitron font-bold text-cyan-400 text-xl" id="p1-score-val">0</div>
+            </div>
+
+            <div class="text-center">
+                <div class="orbitron font-mono font-bold text-2xl tracking-widest text-slate-300" id="game-timer">02:00</div>
+                <div id="central-status" class="text-[10px] orbitron font-bold tracking-[0.2em] uppercase text-yellow-400 h-4"></div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="bg-pink-500/10 border border-pink-500/30 px-3 py-1 rounded orbitron font-bold text-pink-400 text-xl" id="p2-score-val">0</div>
+                <div class="flex flex-col items-end">
+                    <span id="p2-header-title" class="orbitron text-xs font-bold text-pink-400 tracking-wider">PINK CYBER-AI</span>
+                    <div id="p2-hp-container" class="flex gap-1 mt-1 font-mono"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN ARENA CANVAS CONTAINER -->
+        <div class="flex-1 w-full max-w-5xl relative flex items-center justify-center p-2">
+            <canvas id="arena-canvas" class="w-full h-full max-h-[75vh] border border-slate-800 rounded-2xl bg-black shadow-[0_0_40px_rgba(0,0,0,0.8)]"></canvas>
+            
+            <div id="countdown-overlay" class="hidden absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-20 rounded-2xl">
+                <span id="countdown-text" class="orbitron text-7xl md:text-9xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-400 to-pink-500 tracking-wider">3</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Game logic -->
+    <script>
+      class AudioSynth {
+        constructor() {
+          this.ctx = null;
+          this.muted = false;
+          this.bgmInterval = null;
+          this.isBgmPlaying = false;
+        }
+        initCtx() {
+          if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          }
+          if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        }
+        setMute(mute) {
+          this.muted = mute;
+          if (mute) this.stopBGM();
+          else if (this.isBgmPlaying) this.startBGM();
+        }
+        playLaser(type) {
+          if (this.muted) return;
+          this.initCtx();
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          if (type === 'railgun') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(80, now);
+            osc.frequency.exponentialRampToValueAtTime(800, now + 0.4);
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+          } else if (type === 'missile') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.exponentialRampToValueAtTime(300, now + 0.2);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          } else {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          }
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.5);
+        }
+        playExplosion() {
+          if (this.muted) return;
+          this.initCtx();
+          const now = this.ctx.currentTime;
+          const bufferSize = this.ctx.sampleRate * 0.5;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(400, now);
+          filter.frequency.exponentialRampToValueAtTime(10, now + 0.45);
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+          noise.stop(now + 0.55);
+        }
+        playShieldHit() {
+          if (this.muted) return;
+          this.initCtx();
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(1200, now);
+          osc.frequency.exponentialRampToValueAtTime(400, now + 0.12);
+          gain.gain.setValueAtTime(0.05, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        }
+        playPowerup() {
+          if (this.muted) return;
+          this.initCtx();
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.setValueAtTime(450, now + 0.08);
+          osc.frequency.setValueAtTime(600, now + 0.16);
+          gain.gain.setValueAtTime(0.06, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        }
+        startBGM() {
+          this.isBgmPlaying = true;
+          if (this.muted) return;
+          this.initCtx();
+          this.stopBGM();
+          const bpm = 110;
+          const stepTime = 60 / bpm / 2;
+          let step = 0;
+          const bassline = [110, 110, 130, 110, 98, 98, 110, 82];
+          this.bgmInterval = setInterval(() => {
+            if (this.muted || !this.ctx) return;
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            const freq = bassline[step % bassline.length] / 2;
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + stepTime * 0.9);
+            const lp = this.ctx.createBiquadFilter();
+            lp.type = 'lowpass';
+            lp.frequency.setValueAtTime(250, now);
+            osc.connect(lp);
+            lp.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + stepTime);
+            if (step % 2 === 1) {
+              const hh = this.ctx.createOscillator();
+              const hhg = this.ctx.createGain();
+              hh.type = 'triangle';
+              hh.frequency.setValueAtTime(10000, now);
+              hhg.gain.setValueAtTime(0.015, now);
+              hhg.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+              hh.connect(hhg);
+              hhg.connect(this.ctx.destination);
+              hh.start(now);
+              hh.stop(now + 0.05);
+            }
+            step++;
+          }, stepTime * 1000);
+        }
+        stopBGM() {
+          if (this.bgmInterval) {
+            clearInterval(this.bgmInterval);
+            this.bgmInterval = null;
+          }
+        }
+      }
+
+      class Ship {
+        constructor(x, y, angle, type, color, id) {
+          this.x = x;
+          this.y = y;
+          this.vx = 0;
+          this.vy = 0;
+          this.angle = angle;
+          this.type = type;
+          this.color = color;
+          this.id = id;
+          this.health = type === 'goliath' ? 4 : 3;
+          this.maxHealth = this.health;
+          this.shield = type === 'goliath' ? 150 : 100;
+          this.maxShield = this.shield;
+          this.shieldRegen = type === 'goliath' ? 0.03 : 0.05;
+          this.shieldHitCooldown = 0;
+          this.cooldown = 0;
+          this.maxCooldown = type === 'goliath' ? 20 : 12;
+          this.activeWeapon = 'normal';
+          this.weaponTime = 0;
+          this.speedMultiplier = 1.0;
+          this.speedTime = 0;
+          this.width = type === 'goliath' ? 30 : 24;
+        }
+        update(w, h) {
+          const buffer = this.width / 2;
+          if (this.x < buffer) { this.x = buffer; this.vx = -this.vx * 0.4; }
+          else if (this.x > w - buffer) { this.x = w - buffer; this.vx = -this.vx * 0.4; }
+          if (this.y < buffer) { this.y = buffer; this.vy = -this.vy * 0.4; }
+          else if (this.y > h - buffer) { this.y = h - buffer; this.vy = -this.vy * 0.4; }
+
+          if (this.cooldown > 0) this.cooldown--;
+          if (this.shieldHitCooldown > 0) this.shieldHitCooldown--;
+          if (this.weaponTime > 0) {
+            this.weaponTime--;
+            if (this.weaponTime === 0) this.activeWeapon = 'normal';
+          }
+          if (this.speedTime > 0) {
+            this.speedTime--;
+            if (this.speedTime === 0) this.speedMultiplier = 1.0;
+          }
+          if (this.shieldHitCooldown === 0 && this.shield < this.maxShield) {
+            this.shield = Math.min(this.maxShield, this.shield + this.shieldRegen);
+          }
+        }
+      }
+
+      const audio = new AudioSynth();
+      let mode = 'solo';
+      let p1Type = 'interceptor';
+      let p2Type = 'interceptor';
+      let aiDifficulty = 'normal';
+      let arenaTheme = 'cybergrid';
+      let state = 'menu';
+      let p1, p2;
+      let bullets = [];
+      let particles = [];
+      let powerUps = [];
+      let scoreP1 = 0, scoreP2 = 0;
+      let timeRemaining = 120;
+      let timerInterval = null;
+      let keys = {};
+      let shakeAmount = 0, shakeTime = 0;
+      let gridNodes = [];
+      const gridCols = 24, gridRows = 16;
+
+      const canvas = document.getElementById('arena-canvas');
+      const ctx = canvas.getContext('2d');
+
+      window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+      window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+      function selectMode(m) {
+        mode = m;
+        document.getElementById('main-menu').classList.add('hidden');
+        document.getElementById('config-screen').classList.remove('hidden');
+        document.getElementById('ai-level-container').style.display = m === 'solo' ? 'block' : 'none';
+        document.getElementById('p2-config-label').innerText = m === 'solo' ? 'CYBER-AI (PINK)' : 'PLAYER 2 (PINK)';
+      }
+
+      function showMainMenu() {
+        audio.stopBGM();
+        clearInterval(timerInterval);
+        document.getElementById('config-screen').classList.add('hidden');
+        document.getElementById('gameover-modal').classList.add('hidden');
+        document.getElementById('game-container').classList.add('hidden');
+        document.getElementById('main-menu').classList.remove('hidden');
+        loadLeaderboard();
+      }
+
+      function setShipDesign(player, type) {
+        if (player === 1) {
+          p1Type = type;
+          document.getElementById('p1-ship-interceptor').className = type === 'interceptor' ? 'px-4 py-2 bg-cyan-950/40 border-2 border-cyan-500 rounded-md text-xs orbitron font-bold text-cyan-400' : 'px-4 py-2 bg-slate-900/40 border border-slate-700 rounded-md text-xs orbitron font-bold text-slate-400';
+          document.getElementById('p1-ship-goliath').className = type === 'goliath' ? 'px-4 py-2 bg-cyan-950/40 border-2 border-cyan-500 rounded-md text-xs orbitron font-bold text-cyan-400' : 'px-4 py-2 bg-slate-900/40 border border-slate-700 rounded-md text-xs orbitron font-bold text-slate-400';
+        } else {
+          p2Type = type;
+          document.getElementById('p2-ship-interceptor').className = type === 'interceptor' ? 'px-4 py-2 bg-pink-950/40 border-2 border-pink-500 rounded-md text-xs orbitron font-bold text-pink-400' : 'px-4 py-2 bg-slate-900/40 border border-slate-700 rounded-md text-xs orbitron font-bold text-slate-400';
+          document.getElementById('p2-ship-goliath').className = type === 'goliath' ? 'px-4 py-2 bg-pink-950/40 border-2 border-pink-500 rounded-md text-xs orbitron font-bold text-pink-400' : 'px-4 py-2 bg-slate-900/40 border border-slate-700 rounded-md text-xs orbitron font-bold text-slate-400';
+        }
+      }
+
+      function setAIDifficulty(diff) {
+        aiDifficulty = diff;
+        ['easy', 'normal', 'hard'].forEach(d => {
+          document.getElementById('ai-' + d).className = d === diff ? 'py-1.5 px-3 bg-pink-950/40 border border-pink-500 text-xs rounded text-pink-400 font-semibold' : 'py-1.5 px-3 bg-slate-900 border border-slate-700 text-xs rounded text-slate-400 font-semibold';
+        });
+      }
+
+      function setArenaTheme(theme) {
+        arenaTheme = theme;
+        ['cybergrid', 'hyperdrive', 'abyss'].forEach(t => {
+          document.getElementById('theme-' + t).className = t === theme ? 'py-2 px-3 rounded bg-cyan-950/30 border border-cyan-500 text-xs text-cyan-400 font-semibold' : 'py-2 px-3 rounded bg-slate-900 border border-slate-700 text-xs text-slate-400 font-semibold';
+        });
+      }
+
+      function initGrid(w, h) {
+        gridNodes = [];
+        const stepX = w / (gridCols - 1);
+        const stepY = h / (gridRows - 1);
+        for (let r = 0; r < gridRows; r++) {
+          const row = [];
+          for (let c = 0; c < gridCols; c++) {
+            const x = c * stepX;
+            const y = r * stepY;
+            row.push({ x, y, ox: x, oy: y, vx: 0, vy: 0 });
+          }
+          gridNodes.push(row);
+        }
+      }
+
+      function warpGrid(cx, cy, force, radius) {
+        for (let r = 0; r < gridRows; r++) {
+          for (let c = 0; c < gridCols; c++) {
+            const n = gridNodes[r][c];
+            const dx = n.x - cx;
+            const dy = n.y - cy;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < radius * radius) {
+              const dist = Math.sqrt(distSq);
+              const factor = (1 - dist / radius) * force;
+              const angle = Math.atan2(dy, dx);
+              n.vx += Math.cos(angle) * factor;
+              n.vy += Math.sin(angle) * factor;
+            }
+          }
+        }
+      }
+
+      function triggerScreenShake(s) {
+        shakeAmount = s;
+        shakeTime = 12;
+      }
+
+      function spawnParticles(x, y, color, count, type = 'spark') {
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * (type === 'thrust' ? 2 : 5) + 1;
+          const maxLife = Math.random() * 20 + 10;
+          particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            color, size: Math.random() * 3 + 1, alpha: 1.0, life: maxLife, maxLife, type
+          });
+        }
+      }
+
+      function fireBullet(ship) {
+        if (ship.cooldown > 0) return;
+        audio.playLaser(ship.activeWeapon);
+        const yaw = ship.angle;
+        const dx = Math.cos(yaw);
+        const dy = Math.sin(yaw);
+        const mx = ship.x + dx * 18, my = ship.y + dy * 18;
+        warpGrid(mx, my, -3, 30);
+
+        if (ship.activeWeapon === 'triple') {
+          [-0.15, 0, 0.15].forEach(ang => {
+            bullets.push({
+              x: mx, y: my,
+              vx: Math.cos(yaw + ang) * 10,
+              vy: Math.sin(yaw + ang) * 10,
+              angle: yaw + ang, color: ship.color, owner: ship.id, type: 'normal', damage: 1, size: 3, life: 0, maxLife: 60
+            });
+          });
+          ship.cooldown = ship.maxCooldown;
+        } else if (ship.activeWeapon === 'railgun') {
+          bullets.push({
+            x: mx, y: my, vx: dx * 22, vy: dy * 22, angle: yaw, color: '#a855f7', owner: ship.id, type: 'railgun', damage: 2, size: 5, life: 0, maxLife: 40
+          });
+          ship.cooldown = ship.maxCooldown * 1.5;
+          triggerScreenShake(8);
+        } else if (ship.activeWeapon === 'missile') {
+          bullets.push({
+            x: mx, y: my, vx: dx * 5, vy: dy * 5, angle: yaw, color: '#ef4444', owner: ship.id, type: 'missile', damage: 2, size: 5, life: 0, maxLife: 150, target: ship.id === 1 ? p2 : p1
+          });
+          ship.cooldown = ship.maxCooldown * 1.2;
+        } else {
+          bullets.push({
+            x: mx, y: my, vx: dx * 12, vy: dy * 12, angle: yaw, color: ship.color, owner: ship.id, type: 'normal', damage: 1, size: 3, life: 0, maxLife: 60
+          });
+          ship.cooldown = ship.maxCooldown;
+        }
+      }
+
+      function updateGrid() {
+        for (let r = 0; r < gridRows; r++) {
+          for (let c = 0; c < gridCols; c++) {
+            const n = gridNodes[r][c];
+            const dx = n.ox - n.x, dy = n.oy - n.y;
+            n.vx += dx * 0.04;
+            n.vy += dy * 0.04;
+            n.x += n.vx;
+            n.y += n.vy;
+            n.vx *= 0.92;
+            n.vy *= 0.92;
+          }
+        }
+      }
+
+      function spawnPowerUp() {
+        const types = ['shield', 'triple', 'railgun', 'missile', 'speed'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        const colors = { shield: '#22c55e', triple: '#eab308', railgun: '#a855f7', missile: '#ef4444', speed: '#3b82f6' };
+        powerUps.push({
+          x: Math.random() * (canvas.width - 80) + 40,
+          y: Math.random() * (canvas.height - 80) + 40,
+          type, color: colors[type], size: 10, pulse: 0, life: 600
+        });
+        showStatus('POWER-UP: ' + type.toUpperCase());
+      }
+
+      function showStatus(txt) {
+        const el = document.getElementById('central-status');
+        el.innerText = txt;
+        setTimeout(() => { if (el.innerText === txt) el.innerText = ''; }, 3000);
+      }
+
+      function launchGame() {
+        document.getElementById('config-screen').classList.add('hidden');
+        document.getElementById('gameover-modal').classList.add('hidden');
+        document.getElementById('game-container').classList.remove('hidden');
+        
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+        initGrid(canvas.width, canvas.height);
+
+        p1 = new Ship(canvas.width * 0.2, canvas.height * 0.5, 0, p1Type, '#06b6d4', 1);
+        p2 = new Ship(canvas.width * 0.8, canvas.height * 0.5, Math.PI, p2Type, '#ec4899', 2);
+        
+        bullets = [];
+        particles = [];
+        powerUps = [];
+        scoreP1 = 0;
+        scoreP2 = 0;
+        timeRemaining = 120;
+
+        document.getElementById('p1-score-val').innerText = '0';
+        document.getElementById('p2-score-val').innerText = '0';
+        document.getElementById('p2-header-title').innerText = mode === 'solo' ? 'PINK CYBER-AI' : 'PINK PILOT';
+
+        renderHps();
+        audio.startBGM();
+
+        const overlay = document.getElementById('countdown-overlay');
+        const text = document.getElementById('countdown-text');
+        overlay.classList.remove('hidden');
+        let cd = 3;
+        text.innerText = cd;
+        const cdInterval = setInterval(() => {
+          cd--;
+          if (cd <= 0) {
+            clearInterval(cdInterval);
+            overlay.classList.add('hidden');
+            startGameTimer();
+            state = 'playing';
+          } else {
+            text.innerText = cd;
+          }
+        }, 800);
+      }
+
+      function startGameTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+          timeRemaining--;
+          const m = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
+          const s = (timeRemaining % 60).toString().padStart(2, '0');
+          document.getElementById('game-timer').innerText = `${m}:${s}`;
+          if (timeRemaining <= 0) {
+            endMatch();
+          }
+          if (timeRemaining % 8 === 0 && Math.random() < 0.7) {
+            spawnPowerUp();
+          }
+        }, 1000);
+      }
+
+      function endMatch() {
+        audio.stopBGM();
+        clearInterval(timerInterval);
+        state = 'ended';
+
+        let win = 'DRAW';
+        if (scoreP1 > scoreP2) win = 'PLAYER 1';
+        else if (scoreP2 > scoreP1) win = mode === 'solo' ? 'CYBER-AI' : 'PLAYER 2';
+
+        document.getElementById('victory-title').innerText = win === 'DRAW' ? 'SYSTEM EQUALIZED' : win + ' WINS';
+        document.getElementById('final-p1-score').innerText = scoreP1;
+        document.getElementById('final-p2-score').innerText = scoreP2;
+        document.getElementById('final-p2-label').innerText = mode === 'solo' ? 'AI SCORE' : 'P2 SCORE';
+        document.getElementById('gameover-modal').classList.remove('hidden');
+
+        const saved = JSON.parse(localStorage.getItem('neon_duel_leaderboard') || '[]');
+        saved.unshift({ winner: win, p1Score: scoreP1, p2Score: scoreP2, date: new Date().toLocaleDateString() });
+        localStorage.setItem('neon_duel_leaderboard', JSON.stringify(saved.slice(0, 8)));
+      }
+
+      function renderHps() {
+        const renderContainer = (id, hp, max) => {
+          const el = document.getElementById(id);
+          el.innerHTML = '';
+          for (let i = 0; i < max; i++) {
+            const h = document.createElement('div');
+            h.className = `w-6 h-2 rounded transition-all duration-300 ${i < hp ? 'bg-cyan-400 shadow-[0_0_5px_rgba(6,182,212,1)]' : 'bg-slate-800'}`;
+            if (id.includes('p2')) {
+              h.className = `w-6 h-2 rounded transition-all duration-300 ${i < hp ? 'bg-pink-400 shadow-[0_0_5px_rgba(236,72,153,1)]' : 'bg-slate-800'}`;
+            }
+            el.appendChild(h);
+          }
+        };
+        renderContainer('p1-hp-container', p1.health, p1.maxHealth);
+        renderContainer('p2-hp-container', p2.health, p2.maxHealth);
+      }
+
+      function processAI() {
+        let reaction = aiDifficulty === 'easy' ? 0.02 : (aiDifficulty === 'hard' ? 0.09 : 0.04);
+        let targetX = p1.x, targetY = p1.y;
+
+        if (p2.shield < 40 && powerUps.length > 0) {
+          targetX = powerUps[0].x;
+          targetY = powerUps[0].y;
+        }
+
+        const angle = Math.atan2(targetY - p2.y, targetX - p2.x);
+        let diff = angle - p2.angle;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        p2.angle += diff * reaction;
+
+        const maxV = p2.type === 'interceptor' ? 4.5 : 2.5;
+        if (Math.hypot(targetX - p2.x, targetY - p2.y) > 60) {
+          const dx = Math.cos(p2.angle);
+          const dy = Math.sin(p2.angle);
+          p2.vx += dx * 0.1;
+          p2.vy += dy * 0.1;
+        }
+
+        const v = Math.hypot(p2.vx, p2.vy);
+        if (v > maxV) { p2.vx = p2.vx / v * maxV; p2.vy = p2.vy / v * maxV; }
+
+        if (p2.cooldown === 0 && Math.abs(diff) < 0.25) {
+          fireBullet(p2);
+        }
+      }
+
+      function handleHit(ship, bullet) {
+        audio.playShieldHit();
+        spawnParticles(bullet.x, bullet.y, ship.color, 8);
+        warpGrid(bullet.x, bullet.y, -4, 40);
+        triggerScreenShake(3);
+
+        if (ship.shield > 0) {
+          ship.shield = Math.max(0, ship.shield - bullet.damage * 25);
+          ship.shieldHitCooldown = 60;
+        } else {
+          ship.health--;
+          audio.playExplosion();
+          renderHps();
+          if (ship.health <= 0) {
+            triggerScreenShake(15);
+            spawnParticles(ship.x, ship.y, ship.color, 40, 'ring');
+            if (ship.id === 1) scoreP2++; else scoreP1++;
+            document.getElementById('p1-score-val').innerText = scoreP1;
+            document.getElementById('p2-score-val').innerText = scoreP2;
+            
+            ship.health = ship.maxHealth;
+            ship.shield = ship.maxShield;
+            ship.x = ship.id === 1 ? canvas.width * 0.2 : canvas.width * 0.8;
+            ship.y = canvas.height * 0.5;
+            ship.vx = 0; ship.vy = 0;
+            renderHps();
+          }
+        }
+      }
+
+      function update() {
+        if (state !== 'playing') return;
+
+        // Player 1 input
+        const p1Rot = p1.type === 'interceptor' ? 0.07 : 0.04;
+        const p1Acc = p1.type === 'interceptor' ? 0.16 : 0.09;
+        const p1Max = p1.type === 'interceptor' ? 5 : 3;
+
+        // Steer (Yaw / Rotate)
+        if (keys['a'] || (mode === 'solo' && keys['arrowleft'])) {
+          p1.angle -= p1Rot;
+        } else if (keys['d'] || (mode === 'solo' && keys['arrowright'])) {
+          p1.angle += p1Rot;
+        }
+
+        // Thrust W/S
+        const isAccelerating = keys['w'] || (mode === 'solo' && keys['arrowup']);
+        const isBraking = keys['s'] || (mode === 'solo' && keys['arrowdown']);
+
+        if (isAccelerating) {
+          const dx = Math.cos(p1.angle);
+          const dy = Math.sin(p1.angle);
+          p1.vx += dx * p1Acc;
+          p1.vy += dy * p1Acc;
+          spawnParticles(p1.x - dx*12, p1.y - dy*12, p1.color, 1, 'thrust');
+        } else if (isBraking) {
+          p1.vx *= 0.90;
+          p1.vy *= 0.90;
+        }
+
+        p1.vx *= 0.985; p1.vy *= 0.985;
+        let v1 = Math.hypot(p1.vx, p1.vy);
+        if (v1 > p1Max) { p1.vx = p1.vx / v1 * p1Max; p1.vy = p1.vy / v1 * p1Max; }
+        
+        if (keys['enter'] || keys['v'] || keys['f'] || keys[' ']) fireBullet(p1);
+
+        // Player 2
+        if (mode === 'solo') {
+          processAI();
+        } else {
+          const p2Rot = p2.type === 'interceptor' ? 0.07 : 0.04;
+          const p2Acc = p2.type === 'interceptor' ? 0.16 : 0.09;
+          const p2Max = p2.type === 'interceptor' ? 5 : 3;
+
+          if (keys['arrowleft']) {
+            p2.angle -= p2Rot;
+          } else if (keys['arrowright']) {
+            p2.angle += p2Rot;
+          }
+
+          if (keys['arrowup']) {
+            const dx = Math.cos(p2.angle);
+            const dy = Math.sin(p2.angle);
+            p2.vx += dx * p2Acc;
+            p2.vy += dy * p2Acc;
+            spawnParticles(p2.x - dx*12, p2.y - dy*12, p2.color, 1, 'thrust');
+          } else if (keys['arrowdown']) {
+            p2.vx *= 0.90; p2.vy *= 0.90;
+          }
+          p2.vx *= 0.985; p2.vy *= 0.985;
+          let v2 = Math.hypot(p2.vx, p2.vy);
+          if (v2 > p2Max) { p2.vx = p2.vx / v2 * p2Max; p2.vy = p2.vy / v2 * p2Max; }
+          if (keys['enter'] || keys['m']) fireBullet(p2);
+        }
+
+        p1.x += p1.vx; p1.y += p1.vy; p1.update(canvas.width, canvas.height);
+        p2.x += p2.vx; p2.y += p2.vy; p2.update(canvas.width, canvas.height);
+
+        // Bullets
+        for (let i = bullets.length - 1; i >= 0; i--) {
+          const b = bullets[i];
+          b.life++;
+          b.x += b.vx; b.y += b.vy;
+          if (b.life > b.maxLife || b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
+            bullets.splice(i, 1);
+            continue;
+          }
+          const target = b.owner === 1 ? p2 : p1;
+          if (Math.hypot(b.x - target.x, b.y - target.y) < target.width/2 + b.size) {
+            handleHit(target, b);
+            bullets.splice(i, 1);
+          }
+        }
+
+        // Particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.life--; p.x += p.vx; p.y += p.vy; p.alpha = p.life/p.maxLife;
+          if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        // Power-ups
+        for (let i = powerUps.length - 1; i >= 0; i--) {
+          const pu = powerUps[i];
+          pu.life--; pu.pulse += 0.05;
+          if (pu.life <= 0) { powerUps.splice(i, 1); continue; }
+          
+          [p1, p2].forEach(p => {
+            if (Math.hypot(pu.x - p.x, pu.y - p.y) < p.width/2 + pu.size) {
+              audio.playPowerup();
+              if (pu.type === 'shield') p.shield = p.maxShield;
+              else if (pu.type === 'speed') { p.speedMultiplier = 1.4; p.speedTime = 300; }
+              else { p.activeWeapon = pu.type; p.weaponTime = 360; }
+              showStatus((p.id === 1 ? 'P1' : 'P2') + ' GET ' + pu.type.toUpperCase());
+              powerUps.splice(i, 1);
+            }
+          });
+        }
+
+        updateGrid();
+
+        if (shakeTime > 0) {
+          shakeTime--;
+          if (shakeTime === 0) shakeAmount = 0;
+        }
+      }
+
+      function draw() {
+        ctx.save();
+        if (shakeAmount > 0) {
+          ctx.translate((Math.random() - 0.5) * shakeAmount, (Math.random() - 0.5) * shakeAmount);
+        }
+
+        ctx.fillStyle = arenaTheme === 'abyss' ? '#020005' : (arenaTheme === 'hyperdrive' ? '#000508' : '#040408');
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Warp grid floor lines
+        ctx.strokeStyle = arenaTheme === 'abyss' ? 'rgba(236,72,153,0.12)' : 'rgba(6,182,212,0.12)';
+        ctx.lineWidth = 1;
+        for (let r = 0; r < gridRows; r++) {
+          ctx.beginPath();
+          for (let c = 0; c < gridCols; c++) {
+            const n = gridNodes[r][c];
+            if (c === 0) ctx.moveTo(n.x, n.y);
+            else ctx.lineTo(n.x, n.y);
+          }
+          ctx.stroke();
+        }
+        for (let c = 0; c < gridCols; c++) {
+          ctx.beginPath();
+          for (let r = 0; r < gridRows; r++) {
+            const n = gridNodes[r][c];
+            if (r === 0) ctx.moveTo(n.x, n.y);
+            else ctx.lineTo(n.x, n.y);
+          }
+          ctx.stroke();
+        }
+
+        // Bullets
+        bullets.forEach(b => {
+          ctx.save();
+          ctx.shadowBlur = 10; ctx.shadowColor = b.color;
+          ctx.strokeStyle = b.color; ctx.lineWidth = b.size;
+          ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.8, b.y - b.vy * 0.8);
+          ctx.stroke(); ctx.restore();
+        });
+
+        // Power-ups
+        powerUps.forEach(pu => {
+          ctx.save();
+          ctx.shadowBlur = 15; ctx.shadowColor = pu.color;
+          ctx.fillStyle = pu.color; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(pu.x, pu.y, pu.size + Math.sin(pu.pulse) * 3, 0, Math.PI * 2);
+          ctx.fill(); ctx.stroke(); ctx.restore();
+        });
+
+        // Particles
+        particles.forEach(p => {
+          ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        });
+
+        // Ships
+        [p1, p2].forEach(ship => {
+          ctx.save();
+          ctx.translate(ship.x, ship.y);
+          ctx.rotate(ship.angle);
+          ctx.shadowBlur = 15; ctx.shadowColor = ship.color;
+          ctx.strokeStyle = ship.color; ctx.lineWidth = 2.5;
+
+          ctx.beginPath();
+          if (ship.type === 'interceptor') {
+            ctx.moveTo(15, 0); ctx.lineTo(-12, -10); ctx.lineTo(-6, 0); ctx.lineTo(-12, 10);
+          } else {
+            ctx.moveTo(18, 0); ctx.lineTo(8, -12); ctx.lineTo(-14, -12); ctx.lineTo(-8, 0); ctx.lineTo(-14, 12); ctx.lineTo(8, 12);
+          }
+          ctx.closePath(); ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath(); ctx.arc(-8, 0, 3, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+
+          if (ship.shield > 0) {
+            ctx.save();
+            ctx.translate(ship.x, ship.y);
+            ctx.shadowBlur = 20; ctx.shadowColor = ship.color;
+            ctx.strokeStyle = ship.color; ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 0.2 + (ship.shield/ship.maxShield)*0.3;
+            ctx.beginPath(); ctx.arc(0, 0, ship.width * 0.9, 0, Math.PI*2); ctx.stroke();
+            ctx.restore();
+          }
+        });
+
+        ctx.restore();
+      }
+
+      function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+      }
+
+      requestAnimationFrame(gameLoop);
+
+      document.getElementById('toggle-music').addEventListener('click', () => {
+        const next = !audio.isBgmPlaying;
+        if (next) {
+          audio.startBGM();
+          document.getElementById('toggle-music').className = 'p-2 hover:bg-white/10 rounded-md transition duration-200 text-cyan-400';
+        } else {
+          audio.stopBGM();
+          audio.isBgmPlaying = false;
+          document.getElementById('toggle-music').className = 'p-2 hover:bg-white/10 rounded-md transition duration-200 text-slate-500';
+        }
+      });
+
+      document.getElementById('toggle-sound').addEventListener('click', () => {
+        const next = !audio.muted;
+        audio.setMute(next);
+        document.getElementById('toggle-sound').className = next ? 'p-2 hover:bg-white/10 rounded-md transition duration-200 text-slate-500' : 'p-2 hover:bg-white/10 rounded-md transition duration-200 text-cyan-400';
+      });
+
+      function loadLeaderboard() {
+        const saved = JSON.parse(localStorage.getItem('neon_duel_leaderboard') || '[]');
+        const list = document.getElementById('local-leaderboard');
+        list.innerHTML = '';
+        if (saved.length === 0) {
+          list.innerHTML = '<p class="text-xs text-slate-500 italic">No matches simulated yet.</p>';
+        } else {
+          saved.forEach(e => {
+            const row = document.createElement('div');
+            row.className = 'flex justify-between border-b border-white/5 py-1 text-xs';
+            row.innerHTML = `<span>${e.winner} WIN</span><span class="text-slate-400">(${e.p1Score} - ${e.p2Score}) ${e.date}</span>`;
+            list.appendChild(row);
+          });
+        }
+      }
+
+      loadLeaderboard();
+    </script>
+</body>
+</html>

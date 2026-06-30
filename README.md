@@ -99,13 +99,15 @@ The default account is available for initial setup and evaluation purposes.
 | **💻 Terminal** | Interactive Command CLI Shell | Blinking cursor `█`, hidden input focus bindings, command history memory logs (ArrowUp/Down), virtual shell command execution (`ls`, `cd`, `cat`, `mkdir`, `rm`, `neofetch`, `theme`, `clear`). |
 | **📒 Text Editor** | Custom Notepad application | Document explorer sidebar mapping `/home/user/Documents` (Physics, Maths, Ideas), menus (File, Edit, Format for wrapping & font scaling), cursor coordinates line/column metrics status bar. |
 | **📁 File Explorer** | Graphical directory tree explorer | VFS folder/file creation and deletion, list navigation. |
-| **⚙️ Settings** | Controls center configuration | Custom tab panels (Appearance themes, Wallpaper gradients, profile editor, storage disk space summary, about stats card). |
+| **⚙️ Settings** | Controls center configuration | Custom tab panels (Appearance themes with **CRT Scanline Aesthetics Toggle**, Wallpaper gradients, profile editor, storage disk space summary, about stats card). |
 | **🔔 Notifications** | Control center drawer | Pomodoro focus session timer, daily target checklist, brightness sliders, and checkmarked OS system alerts list. |
 | **⏰ System Clock** | Live timezone clocks & stopwatch | Multi-world time zone trackers, stopwatch with laps logger. |
 | **📅 Calendar** | Monthly scheduler | Highlights and lists scheduling slots (including Ankit's birthday!). |
 | **✅ Todo App** | Checklist task manager | Add, toggle, and delete custom chore lists. |
 | **🧮 Calculator** | Mathematical scratchpad | Responsive arithmetic layout pad supporting basic operations. |
 | **🌐 Web Browser** | iframe website bookmark navigator | Load address URL requests with search query fail-safes. |
+| **🎵 Synth Player** | Cyberpunk Music Player | Custom YouTube URL streams loader, local storage playlist synchronizer, **time-synced reactive greek lyrics visualizer**, holographic decryptor/downloader interface, and real converter integration. |
+| **🎨 Neon Paint** | Retro Pixel Editor | `16x16`, `32x32`, and `64x64` grid sizes, neon palette swatches, DFS/BFS flood fill bucket, pencil/eraser, and high-definition PNG image exporter. |
 
 ---
 

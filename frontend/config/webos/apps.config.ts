@@ -124,6 +124,39 @@ export const REGISTERED_APPS: AppConfig[] = [
     defaultHeight: 600,
     isSingleInstance: true,
   },
+  {
+    id: "neon-duel",
+    title: "Neon Duel",
+    icon: "☄️",
+    component: dynamic(() => import("@/components/webos/apps/NeonDuel"), {
+      ssr: false,
+    }),
+    defaultWidth: 900,
+    defaultHeight: 650,
+    isSingleInstance: true,
+  },
+  {
+    id: "music-player",
+    title: "Synth Player",
+    icon: "🎵",
+    component: dynamic(() => import("@/components/webos/apps/MusicPlayer"), {
+      ssr: false,
+    }),
+    defaultWidth: 700,
+    defaultHeight: 480,
+    isSingleInstance: true,
+  },
+  {
+    id: "pixel-paint",
+    title: "Neon Paint",
+    icon: "🎨",
+    component: dynamic(() => import("@/components/webos/apps/PixelPaint"), {
+      ssr: false,
+    }),
+    defaultWidth: 720,
+    defaultHeight: 520,
+    isSingleInstance: false,
+  },
 ];
 
 export const getAppConfig = (id: string): AppConfig | undefined => {

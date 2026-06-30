@@ -11,6 +11,10 @@ import { s } from "framer-motion/client";
 class AudioSynth {
   private ctx: AudioContext | null = null;
   private muted = false;
+  private bgmInterval: any = null;
+  public isBgmPlaying = false;
+  private engineOsc: OscillatorNode | null = null;
+  private engineGain: GainNode | null = null;
 
   private initCtx() {
     if (!this.ctx) {
@@ -23,6 +27,71 @@ class AudioSynth {
 
   public setMute(mute: boolean) {
     this.muted = mute;
+    if (mute) {
+      this.stopBGM();
+      this.stopEngine();
+    } else if (this.isBgmPlaying) {
+      this.startBGM();
+    }
+  }
+
+  public startBGM(hasCustomBgm?: boolean) {
+    this.isBgmPlaying = true;
+    if (this.muted || hasCustomBgm) return;
+    this.initCtx();
+    this.stopBGM();
+
+    const bpm = 125;
+    const stepTime = 60 / bpm / 2; // eighth notes
+    let step = 0;
+    const bassline = [82.41, 82.41, 98.00, 82.41, 110.00, 110.00, 123.47, 98.00];
+
+    this.bgmInterval = setInterval(() => {
+      if (this.muted || !this.ctx) return;
+      const ctx = this.ctx;
+      const now = ctx.currentTime;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(bassline[step % bassline.length], now);
+
+      gain.gain.setValueAtTime(0.04, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + stepTime * 0.95);
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(250, now);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + stepTime);
+
+      if (step % 2 === 1) {
+        const hh = ctx.createOscillator();
+        const hhGain = ctx.createGain();
+        hh.type = "triangle";
+        hh.frequency.setValueAtTime(8000, now);
+        hhGain.gain.setValueAtTime(0.01, now);
+        hhGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+        hh.connect(hhGain);
+        hhGain.connect(ctx.destination);
+        hh.start(now);
+        hh.stop(now + 0.05);
+      }
+
+      step++;
+    }, stepTime * 1000);
+  }
+
+  public stopBGM() {
+    if (this.bgmInterval) {
+      clearInterval(this.bgmInterval);
+      this.bgmInterval = null;
+    }
   }
 
   public playCoin() {
@@ -115,6 +184,79 @@ class AudioSynth {
     osc.start(now);
     osc.stop(now + 0.08);
   }
+
+  public startEngine() {
+    if (this.muted || this.engineOsc) return;
+    this.initCtx();
+    const ctx = this.ctx!;
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(55, now); // Low engine rumble
+
+    gain.gain.setValueAtTime(0.015, now);
+
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.setValueAtTime(150, now);
+
+    osc.connect(lp);
+    lp.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+
+    this.engineOsc = osc;
+    this.engineGain = gain;
+  }
+
+  public stopEngine() {
+    if (this.engineOsc) {
+      try {
+        this.engineOsc.stop();
+        this.engineOsc.disconnect();
+      } catch (e) {}
+      this.engineOsc = null;
+    }
+    if (this.engineGain) {
+      this.engineGain.disconnect();
+      this.engineGain = null;
+    }
+  }
+
+  public updateEnginePitch(speedRatio: number) {
+    if (this.muted || !this.engineOsc) return;
+    const now = this.ctx!.currentTime;
+    // Engine pitch goes from 55Hz (idle) to 165Hz (full speed)
+    let targetFreq = 55 + (isNaN(speedRatio) || !isFinite(speedRatio) ? 0 : Math.max(0, Math.min(1.0, speedRatio))) * 110;
+    this.engineOsc.frequency.setTargetAtTime(targetFreq, now, 0.1);
+  }
+
+  public playSwerve() {
+    if (this.muted) return;
+    this.initCtx();
+    const ctx = this.ctx!;
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(440, now + 0.12);
+
+    gain.gain.setValueAtTime(0.02, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.16);
+  }
 }
 
 interface FloatingText {
@@ -129,6 +271,23 @@ interface FloatingText {
 interface EquationRacersProps {
   pid: string;
 }
+
+interface CarSkin {
+  id: string;
+  name: string;
+  bodyColor: string;
+  trimColor: string;
+  cost: number;
+  description: string;
+}
+
+const CAR_SKINS: CarSkin[] = [
+  { id: "default", name: "Default Cobalt", bodyColor: "#4f46e5", trimColor: "#60a5fa", cost: 0, description: "Classic Indigo & Blue theme" },
+  { id: "cyber", name: "Cyber Orange", bodyColor: "#f97316", trimColor: "#eab308", cost: 80, description: "Futuristic neon orange & yellow" },
+  { id: "space", name: "Nebula Purple", bodyColor: "#a855f7", trimColor: "#ec4899", cost: 150, description: "Deep nebula purple & hot pink" },
+  { id: "formula", name: "Formula Red", bodyColor: "#ef4444", trimColor: "#ffffff", cost: 250, description: "High-octane red & white speed theme" },
+  { id: "retro", name: "Retro Green", bodyColor: "#eab308", trimColor: "#16a34a", cost: 350, description: "Classic vintage yellow & green livery" }
+];
 
 export default function EquationRacers({ pid }: EquationRacersProps) {
   // Main Canvas reference
@@ -161,6 +320,9 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
   const [categories, setCategories] = useState<string[]>(["addition", "subtraction", "multiplication"]);
   const [isMuted, setIsMuted] = useState(false);
   const [equippedSkin, setEquippedSkin] = useState("default");
+  const [showGarage, setShowGarage] = useState(false);
+  const [ytBgmUrl, setYtBgmUrl] = useState("");
+  const [ytVideoId, setYtVideoId] = useState("");
   
   // Accessibility preferences
   const [largeTextMode, setLargeTextMode] = useState(false);
@@ -215,6 +377,8 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
     setReduceMotion(data.settings.reduceMotion);
     setLearningMode(data.settings.learningMode ?? true);
     synth.setMute(data.settings.mute);
+    // Don't autoplay if custom video id is active
+    synth.startBGM(!!ytVideoId);
 
     // Setup GM callbacks
     gm.onCoinCollected = (worldX, worldY) => {
@@ -349,6 +513,8 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
       }
+      synth.stopBGM();
+      synth.stopEngine();
     };
   }, []);
 
@@ -359,6 +525,23 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       setIsMuted(nextMute);
       synthRef.current.setMute(nextMute);
       gameManagerRef.current.saveManager.setMute(nextMute);
+    }
+  };
+
+  const extractYoutubeId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : "";
+  };
+
+  const handleYtBgmChange = (url: string) => {
+    setYtBgmUrl(url);
+    const id = extractYoutubeId(url);
+    setYtVideoId(id);
+    if (id && synthRef.current) {
+      synthRef.current.stopBGM();
+    } else if (!id && synthRef.current && !isMuted) {
+      synthRef.current.startBGM();
     }
   };
 
@@ -464,9 +647,11 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
 
       if (key === "a" || e.key === "ArrowLeft") {
         gameManagerRef.current.handleLeft();
+        if (synthRef.current) synthRef.current.playSwerve();
       }
       if (key === "d" || e.key === "ArrowRight") {
         gameManagerRef.current.handleRight();
+        if (synthRef.current) synthRef.current.playSwerve();
       }
       if (key === "c") {
         const cameraManager = cameraManagerRef.current;
@@ -552,6 +737,9 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
     }
 
     if (gm.gameMode === "Running") {
+      synthRef.current?.startEngine();
+      synthRef.current?.updateEnginePitch(gm.speed / gm.maxSpeed);
+
       // Pass track queries into GameManager
       gm.update(
         dt,
@@ -674,6 +862,8 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
         if (Math.abs(diff) < 1) return gm.coinsCollected;
         return Math.round(prev + diff * Math.min(1.0, 10 * dt));
       });
+    } else {
+      synthRef.current?.stopEngine();
     }
 
     // Update floaters
@@ -780,22 +970,45 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
     const W = canvas.width;
     const H = canvas.height;
 
-    // Clear with sky color
-    const getZoneSkyColors = (zone: "highway" | "city" | "mountain" | "bridge" | "tunnel") => {
-      if (zone === "city") return "#0b0b14";
-      if (zone === "mountain") return "#0c1524";
-      if (zone === "bridge") return "#082f49";
-      if (zone === "tunnel") return "#050508";
-      return "#020617";
+    // Color Lerp utility
+    const lerpColor = (c1: string, c2: string, ratio: number) => {
+      const parseHex = (hex: string) => {
+        const num = parseInt(hex.substring(1), 16);
+        return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+      };
+      const color1 = parseHex(c1);
+      const color2 = parseHex(c2);
+      const r = Math.max(0, Math.min(255, Math.round(color1.r + (color2.r - color1.r) * ratio)));
+      const g = Math.max(0, Math.min(255, Math.round(color1.g + (color2.g - color1.g) * ratio)));
+      const b = Math.max(0, Math.min(255, Math.round(color1.b + (color2.b - color1.b) * ratio)));
+      const toHex = (n: number) => n.toString(16).padStart(2, "0");
+      return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
     };
-    const skyColor = getZoneSkyColors(gm.activeZone);
-    wr.clear(skyColor);
 
+    // 1. Layered Sky Gradient
+    const getZoneSkyColors = (zone: "highway" | "city" | "mountain" | "bridge" | "tunnel") => {
+      if (zone === "city") return { top: "#06060c", bottom: "#141424" };
+      if (zone === "mountain") return { top: "#0a0f1d", bottom: "#1a2333" };
+      if (zone === "bridge") return { top: "#041d33", bottom: "#026aa6" };
+      if (zone === "tunnel") return { top: "#030305", bottom: "#08080c" };
+      return { top: "#01030d", bottom: "#0b1021" };
+    };
+
+    const sky = getZoneSkyColors(gm.activeZone);
     const carY = gm.carY;
     const cameraX = cameraManager ? cameraManager.cameraX : gm.laneManager.carX;
     const horizonY = H * 0.40 + (cameraManager ? cameraManager.verticalOffset : 0);
 
-    // Draw ground background quad (from horizonY to bottom)
+    // Draw 4-slice Sky Gradient to give depth/horizon haze
+    const sliceH = horizonY / 4;
+    for (let s = 0; s < 4; s++) {
+      const topY = s * sliceH;
+      const botY = (s + 1) * sliceH;
+      const col = lerpColor(sky.top, sky.bottom, (s + 1) / 4);
+      wr.drawRoadQuad(0, topY, 1200, W, topY, 1200, W, botY, 1200, 0, botY, 1200, col);
+    }
+
+    // 2. Draw ground background quad (from horizonY to bottom)
     const getZoneGroundColor = (zone: "highway" | "city" | "mountain" | "bridge" | "tunnel") => {
       if (zone === "city") return "#1e293b";
       if (zone === "mountain") return "#1c1917";
@@ -804,20 +1017,48 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       return "#14532d";
     };
     const groundColor = getZoneGroundColor(gm.activeZone);
-    wr.drawRoadQuad(0, horizonY, W, horizonY, W, H, 0, H, groundColor);
+    wr.drawRoadQuad(0, horizonY, 1200, W, horizonY, 1200, W, H, 1200, 0, H, 1200, groundColor);
 
-    // Draw parallax background assets (skyscrapers or mountains)
+    // 3. Environment Depth System - Layered Parallax Backgrounds
     if (gm.activeZone === "city") {
-      const cityOffset = (cameraX * 0.04) % 180;
-      for (let bx = -100; bx < W + 100; bx += 80) {
-        const blockH = 50 + Math.sin(bx * 0.05) * 35;
-        wr.drawAtlasSprite("skyscraper", bx - cityOffset, horizonY - blockH * 0.5, blockH / 64, 48, 64, [0.08, 0.08, 0.12, 1.0]);
+      // Layer 3: Distant Skyline Silhouette (Very slow scroll)
+      const skylineOffset = (cameraX * 0.015) % 360;
+      for (let bx = -180; bx < W + 180; bx += 90) {
+        const heightVal = 40 + Math.sin(bx * 0.03) * 20;
+        wr.drawAtlasSprite("skyscraper", bx - skylineOffset, horizonY - heightVal * 0.4, heightVal / 64, 48, 64, [0.06, 0.06, 0.10, 1.0]);
+      }
+      // Layer 2: Mid-distance Buildings (Medium scroll)
+      const midOffset = (cameraX * 0.035) % 240;
+      for (let bx = -120; bx < W + 120; bx += 100) {
+        const heightVal = 65 + Math.cos(bx * 0.05) * 30;
+        wr.drawAtlasSprite("skyscraper", bx - midOffset, horizonY - heightVal * 0.5, heightVal / 64, 48, 64, [0.12, 0.12, 0.20, 1.0]);
       }
     } else if (gm.activeZone === "mountain") {
-      const mountOffset = (cameraX * 0.02) % 240;
-      for (let bx = -120; bx < W + 120; bx += 140) {
-        wr.drawAtlasSprite("mountain_cliff", bx - mountOffset, horizonY - 30, 2.5, 64, 64, [0.05, 0.05, 0.08, 1.0]);
+      // Layer 3: Distant Mountain Chain (Slowest scroll)
+      const mountFar = (cameraX * 0.01) % 400;
+      for (let bx = -200; bx < W + 200; bx += 200) {
+        wr.drawAtlasSprite("mountain_cliff", bx - mountFar, horizonY - 45, 3.5, 64, 64, [0.05, 0.06, 0.12, 0.35]);
       }
+      // Layer 2: Mid-distance Ridge (Medium scroll)
+      const mountMid = (cameraX * 0.022) % 280;
+      for (let bx = -140; bx < W + 140; bx += 160) {
+        wr.drawAtlasSprite("mountain_cliff", bx - mountMid, horizonY - 30, 2.2, 64, 64, [0.08, 0.08, 0.14, 0.70]);
+      }
+    } else if (gm.activeZone === "bridge") {
+      // Advanced water wave layering
+      const time = performance.now() * 0.0018;
+      const waveColor1 = "#0369a1"; // deep blue
+      const waveColor2 = "#0284c7"; // mid blue
+      const waveColor3 = "#0ea5e9"; // cyan surface
+      
+      const wave1Y = horizonY + Math.sin(time) * 4;
+      wr.drawRoadQuad(0, wave1Y, 1200, W, wave1Y, 1200, W, H, 1200, 0, H, 1200, waveColor1);
+      
+      const wave2Y = horizonY + 8 + Math.cos(time + 1) * 3;
+      wr.drawRoadQuad(0, wave2Y, 800, W, wave2Y, 800, W, H, 800, 0, H, 800, waveColor2);
+      
+      const wave3Y = horizonY + 16 + Math.sin(time * 1.5) * 2;
+      wr.drawRoadQuad(0, wave3Y, 400, W, wave3Y, 400, W, H, 400, 0, H, 400, waveColor3);
     }
 
     const visibleSegments = track.getSegmentsInYRange(carY - 1200, carY + 150);
@@ -869,7 +1110,7 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       return { sx, sy, scale, z };
     };
 
-    // Draw Road segments quads
+    // Draw Road segments quads (far to near)
     const numLanes = gm.laneManager.numLanes;
     for (let y = carY - 1200; y <= carY + 150; y += 15) {
       const y1 = y;
@@ -899,7 +1140,7 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       else if (zone === "bridge") roadColor = "#3f3f46";
       else if (zone === "tunnel") roadColor = "#18181b";
 
-      wr.drawRoadQuad(x1_left, p1.sy, x1_right, p1.sy, x2_right, p2.sy, x2_left, p2.sy, roadColor);
+      wr.drawRoadQuad(x1_left, p1.sy, p1.z, x1_right, p1.sy, p1.z, x2_right, p2.sy, p2.z, x2_left, p2.sy, p2.z, roadColor);
 
       // Curb shoulders
       const i = Math.floor(y1 / 20);
@@ -922,12 +1163,60 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
         curbWidth = 10 * p1.scale;
       }
 
-      // Left curb
-      wr.drawRoadQuad(x1_left - curbWidth, p1.sy, x1_left, p1.sy, x2_left, p2.sy, x2_left - curbWidth, p2.sy, curbColor);
-      // Right curb
-      wr.drawRoadQuad(x1_right, p1.sy, x1_right + curbWidth, p1.sy, x2_right + curbWidth, p2.sy, x2_right, p2.sy, curbColor);
+      // Left curb shoulder
+      wr.drawRoadQuad(x1_left - curbWidth, p1.sy, p1.z, x1_left, p1.sy, p1.z, x2_left, p2.sy, p2.z, x2_left - curbWidth, p2.sy, p2.z, curbColor);
+      // Right curb shoulder
+      wr.drawRoadQuad(x1_right, p1.sy, p1.z, x1_right + curbWidth, p1.sy, p1.z, x2_right + curbWidth, p2.sy, p2.z, x2_right, p2.sy, p2.z, curbColor);
 
-      // Dash lines
+      // Roadside Terrain Details (Roadside shoulders, sidewalks, cliff walls, rib tunnels)
+      if (zone === "highway") {
+        // Dirt shoulders flanking the curb
+        const dirtW1 = 26 * p1.scale;
+        const dirtW2 = 26 * p2.scale;
+        wr.drawRoadQuad(x1_left - curbWidth - dirtW1, p1.sy, p1.z, x1_left - curbWidth, p1.sy, p1.z, x2_left - curbWidth, p2.sy, p2.z, x2_left - curbWidth - dirtW2, p2.sy, p2.z, "#4b5320");
+        wr.drawRoadQuad(x1_right + curbWidth, p1.sy, p1.z, x1_right + curbWidth + dirtW1, p1.sy, p1.z, x2_right + curbWidth + dirtW2, p2.sy, p2.z, x2_right + curbWidth, p2.sy, p2.z, "#4b5320");
+      } else if (zone === "city") {
+        // Pedestrian gray concrete sidewalks
+        const walkW1 = 30 * p1.scale;
+        const walkW2 = 30 * p2.scale;
+        wr.drawRoadQuad(x1_left - curbWidth - walkW1, p1.sy, p1.z, x1_left - curbWidth, p1.sy, p1.z, x2_left - curbWidth, p2.sy, p2.z, x2_left - curbWidth - walkW2, p2.sy, p2.z, "#3f3f46");
+        wr.drawRoadQuad(x1_right + curbWidth, p1.sy, p1.z, x1_right + curbWidth + walkW1, p1.sy, p1.z, x2_right + curbWidth + walkW2, p2.sy, p2.z, x2_right + curbWidth, p2.sy, p2.z, "#3f3f46");
+      } else if (zone === "mountain") {
+        // Canyon drop-offs vs vertical rocky cliffs
+        let cliffSide: "left" | "right" = "left";
+        if (seg1 && seg1.scenery) {
+          const firstCliff = seg1.scenery.find(sc => sc.type === "cliff" || sc.type === "rock");
+          if (firstCliff) {
+            cliffSide = firstCliff.side;
+          }
+        }
+        const canyonW1 = 150 * p1.scale;
+        const canyonW2 = 150 * p2.scale;
+        if (cliffSide === "left") {
+          // Left is rocky wall, right is canyon drop
+          wr.drawRoadQuad(x1_right + curbWidth, p1.sy, p1.z, x1_right + curbWidth + canyonW1, H, p1.z, x2_right + curbWidth + canyonW2, H, p2.z, x2_right + curbWidth, p2.sy, p2.z, "#0c0a09");
+        } else {
+          // Right is rocky wall, left is canyon drop
+          wr.drawRoadQuad(x1_left - curbWidth - canyonW1, H, p1.z, x1_left - curbWidth, p1.sy, p1.z, x2_left - curbWidth, p2.sy, p2.z, x2_left - curbWidth - canyonW2, H, p2.z, "#0c0a09");
+        }
+      } else if (zone === "tunnel") {
+        // Thick concrete arch structural ribs rendering periodically to feel enclosed
+        if (i % 5 === 0) {
+          const wallH1 = 125 * p1.scale;
+          const wallH2 = 125 * p2.scale;
+          const ribW1 = 18 * p1.scale;
+          const ribW2 = 18 * p2.scale;
+          
+          // Left rib
+          wr.drawRoadQuad(x1_left - ribW1, p1.sy - wallH1, p1.z, x1_left, p1.sy, p1.z, x2_left, p2.sy, p2.z, x2_left - ribW2, p2.sy - wallH2, p2.z, "#18181b");
+          // Right rib
+          wr.drawRoadQuad(x1_right, p1.sy, p1.z, x1_right + ribW1, p1.sy - wallH1, p1.z, x2_right + ribW2, p2.sy - wallH2, p2.z, x2_right, p2.sy, p2.z, "#18181b");
+          // Ceiling rib
+          wr.drawRoadQuad(x1_left - ribW1, p1.sy - wallH1, p1.z, x1_right + ribW1, p1.sy - wallH1, p1.z, x2_right + ribW2, p2.sy - wallH2, p2.z, x2_left - ribW2, p2.sy - wallH2, p2.z, "#111115");
+        }
+      }
+
+      // Center dashed lane markings
       const laneInterval1 = w1 / numLanes;
       const laneInterval2 = w2 / numLanes;
       if (Math.floor(y1 / 30) % 2 === 0) {
@@ -936,14 +1225,15 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
         for (let l = 1; l < numLanes; l++) {
           const lx1 = p1.sx - (w1 / 2) * p1.scale + l * laneInterval1 * p1.scale;
           const lx2 = p2.sx - (w2 / 2) * p2.scale + l * laneInterval2 * p2.scale;
-          wr.drawRoadQuad(lx1 - dashW / 2, p1.sy, lx1 + dashW / 2, p1.sy, lx2 + dashW / 2, p2.sy, lx2 - dashW / 2, p2.sy, dashColor);
+          wr.drawRoadQuad(lx1 - dashW / 2, p1.sy, p1.z, lx1 + dashW / 2, p1.sy, p1.z, lx2 + dashW / 2, p2.sy, p2.z, lx2 - dashW / 2, p2.sy, p2.z, dashColor);
         }
       }
     }
 
-    wr.flushRoad(gm.activeZone);
+    const fogColor = getZoneSkyColors(gm.activeZone).bottom;
+    wr.flushRoad(gm.activeZone, fogColor, performance.now() * 0.001, gm.speed);
 
-    // 5. Gather all draw tasks depth-sorted
+    // 4. Gather scenery elements depth-sorted
     interface WebGLTask {
       z: number;
       draw: () => void;
@@ -963,7 +1253,10 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
             const laneWidth = w / numLanes;
             const wx = cx + (c.lane - (numLanes - 1) / 2) * laneWidth;
             const p = project(wx, c.y);
-            wr.drawAtlasSprite("coin", p.sx, p.sy, p.scale, 32, 32);
+            // Apply atmospheric color fading tint
+            const fogFactor = Math.max(0, Math.min(1.0, (z - 250) / 950));
+            const tint = [1.0 - fogFactor * 0.5, 1.0 - fogFactor * 0.5, 1.0, 1.0];
+            wr.drawAtlasSprite("coin", p.sx, p.sy, p.scale, 32, 32, tint);
           }
         });
       }
@@ -982,7 +1275,9 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
             const laneWidth = w / numLanes;
             const wx = cx + (o.lane - (numLanes - 1) / 2) * laneWidth;
             const p = project(wx, o.y);
-            wr.drawAtlasSprite("barrier", p.sx, p.sy, p.scale, 48, 48);
+            const fogFactor = Math.max(0, Math.min(1.0, (z - 250) / 950));
+            const tint = [1.0 - fogFactor * 0.4, 1.0 - fogFactor * 0.4, 1.0 - fogFactor * 0.2, 1.0];
+            wr.drawAtlasSprite("barrier", p.sx, p.sy, p.scale, 48, 48, tint);
           }
         });
       }
@@ -1002,13 +1297,15 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
             const vx = cx + (v.lane - (numLanes - 1) / 2) * laneWidth;
             const p = project(vx, v.y);
             const spriteName = v.type === "truck" ? "civilian_truck" : v.type === "motorcycle" ? "civilian_moto" : "civilian_sedan";
-            wr.drawAtlasSprite(spriteName, p.sx, p.sy, p.scale, 64, 64);
+            const fogFactor = Math.max(0, Math.min(1.0, (z - 250) / 950));
+            const tint = [1.0 - fogFactor * 0.4, 1.0 - fogFactor * 0.4, 1.0 - fogFactor * 0.2, 1.0];
+            wr.drawAtlasSprite(spriteName, p.sx, p.sy, p.scale, 64, 64, tint);
           }
         });
       }
     }
 
-    // Roadside Scenery
+    // Roadside Scenery (Trees, Signs, Lamp posts, Cliffs)
     for (const seg of visibleSegments) {
       if (seg.scenery) {
         for (const s of seg.scenery) {
@@ -1024,7 +1321,11 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
                 const p = project(cx + sideOffset, itemY);
                 const sType = s.type as string;
                 const spriteName = sType === "rock" ? "rock" : sType === "sign" ? "sign" : sType === "cliff" ? "mountain_cliff" : sType === "pine" ? "pine" : "tree";
-                wr.drawAtlasSprite(spriteName, p.sx, p.sy, p.scale, 64, 64);
+                
+                // Advanced environment depth shading: far objects get more atmosphere haze (tint toward sky/horizon background)
+                const fogFactor = Math.max(0, Math.min(1.0, (z - 250) / 950));
+                const tint = [1.0 - fogFactor * 0.4, 1.0 - fogFactor * 0.4, 1.0 - fogFactor * 0.2, 1.0];
+                wr.drawAtlasSprite(spriteName, p.sx, p.sy, p.scale, 64, 64, tint);
               }
             });
           }
@@ -1032,7 +1333,7 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       }
     }
 
-    // Player Car offscreen canvas raster drawing
+    // Player Car dynamic canvas rendering
     if (!cameraManager || cameraManager.mode !== CameraMode.CockpitCamera) {
       glTasks.push({
         z: 45,
@@ -1070,6 +1371,17 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
 
     // Flush all sprites to GPU
     wr.flushSprites(wr["atlasTexture"]!, [1.0, 1.0, 1.0, 1.0], gm.activeZone);
+
+    // Apply fullscreen post-processing presentation pass
+    const speedBoostVal = Math.max(0, (gm.speed - gm.baseSpeed) / gm.baseSpeed);
+    const hitFeedbackVal = animationManager ? animationManager.wrongFlash : 0.0;
+    let zoneId = 0; // highway
+    if (gm.activeZone === "city") zoneId = 1;
+    else if (gm.activeZone === "mountain") zoneId = 2;
+    else if (gm.activeZone === "bridge") zoneId = 3;
+    else if (gm.activeZone === "tunnel") zoneId = 4;
+
+    wr.present(performance.now() * 0.001, speedBoostVal, hitFeedbackVal, zoneId);
   };
 
   // Canvas drawing orchestrator
@@ -3137,6 +3449,15 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
       largeTextMode ? "text-xs" : "text-[10px]"
     }`}>
       
+      {/* Hidden YouTube Player */}
+      {ytVideoId && !isMuted && (
+        <iframe
+          src={`https://www.youtube.com/embed/${ytVideoId}?autoplay=1&loop=1&playlist=${ytVideoId}`}
+          className="absolute opacity-0 pointer-events-none w-1 h-1"
+          allow="autoplay"
+        />
+      )}
+      
       {/* 1. Startup menu dashboard */}
       {gameMode === "Start" && (
         <div className="absolute inset-0 bg-zinc-950 z-40 flex flex-col items-center justify-center p-6 overflow-y-auto">
@@ -3245,6 +3566,20 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
               </div>
             </div>
 
+            {/* Custom BGM Input */}
+            <div className="flex flex-col gap-2 border-t border-zinc-800 pt-3 text-left">
+              <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest font-mono">
+                Custom Soundtrack (YouTube URL)
+              </span>
+              <input
+                type="text"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={ytBgmUrl}
+                onChange={(e) => handleYtBgmChange(e.target.value)}
+                className="bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-300 font-mono px-3 py-2 rounded-xl focus:outline-none focus:border-indigo-500 w-full"
+              />
+            </div>
+
             {/* Instructions */}
             <div className="bg-zinc-950 border border-zinc-850 p-3.5 rounded-xl text-zinc-400 flex flex-col gap-1.5">
               <div className="text-white font-bold text-[8.5px] font-mono uppercase tracking-wider">Quick Controls:</div>
@@ -3254,6 +3589,17 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
                 🧠 Steer into the lane showing the **correct answer** to clear gates.
               </div>
             </div>
+
+            {/* Garage Button */}
+            <button
+              onClick={() => {
+                if (synthRef.current) synthRef.current.playClick();
+                setShowGarage(true);
+              }}
+              className="py-2.5 bg-zinc-800 hover:bg-zinc-700 text-purple-400 text-xs font-bold rounded-xl border border-zinc-700 transition cursor-pointer text-center font-mono tracking-wider flex items-center justify-center gap-2"
+            >
+              🏎️ OPEN GARAGE & SKIN SHOP
+            </button>
 
             <button
               onClick={startRun}
@@ -3585,12 +3931,95 @@ export default function EquationRacers({ pid }: EquationRacersProps) {
         </div>
       )}
 
+      {/* GARAGE MODAL */}
+      {showGarage && (
+        <div className="absolute inset-0 bg-zinc-950/95 z-50 flex items-center justify-center p-6 overflow-y-auto font-mono text-zinc-150">
+          <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col gap-5 shadow-2xl relative text-left">
+            <button 
+              onClick={() => {
+                if (synthRef.current) synthRef.current.playClick();
+                setShowGarage(false);
+              }} 
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white font-bold cursor-pointer"
+            >
+              ✕
+            </button>
+            <h2 className="text-xl font-extrabold tracking-tight text-white uppercase bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent text-center mb-1">
+              Vehicle Garage & Shop
+            </h2>
+            <div className="text-center text-xs text-zinc-400 mb-2">
+              COINS AVAILABLE: <span className="text-amber-400 font-bold">🪙 {gameManagerRef.current?.saveManager.getData().coins ?? coins}</span>
+            </div>
+
+            <div className="flex flex-col gap-3 max-h-[320px] overflow-y-auto pr-1">
+              {CAR_SKINS.map((skin) => {
+                const owned = gameManagerRef.current?.saveManager.getData().garage.ownedSkins.includes(skin.id) ?? false;
+                const active = equippedSkin === skin.id;
+
+                const handleBuyOrEquip = () => {
+                  const gm = gameManagerRef.current;
+                  if (!gm) return;
+
+                  if (owned) {
+                    gm.saveManager.equipSkin(skin.id);
+                    setEquippedSkin(skin.id);
+                  } else {
+                    if (gm.saveManager.getData().coins >= skin.cost) {
+                      gm.saveManager.unlockSkin(skin.id, skin.cost);
+                      setCoins(gm.saveManager.getData().coins);
+                      setEquippedSkin(skin.id);
+                    } else {
+                      alert("Not enough coins!");
+                    }
+                  }
+                };
+
+                return (
+                  <div key={skin.id} className="flex justify-between items-center bg-zinc-950/60 p-3 rounded-xl border border-zinc-850">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-zinc-200">{skin.name}</span>
+                        <div className="flex gap-1.5">
+                          <span style={{ backgroundColor: skin.bodyColor }} className="w-3 h-3 rounded-sm border border-black/30" />
+                          <span style={{ backgroundColor: skin.trimColor }} className="w-3 h-3 rounded-sm border border-black/30" />
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-zinc-400 mt-1">{skin.description}</p>
+                    </div>
+
+                    <button
+                      onClick={handleBuyOrEquip}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black transition cursor-pointer ${
+                        active 
+                          ? "bg-indigo-600 text-white shadow-[0_0_8px_rgba(99,102,241,0.4)]"
+                          : owned 
+                            ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
+                            : "bg-amber-500 hover:bg-amber-400 text-black font-bold"
+                      }`}
+                    >
+                      {active ? "EQUIPPED" : owned ? "EQUIP" : `BUY: 🪙${skin.cost}`}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => {
+                if (synthRef.current) synthRef.current.playClick();
+                setShowGarage(false);
+              }}
+              className="w-full py-2 bg-zinc-800 hover:bg-zinc-750 text-[10px] font-bold rounded-xl transition cursor-pointer text-center"
+            >
+              BACK TO MENU
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
-
-
-
 
 
 
