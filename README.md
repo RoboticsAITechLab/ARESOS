@@ -74,8 +74,8 @@ The default account is available for initial setup and evaluation purposes.
 ## 🔮 Key Features
 
 ### 1. Immersive Sci-Fi Entryway
-*   **Mainframe Initialization Boot Screen:** Features a rotating SVG reactor core loader displaying progress, diagnostic sensor grids mapping system memory allocation, live system clock trackers, and scrolling logging sequences resolving to a startup chime.
-*   **Biometric Retinal Scanner Login:** Interactive radar eye scanner panel with laser scanning lines, auto-scrolling decryption matrices, validation checks that play scan sound effects, and session authorization to the desktop environment.
+*   **Mainframe Initialization Boot Screen:** Features a high-fidelity glowing red ARESOS logo loader with orbiting rings, displaying session loading progress, diagnostic sensor grids mapping system memory allocation, live system clock trackers, and scrolling logging sequences resolving to a startup chime.
+*   **Secure System Login Portal:** Immersive sci-fi credentials panel with an interactive password validation check, custom glassmorphic login interface, sound feedback, and session authorization to the desktop environment.
 
 ### 2. Desktop Environment & Navigation
 *   **macOS-style Centered Dock:** Centered floating glassmorphic dock supporting magnification on hover, active process status dots, notification counters, and bouncing icon animations on launch.
