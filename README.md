@@ -64,9 +64,9 @@ The default account is available for initial setup and evaluation purposes.
   <img src="frontend/public/screenshots/desktop.png" alt="ARESOS Desktop" width="90%" style="border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.2);" />
 </p>
 
-### 4. Multi-App Workflow (Terminal with neofetch & weather, Calculator)
+### 4. Equation Racers Gameplay (Arcade Educational Racing Game)
 <p align="center">
-  <img src="frontend/public/screenshots/apps.png" alt="ARESOS Apps" width="90%" style="border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.2);" />
+  <img src="frontend/public/screenshots/apps.png" alt="Equation Racers Gameplay" width="90%" style="border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.2);" />
 </p>
 
 ---
