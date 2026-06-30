@@ -102,7 +102,7 @@ The default account is available for initial setup and evaluation purposes.
 | **⚙️ Settings** | Controls center configuration | Custom tab panels (Appearance themes with **CRT Scanline Aesthetics Toggle**, Wallpaper gradients, profile editor, storage disk space summary, about stats card). |
 | **🔔 Notifications** | Control center drawer | Pomodoro focus session timer, daily target checklist, brightness sliders, and checkmarked OS system alerts list. |
 | **⏰ System Clock** | Live timezone clocks & stopwatch | Multi-world time zone trackers, stopwatch with laps logger. |
-| **📅 Calendar** | Monthly scheduler | Highlights and lists scheduling slots (including Ankit's birthday!). |
+| **📅 Calendar** | Monthly scheduler | Highlights and lists scheduling slots. |
 | **✅ Todo App** | Checklist task manager | Add, toggle, and delete custom chore lists. |
 | **🧮 Calculator** | Mathematical scratchpad | Responsive arithmetic layout pad supporting basic operations. |
 | **🌐 Web Browser** | iframe website bookmark navigator | Load address URL requests with search query fail-safes. |
