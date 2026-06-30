@@ -82,7 +82,7 @@ The default account is available for initial setup and evaluation purposes.
 *   **Slide & Shrink Window Minimize:** Double-clicking title bars or clicking minimize scales windows down and slides them smoothly straight into the Dock area using CSS transforms and transition effects.
 *   **Z-Index Window Layering:** Focus system that automatically surfaces the active window layer to the front while maintaining standard coordinates, drag limits, and borders.
 *   **High Performance Drag & Resize:** Fluid repositioning and resizing of window containers within desktop boundaries.
-*   **Global Status Menu Bar:** macOS-style top bar tracking local connection indicators, clock timers, volume nodes, and system menus.
+*   **Global Status Menu Bar & Themes:** macOS-style top bar tracking local connection indicators, clock timers, volume nodes, system menus, and customizable desktop themes, including a **Retro CRT Monitor Scanline aesthetics toggle**.
 
 ### 3. Integrated Web Audio API Synthesizer
 *   No external asset `.mp3` files needed. All sounds are generated procedurally on-the-fly using browser oscillators, lowpass filters, and exponential frequency ramps:
@@ -92,7 +92,12 @@ The default account is available for initial setup and evaluation purposes.
     *   **System Click:** Subtle click feedback for buttons.
 *   All audio outputs respect the volume level configured in the Notification Center.
 
-### 4. Built-in Applications Catalog
+### 4. Gaming Economy & Retro-Futuristic Apps
+*   **Gaming Cosmetics Shops (Neon Duel / Equation Racers):** Integrated token economies (CR/Coins) to purchase spaceship/vehicle skin customizations, fully compatible with both the 2D Canvas and WebGL2 renderers.
+*   **Cyberpunk Synth Player:** Play music using custom YouTube URL inputs, featuring a **sound-reactive visualizer displaying time-synced Greek lyrics**, dual-pathway downloads (simulated decryption terminal + real MP3 link).
+*   **Neon Paint App:** 8-bit pixel drawing board with customizable grid resolutions (16x16, 32x32, 64x64), neon color swatches, queue-based BFS flood fill bucket, and high-definition PNG image exporter.
+
+### 5. Built-in Applications Catalog
 
 | Application | Description | Features |
 | :--- | :--- | :--- |
