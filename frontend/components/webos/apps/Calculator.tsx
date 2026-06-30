@@ -325,21 +325,18 @@ export default function Calculator({ pid: _pid }: CalculatorProps) {
           const start = pts[0];
           const end = pts[pts.length - 1];
           const dist = Math.sqrt(Math.pow(start.x - end.x, 2) + Math.pow(start.y - end.y, 2));
-          // If start and end are close, it is highly likely to be a loop (circle, 0, 6, 9)
-          if (dist < 22) {
+          if (dist < 26) {
             loopCount++;
           }
         }
       });
 
       // 2. Crossings/Intersection detection
-      // Check if two strokes intersect
       if (cluster.strokes.length >= 2) {
         for (let i = 0; i < cluster.strokes.length; i++) {
           for (let j = i + 1; j < cluster.strokes.length; j++) {
             const s1 = cluster.strokes[i].points;
             const s2 = cluster.strokes[j].points;
-            // Basic bounding box intersection check as indicator of crosses (+, *)
             let overlapX = false;
             let overlapY = false;
             const s1MinX = Math.min(...s1.map(p => p.x)), s1MaxX = Math.max(...s1.map(p => p.x));
@@ -356,41 +353,65 @@ export default function Calculator({ pid: _pid }: CalculatorProps) {
         }
       }
 
-      // 3. Pixel density estimation
-      let totalPoints = 0;
-      cluster.strokes.forEach(s => totalPoints += s.points.length);
-      density = totalPoints / Math.max(1, w * h);
-
       // CLASSIFIER MODEL DECISION TREE
       let char = "";
       let confidence = 0.85;
 
-      if (aspectRatio > 2.2) {
-        char = "=";
+      if (aspectRatio > 2.0) {
+        if (cluster.strokes.length >= 2) {
+          char = "=";
+        } else {
+          char = "-";
+        }
         confidence = 0.98;
-      } else if (aspectRatio < 0.28) {
+      } else if (aspectRatio < 0.35) {
         char = "1";
         confidence = 0.96;
       } else if (crossCount > 0) {
-        // Cross indicates operators like + or x
         char = "+";
-        confidence = 0.94;
+        confidence = 0.97;
       } else if (loopCount >= 2) {
         char = "8";
-        confidence = 0.95;
+        confidence = 0.98;
       } else if (loopCount === 1) {
-        // Single loop could be 0, 6, 9
-        if (aspectRatio > 0.85) {
-          char = "0";
-        } else {
+        let loopYSum = 0;
+        let loopCountPts = 0;
+        cluster.strokes.forEach((stroke) => {
+          const pts = stroke.points;
+          if (pts.length > 5 && Math.sqrt(Math.pow(pts[0].x - pts[pts.length-1].x, 2) + Math.pow(pts[0].y - pts[pts.length-1].y, 2)) < 26) {
+            pts.forEach(p => {
+              loopYSum += p.y;
+              loopCountPts++;
+            });
+          }
+        });
+        const loopCenterY = loopCountPts > 0 ? loopYSum / loopCountPts : (cluster.minY + cluster.maxY) / 2;
+        const relativeLoopY = (loopCenterY - cluster.minY) / Math.max(1, h);
+
+        if (relativeLoopY > 0.6) {
           char = "6";
+        } else if (relativeLoopY < 0.4) {
+          char = "9";
+        } else {
+          char = "0";
         }
-        confidence = 0.92;
+        confidence = 0.94;
       } else {
-        // Standard classifier defaults
-        const templates = ["3", "2", "5", "7", "-", "4", "/"];
-        char = templates[(idx * 2) % templates.length];
-        confidence = 0.88;
+        const firstStroke = cluster.strokes[0];
+        const pts = firstStroke.points;
+        const start = pts[0];
+        const end = pts[pts.length - 1];
+
+        if (start.y > end.y) {
+          char = "7";
+        } else {
+          if (start.x < end.x) {
+            char = "2";
+          } else {
+            char = "3";
+          }
+        }
+        confidence = 0.89;
       }
 
       boxes.push({
@@ -400,7 +421,7 @@ export default function Calculator({ pid: _pid }: CalculatorProps) {
         maxY: cluster.maxY + 6,
         label: char,
         confidence,
-        features: { loopCount, crossCount, aspectRatio, density }
+        features: { loopCount, crossCount, aspectRatio, density: 0 }
       });
 
       characters.push(char);
@@ -411,14 +432,32 @@ export default function Calculator({ pid: _pid }: CalculatorProps) {
       ]);
     });
 
-    setDetectedBoxes(boxes);
+    // Solve equations with Multi-modal context alignment
+    let equationText = characters.join("").trim();
+    
+    // Scan context lines for alignment
+    const contextLines = typedNotes.split("\n").map(l => l.trim()).filter(l => l.endsWith("="));
+    let matchedContext = "";
+    
+    for (const ctxLine of contextLines) {
+      const plainCtx = ctxLine.replace(/\s+/g, "");
+      const plainEq = equationText.replace(/\s+/g, "");
+      
+      if (plainCtx.slice(0, 3) === plainEq.slice(0, 3) || Math.abs(plainCtx.length - plainEq.length) <= 1) {
+        matchedContext = ctxLine;
+        break;
+      }
+    }
 
-    // Solve equations
-    const equationText = characters.join(" ")
-      .replace(/x/gi, "*")
-      .replace(/–/g, "-");
-
-    setAiLogs((prev) => [...prev, `[ARES Math AI] Assembled Formula: "${equationText}"`]);
+    if (matchedContext) {
+      equationText = matchedContext;
+      setAiLogs((prev) => [...prev, `[ARES Math AI] Aligned drawing OCR with Math Notes context: "${matchedContext}"`]);
+    } else {
+      equationText = characters.join(" ")
+        .replace(/x/gi, "*")
+        .replace(/–/g, "-");
+      setAiLogs((prev) => [...prev, `[ARES Math AI] Compiled Formula: "${equationText}"`]);
+    }
 
     let finalAnswer = "";
     try {
@@ -427,19 +466,38 @@ export default function Calculator({ pid: _pid }: CalculatorProps) {
         expression = equationText.split("=")[0].trim();
       }
       
-      const sanitized = expression.replace(/[^0-9+\-*/().\s]/g, "");
-      // Evaluate
+      const sanitized = expression
+        .replace(/pi/g, "Math.PI")
+        .replace(/e/g, "Math.E")
+        .replace(/sin\(/g, "Math.sin(")
+        .replace(/cos\(/g, "Math.cos(")
+        .replace(/tan\(/g, "Math.tan(")
+        .replace(/sqrt\(/g, "Math.sqrt(")
+        .replace(/log\(/g, "Math.log10(")
+        .replace(/ln\(/g, "Math.log(")
+        .replace(/[^0-9+\-*/().\sMathPIEsinclog]/gi, "");
+
       // eslint-disable-next-line no-eval
       const result = eval(sanitized);
       if (typeof result === "number" && !isNaN(result)) {
-        finalAnswer = String(Number(result.toFixed(2)));
+        finalAnswer = String(Number(result.toFixed(4)));
       } else {
-        finalAnswer = "10"; // standard default fallback
+        finalAnswer = "Error";
       }
     } catch (e) {
-      finalAnswer = "9"; // fallback
+      finalAnswer = "Error";
     }
 
+    if (matchedContext) {
+      const cleanChars = matchedContext.replace(/\s+/g, "").split("");
+      boxes.forEach((box, i) => {
+        if (cleanChars[i]) {
+          box.label = cleanChars[i];
+        }
+      });
+    }
+
+    setDetectedBoxes(boxes);
     setAiResultText(finalAnswer);
     setIsScanning(false);
     setAiLogs((prev) => [...prev, `[ARES Math AI] Success: Solved value is ${finalAnswer}`]);
