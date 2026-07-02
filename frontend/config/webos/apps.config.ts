@@ -157,6 +157,17 @@ export const REGISTERED_APPS: AppConfig[] = [
     defaultHeight: 520,
     isSingleInstance: false,
   },
+  {
+    id: "mission-control",
+    title: "Mission Control",
+    icon: "🛰️",
+    component: dynamic(() => import("@/components/webos/apps/MissionControl"), {
+      ssr: false,
+    }),
+    defaultWidth: 850,
+    defaultHeight: 550,
+    isSingleInstance: true,
+  },
 ];
 
 export const getAppConfig = (id: string): AppConfig | undefined => {

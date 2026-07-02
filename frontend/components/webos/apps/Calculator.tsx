@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { predict, rasterizeStrokesToGrid } from "@/utils/webos/AresMathModelEngine";
 
 interface CalculatorProps {
   pid: string;
@@ -309,126 +310,27 @@ export default function Calculator({ pid: _pid }: CalculatorProps) {
     setAiLogs((prev) => [...prev, `[ARES Math AI] Extracted ${sortedClusters.length} character nodes.`]);
 
     sortedClusters.forEach((cluster, idx) => {
-      const w = cluster.maxX - cluster.minX;
-      const h = cluster.maxY - cluster.minY;
-      const aspectRatio = w / Math.max(1, h);
-
-      // FEATURE EXTRACTION ALGORITHMS
-      let loopCount = 0;
-      let crossCount = 0;
-      let density = 0;
-
-      // 1. Loop detection: check if start and end of strokes are close, or if stroke self-intersects
-      cluster.strokes.forEach((stroke) => {
-        const pts = stroke.points;
-        if (pts.length > 5) {
-          const start = pts[0];
-          const end = pts[pts.length - 1];
-          const dist = Math.sqrt(Math.pow(start.x - end.x, 2) + Math.pow(start.y - end.y, 2));
-          if (dist < 26) {
-            loopCount++;
-          }
-        }
-      });
-
-      // 2. Crossings/Intersection detection
-      if (cluster.strokes.length >= 2) {
-        for (let i = 0; i < cluster.strokes.length; i++) {
-          for (let j = i + 1; j < cluster.strokes.length; j++) {
-            const s1 = cluster.strokes[i].points;
-            const s2 = cluster.strokes[j].points;
-            let overlapX = false;
-            let overlapY = false;
-            const s1MinX = Math.min(...s1.map(p => p.x)), s1MaxX = Math.max(...s1.map(p => p.x));
-            const s2MinX = Math.min(...s2.map(p => p.x)), s2MaxX = Math.max(...s2.map(p => p.x));
-            const s1MinY = Math.min(...s1.map(p => p.y)), s1MaxY = Math.max(...s1.map(p => p.y));
-            const s2MinY = Math.min(...s2.map(p => p.y)), s2MaxY = Math.max(...s2.map(p => p.y));
-
-            if (s1MinX < s2MaxX && s1MaxX > s2MinX) overlapX = true;
-            if (s1MinY < s2MaxY && s1MaxY > s2MinY) overlapY = true;
-            if (overlapX && overlapY) {
-              crossCount++;
-            }
-          }
-        }
-      }
-
-      // CLASSIFIER MODEL DECISION TREE
-      let char = "";
-      let confidence = 0.85;
-
-      if (aspectRatio > 2.0) {
-        if (cluster.strokes.length >= 2) {
-          char = "=";
-        } else {
-          char = "-";
-        }
-        confidence = 0.98;
-      } else if (aspectRatio < 0.35) {
-        char = "1";
-        confidence = 0.96;
-      } else if (crossCount > 0) {
-        char = "+";
-        confidence = 0.97;
-      } else if (loopCount >= 2) {
-        char = "8";
-        confidence = 0.98;
-      } else if (loopCount === 1) {
-        let loopYSum = 0;
-        let loopCountPts = 0;
-        cluster.strokes.forEach((stroke) => {
-          const pts = stroke.points;
-          if (pts.length > 5 && Math.sqrt(Math.pow(pts[0].x - pts[pts.length-1].x, 2) + Math.pow(pts[0].y - pts[pts.length-1].y, 2)) < 26) {
-            pts.forEach(p => {
-              loopYSum += p.y;
-              loopCountPts++;
-            });
-          }
-        });
-        const loopCenterY = loopCountPts > 0 ? loopYSum / loopCountPts : (cluster.minY + cluster.maxY) / 2;
-        const relativeLoopY = (loopCenterY - cluster.minY) / Math.max(1, h);
-
-        if (relativeLoopY > 0.6) {
-          char = "6";
-        } else if (relativeLoopY < 0.4) {
-          char = "9";
-        } else {
-          char = "0";
-        }
-        confidence = 0.94;
-      } else {
-        const firstStroke = cluster.strokes[0];
-        const pts = firstStroke.points;
-        const start = pts[0];
-        const end = pts[pts.length - 1];
-
-        if (start.y > end.y) {
-          char = "7";
-        } else {
-          if (start.x < end.x) {
-            char = "2";
-          } else {
-            char = "3";
-          }
-        }
-        confidence = 0.89;
-      }
+      // Rasterize cluster strokes to 28x28 normalized vector
+      const vector = rasterizeStrokesToGrid(cluster.strokes);
+      
+      // Perform neural network feedforward inference using pretrained weights
+      const { label, confidence } = predict(vector);
 
       boxes.push({
         minX: cluster.minX - 6,
         minY: cluster.minY - 6,
         maxX: cluster.maxX + 6,
         maxY: cluster.maxY + 6,
-        label: char,
+        label: label,
         confidence,
-        features: { loopCount, crossCount, aspectRatio, density: 0 }
+        features: { loopCount: 0, crossCount: 0, aspectRatio: (cluster.maxX - cluster.minX) / Math.max(1, cluster.maxY - cluster.minY), density: 0 }
       });
 
-      characters.push(char);
+      characters.push(label);
 
       setAiLogs((prev) => [
         ...prev,
-        `[ARES Math AI] Node ${idx + 1}: loops=${loopCount}, crosses=${crossCount}, aspect=${aspectRatio.toFixed(2)} -> Classified "${char}" (${(confidence * 100).toFixed(1)}% confidence)`
+        `[ARES Math AI] Node ${idx + 1}: Running Feedforward MLP (Input 784 -> Hidden 64 -> Output 15) -> Classified "${label}" (${(confidence * 100).toFixed(1)}% confidence)`
       ]);
     });
 

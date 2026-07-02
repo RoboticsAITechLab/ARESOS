@@ -16,11 +16,23 @@ class MathNeuralNetwork:
         # Classes: 0-9, +, -, *, /, =
         self.classes = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '*', '/', '=']
         
-        # Initialize weights and biases (he-initialization)
-        self.W1 = np.random.randn(self.input_size, self.hidden_size) * np.sqrt(2.0 / self.input_size)
-        self.b1 = np.zeros((1, self.hidden_size))
-        self.W2 = np.random.randn(self.hidden_size, self.output_size) * np.sqrt(2.0 / self.hidden_size)
-        self.b2 = np.zeros((1, self.output_size))
+        # Load trained weights and biases from JSON file
+        import os
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        weights_path = os.path.join(dir_path, "math_model_weights.json")
+        try:
+            with open(weights_path, "r") as f:
+                weights = json.load(f)
+            self.W1 = np.array(weights["W1"])
+            self.b1 = np.array(weights["b1"]).reshape(1, -1)
+            self.W2 = np.array(weights["W2"])
+            self.b2 = np.array(weights["b2"]).reshape(1, -1)
+        except Exception as e:
+            print(f"Warning: Failed to load weights ({str(e)}). Initializing fallback random weights.")
+            self.W1 = np.random.randn(self.input_size, self.hidden_size) * np.sqrt(2.0 / self.input_size)
+            self.b1 = np.zeros((1, self.hidden_size))
+            self.W2 = np.random.randn(self.hidden_size, self.output_size) * np.sqrt(2.0 / self.hidden_size)
+            self.b2 = np.zeros((1, self.output_size))
 
     def relu(self, x):
         return np.maximum(0, x)
