@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "ts-node -r tsconfig-paths/register runTests.ts && next build",
+    "build": "next build",
+    "test": "ts-node -r tsconfig-paths/register runTests.ts",
     "start": "next start",
     "lint": "eslint"
   },
