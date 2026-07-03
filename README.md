@@ -6,6 +6,9 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-38bdf8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
 [![Documentation](https://img.shields.io/badge/Documentation-Architect_Docs-blueviolet?style=for-the-badge&logo=markdown)](DOCUMENTATION.md)
 
+> [!WARNING]
+> **IMPORTANT NOTICE:** Vercel deployment builds are currently taking too much time (Next.js production compile delay). We are actively working on a fix to optimize the build times. It will be resolved shortly.
+
 ARESOS (ARES Operating System) is a premium, highly interactive, and visually stunning web-based operating system designed for student mission control. It features immersive animations, browser-synthesized soundscapes, an active virtual filesystem, and a full suite of productive desktop utility applications.
 
 > [!NOTE]
