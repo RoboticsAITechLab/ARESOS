@@ -69,6 +69,29 @@ The default account is available for initial setup and evaluation purposes.
   <img src="frontend/public/screenshots/apps.png" alt="Equation Racers Gameplay" width="90%" style="border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.2);" />
 </p>
 
+### 5. Interactive Math Notes Whiteboard & Solver
+<p align="center">
+  <img src="frontend/public/features%20screenshot/screencapture-localhost-3000-2026-07-03-16_06_13.png" alt="ARESOS Math Whiteboard Solver" width="90%" style="border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);" />
+</p>
+
+### 6. Dedicated Solution Details Panel
+<p align="center">
+  <img src="frontend/public/features%20screenshot/screencapture-localhost-3000-2026-07-03-21_39_49.png" alt="ARESOS Solution Details Panel" width="90%" style="border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);" />
+</p>
+
+### 7. Exported Math Note Canvas Example
+<p align="center">
+  <img src="frontend/public/features%20screenshot/math_notes_1783094993383.png" alt="Exported Math Note Canvas" width="90%" style="border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);" />
+</p>
+
+### 8. Interactive Math Solver Demonstration Videos
+<p align="center">
+  <video src="frontend/public/features%20screenshot/Create%20Next%20App%20-%203%20July%202026.mp4" width="90%" controls style="border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);"></video>
+</p>
+<p align="center">
+  <video src="frontend/public/features%20screenshot/Create%20Next%20App%20-%203%20July%202026%20(1).mp4" width="90%" controls style="border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);"></video>
+</p>
+
 ---
 
 ## 🔮 Key Features
@@ -109,7 +132,7 @@ The default account is available for initial setup and evaluation purposes.
 | **⏰ System Clock** | Live timezone clocks & stopwatch | Multi-world time zone trackers, stopwatch with laps logger. |
 | **📅 Calendar** | Monthly scheduler | Highlights and lists scheduling slots. |
 | **✅ Todo App** | Checklist task manager | Add, toggle, and delete custom chore lists. |
-| **🧮 Calculator** | Mathematical scratchpad | Responsive arithmetic layout pad supporting basic operations. |
+| **🧮 Calculator** | Math Notes & AI Equation Solver | Unified interactive whiteboard canvas, freehand/text equations, direct Gemini AI solve integration, dynamic mathematical graph drawing, speech synthesis narration, and dedicated **Solution Details Sidebar Panel** mapping parsed steps, variables, and solutions. |
 | **🌐 Web Browser** | iframe website bookmark navigator | Load address URL requests with search query fail-safes. |
 | **🎵 Synth Player** | Cyberpunk Music Player | Custom YouTube URL streams loader, local storage playlist synchronizer, **time-synced reactive greek lyrics visualizer**, holographic decryptor/downloader interface, and real converter integration. |
 | **🎨 Neon Paint** | Retro Pixel Editor | `16x16`, `32x32`, and `64x64` grid sizes, neon palette swatches, DFS/BFS flood fill bucket, pencil/eraser, and high-definition PNG image exporter. |

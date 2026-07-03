@@ -225,7 +225,7 @@ export default function MissionControl({ pid: _pid }: MissionControlProps) {
         </div>
 
         <div className="flex items-center gap-3 text-xs">
-          <button onClick={handleAudioCommsToggle} className={`px-2 py-0.5 border text-[10px] rounded transition-all ${audioComms ? "bg-cyan-500/20 border-cyan-400 text-white animate-pulse" : "border-cyan-500/40 text-cyan-400/80 hover:bg-cyan-500/10"}`}>📻 STATIC {audioComms ? "ON" : "OFF"}</button>
+          <button onClick={handleAudioCommsToggle} className={`px-2 py-0.5 border text-[10px] rounded transition-all ${audioComms ? "bg-cyan-500/20 border-cyan-400 text-white animate-pulse" : "border-cytan-500/40 text-cyan-400/80 hover:bg-cyan-500/10"}`}>📻 STATIC {audioComms ? "ON" : "OFF"}</button>
         </div>
       </div>
 

@@ -41,3 +41,10 @@ graph TD
 - Scans files for standard PKZIP magic headers (`50 4B 03 04`) or native ARESOS JSON signatures.
 - Parses standard ZIP file structures (Local File Headers) sequentially.
 - Integrates `DecompressionStream` (with Node `zlib` fallback) to extract stored (method 0) and deflated (method 8) binary payloads directly back into the VFS.
+
+### 7. AI Math Notes Solver (`Calculator.tsx` & `/api/solve`)
+- Captures whiteboard freehand drawings and text elements, compiling them into a base64 PNG image stream.
+- Submits the image payload directly to the Next.js API `/api/solve` endpoint, which interacts with Gemini AI (`gemini-2.5-flash` or newer).
+- Dynamically parses the returned JSON containing step-by-step math explanations, variables, and math function formulas.
+- Plots interactive mathematical graphs directly onto the canvas, animating time-dependent graphs with standard animation frame loops.
+- Renders results into a dedicated scrollable **Solution Details side panel** for cleaner visibility.

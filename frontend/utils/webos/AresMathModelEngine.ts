@@ -74,10 +74,16 @@ export function rasterizeStrokesToGrid(strokes: { points: { x: number; y: number
 
   const w = Math.max(1, maxX - minX);
   const h = Math.max(1, maxY - minY);
+  const maxDim = Math.max(w, h);
+  
+  // Scale to fit within (gridSize - 8) to leave a 4-pixel padding, preserving aspect ratio
+  const scale = (gridSize - 8) / maxDim;
+  const offsetX = (gridSize - (w * scale)) / 2;
+  const offsetY = (gridSize - (h * scale)) / 2;
 
   points.forEach(p => {
-    const scaledX = Math.floor(((p.x - minX) / w) * (gridSize - 4)) + 2;
-    const scaledY = Math.floor(((p.y - minY) / h) * (gridSize - 4)) + 2;
+    const scaledX = Math.floor((p.x - minX) * scale + offsetX);
+    const scaledY = Math.floor((p.y - minY) * scale + offsetY);
 
     const xClamped = Math.max(0, Math.min(gridSize - 1, scaledX));
     const yClamped = Math.max(0, Math.min(gridSize - 1, scaledY));
