@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { solveLocally } from "../../../utils/localMathSolver";
-import Tesseract from "tesseract.js";
 
 interface CalculatorProps {
   pid: string;
