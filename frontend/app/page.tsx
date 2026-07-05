@@ -7,8 +7,6 @@ import { Desktop } from "@/components/webos/core/Desktop";
 import { Taskbar } from "@/components/webos/core/Taskbar";
 import { StartMenu } from "@/components/webos/core/StartMenu";
 import { NotificationCenter } from "@/components/webos/core/NotificationCenter";
-import { BootScreen } from "@/components/webos/core/BootScreen";
-import { LoginScreen } from "@/components/webos/core/LoginScreen";
 import { MenuBar } from "@/components/webos/core/MenuBar";
 import { useOS } from "@/hooks/webos/useOS";
 
@@ -23,18 +21,8 @@ export default function Home() {
 }
 
 function WebOSLayout() {
-  const [isBooting, setIsBooting] = useState(true);
-  const [isLoggingIn, setIsLoggingIn] = useState(true);
   const [isNotifOpen, setNotifOpen] = useState(false);
   const { settings } = useOS();
-
-  if (isBooting) {
-    return <BootScreen onComplete={() => setIsBooting(false)} />;
-  }
-
-  if (isLoggingIn) {
-    return <LoginScreen onSuccess={() => setIsLoggingIn(false)} />;
-  }
 
   const isCrt = settings?.crtFilterEnabled ?? false;
 
