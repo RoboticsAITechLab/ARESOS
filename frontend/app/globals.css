@@ -1,28 +1,58 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #07080a;
+  --foreground: #00ff66;
+  --accent-neon: #00ff66;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-space-mono);
+  --font-mono: var(--font-share-tech-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-mono), monospace;
+  overflow: hidden;
+}
+
+/* Premium Sci-Fi Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 20, 10, 0.2);
+  border-left: 1px solid rgba(0, 255, 102, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 102, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 102, 0.6);
+  box-shadow: 0 0 8px rgba(0, 255, 102, 0.5);
+}
+
+/* Cyber Matrix Dot Grid Background Overlay */
+.cyber-grid {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: 
+    radial-gradient(rgba(0, 255, 102, 0.08) 1px, transparent 0),
+    linear-gradient(to right, rgba(0, 255, 102, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 255, 102, 0.02) 1px, transparent 1px);
+  background-size: 24px 24px, 120px 120px, 120px 120px;
+  background-position: center;
+  z-index: 0;
 }
 
 /* CRT and Scanlines Retro Effect */
@@ -34,8 +64,8 @@ body {
   height: 100vh;
   pointer-events: none;
   z-index: 99999;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.22) 50%);
-  background-size: 100% 4px;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+  background-size: 100% 3px;
 }
 
 .crt-overlay::after {
@@ -46,19 +76,20 @@ body {
   left: 0;
   bottom: 0;
   right: 0;
-  background: radial-gradient(circle, rgba(18, 16, 16, 0) 55%, rgba(0, 0, 0, 0.45) 120%);
+  background: radial-gradient(circle, rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.6) 130%);
   z-index: 100000;
   pointer-events: none;
 }
 
 /* Subtle Screen Flicker */
 @keyframes crt-flicker {
-  0% { opacity: 0.99; }
+  0% { opacity: 0.985; }
   50% { opacity: 1.0; }
-  100% { opacity: 0.99; }
+  100% { opacity: 0.985; }
 }
 
 .crt-screen {
-  animation: crt-flicker 0.25s infinite;
-  filter: contrast(1.05) brightness(1.05) saturate(1.1);
+  animation: crt-flicker 0.15s infinite;
+  filter: contrast(1.1) brightness(1.05) saturate(1.15);
 }
+

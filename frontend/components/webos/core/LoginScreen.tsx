@@ -138,7 +138,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
   const isAuthenticating = scanState === "scanning" && scanProgress < 100;
 
   return (
-    <div className="fixed inset-0 z-[99999] h-dvh max-h-dvh w-screen overflow-hidden bg-[#050505] font-sans text-zinc-100 select-none">
+    <div className="fixed inset-0 z-[99999] h-dvh max-h-dvh w-screen overflow-hidden bg-[#050505] font-mono text-zinc-100 select-none">
+      <div className="cyber-grid" />
       <style jsx global>{`
         input.aresos-login-field:-webkit-autofill,
         input.aresos-login-field:-webkit-autofill:hover,

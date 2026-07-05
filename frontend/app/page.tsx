@@ -41,7 +41,8 @@ function WebOSLayout() {
   return (
     <div className={isCrt ? "crt-screen relative w-screen h-screen overflow-hidden" : "relative w-screen h-screen overflow-hidden"}>
       {isCrt && <div className="crt-overlay" />}
-      <main className="flex flex-col w-full h-full overflow-hidden select-none relative font-sans animate-in fade-in duration-500">
+      <div className="cyber-grid" />
+      <main className="flex flex-col w-full h-full overflow-hidden select-none relative font-mono animate-in fade-in duration-500">
         {/* macOS Top Menu Bar */}
         <MenuBar />
 

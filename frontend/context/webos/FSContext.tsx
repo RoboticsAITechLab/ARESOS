@@ -109,6 +109,9 @@ const INITIAL_FS: FSDirectory = {
 import { getAllNodes, initDB, clearAll, putNode } from "@/utils/webos/storage/IndexedDBStorage";
 import { flatToTree, treeToFlat, migrateLocalStorageToIndexedDB } from "@/utils/webos/storage/VFSPersistence";
 import { persistNodeUpdate, persistNodeDelete } from "@/utils/webos/storage/StorageManager";
+import { JSON_CONTENT_TYPE_HEADER } from "next/dist/lib/constants";
+import { hgroup, i } from "framer-motion/client";
+import { HTMLProjectionNode } from "framer-motion";
 
 export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { settings, addNotification } = useOS();
@@ -626,3 +629,42 @@ export const FSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     </FSContext.Provider>
   );
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
