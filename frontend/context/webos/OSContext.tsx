@@ -38,7 +38,7 @@ interface OSContextType {
 }
 
 function generatePid(appId: string): string {
-  return `${appId}-${Date.now()}`;
+  return `${appId}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 }
 
 export const OSContext = createContext<OSContextType | undefined>(undefined);
@@ -52,7 +52,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   
   const [settings, setSettings] = useState<SystemSettings>({
     theme: "dark",
-    wallpaperUrlOrGradient: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)",
+    wallpaperUrlOrGradient: "url('/wallpapers/default_wallpaper.png')",
     volume: 80,
     brightness: 90,
     wallpaperBrightness: 80,
@@ -67,6 +67,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   });
 
   const [isLoaded, setIsLoaded] = useState(false);
+  const [bootstrapped, setBootstrapped] = useState(false);
 
   // Load settings, user, and notifications on client-side mount
   useEffect(() => {
@@ -74,7 +75,11 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       const savedSettings = localStorage.getItem("aresos_system_settings");
       if (savedSettings) {
         try {
-          setSettings(JSON.parse(savedSettings));
+          const parsed = JSON.parse(savedSettings);
+          if (parsed.wallpaperUrlOrGradient === "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)") {
+            parsed.wallpaperUrlOrGradient = "url('/wallpapers/default_wallpaper.png')";
+          }
+          setSettings(parsed);
         } catch (e) {
           console.error("Failed to parse settings", e);
         }
@@ -122,6 +127,16 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
   }, [notifications, isLoaded]);
 
+  useEffect(() => {
+    if (!isLoaded || bootstrapped) return;
+
+    const timer = window.setTimeout(() => {
+      setBootstrapped(true);
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [isLoaded, bootstrapped]);
+
   const updateUser = (newUser: Partial<SystemUser>) => {
     setCurrentUser((prev) => ({ ...prev, ...newUser }));
   };
@@ -130,10 +145,21 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [maxZIndex, setMaxZIndex] = useState(10);
 
   // Generate a cascading window position
-  const getNextWindowPosition = (width: number, height: number) => {
+  const getNextWindowPosition = (width: number, height: number, appId?: string) => {
     const defaultX = 60;
     const defaultY = 60;
     const offset = 30;
+
+    const isAppAlreadyOpen = windows.some((w) => w.pid.startsWith(`${appId}-`));
+    if (appId === "terminal" && !isAppAlreadyOpen) {
+      return { x: 50, y: 50 };
+    }
+    if (appId === "settings" && !isAppAlreadyOpen) {
+      return { x: 670, y: 50 };
+    }
+    if (appId === "mission-control" && !isAppAlreadyOpen) {
+      return { x: 50, y: 470 };
+    }
 
     if (windows.length === 0) {
       return { x: defaultX, y: defaultY };
@@ -181,7 +207,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
     const width = config.defaultWidth || 600;
     const height = config.defaultHeight || 400;
-    const { x, y } = getNextWindowPosition(width, height);
+    const { x, y } = getNextWindowPosition(width, height, appId);
     const nextZ = maxZIndex + 1;
     setMaxZIndex(nextZ);
 

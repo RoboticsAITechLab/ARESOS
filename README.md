@@ -1,71 +1,69 @@
 # ARESOS 🌌
 
-A retro-futuristic student mission control operating system running entirely in your browser.
+ARESOS is a browser-based mission-control workspace inspired by spacecraft consoles, operating systems, and retro-futuristic interfaces. It combines a terminal, virtual filesystem, procedural audio engine, and custom applications inside a desktop environment built with Next.js.
 
-![ARESOS Boot Screen](frontend/public/screenshots/boot_screen.png)
-
-## Deployed Workspace
-
-👉 **[Launch ARESOS Deployed Dashboard](https://aresos.vercel.app/)**
-*(Default access password: `1462007`)*
+👉 **[Launch ARESOS Live Dashboard](https://aresos.vercel.app/)**
 
 ---
 
-## ⚡ Quick Start
+## Why I Built This
 
-Experience the workstation locally in under a minute:
+I wanted to explore how far a browser could be pushed toward feeling like a real operating system. ARESOS started as a terminal experiment and gradually evolved into a mission-control workspace with a virtual filesystem, procedural audio, custom applications, and interactive learning tools.
+
+---
+
+## Features
+
+- **Terminal with custom commands**: Supports directory traversal, environment variables, piping, and interactive shell utilities.
+- **Persistent virtual filesystem**: Structured tree state node architecture synced directly to browser localStorage.
+- **Procedural audio engine**: Generates chimes, clicks, static, and alarms on-the-fly via the Web Audio API without static assets.
+- **Multi-window desktop environment**: Dynamic draggable, resizable window frames with automatic tiling grid positioning constraints.
+- **Equation Racers arcade game**: 2D canvas space racer game built with custom physics and mathematical expression solving gameplay.
+- **Whiteboard and math workspace**: Canvas area for drawing math equations, converting drawings to text, and resolving steps.
+- **Theme system**: Custom aesthetics featuring crimson command HUD styles, scanlines, and dot grid backgrounds.
+
+---
+
+## How It Works
+
+### Virtual Filesystem
+ARESOS implements a custom reactive directory tree node map. Every directory operation (`mkdir`, `cd`, `write`, `rm`) updates the global React state and serializes automatically to local storage, securing files across page refreshes.
+
+### Procedural Audio Engine
+Oscillator nodes are initialized, filtered, and scheduled dynamically via the browser's Web Audio API. Exponential frequency and gain ramps simulate analog sweeps, static, and button clicks without loading heavy static media assets.
+
+### Shell Parser
+A custom lexical scanner parses user input to execute commands. The parser resolves sequential piping (`|`), logical combinations (`&&`, `||`), and redirection operations on the virtual filesystem directory tree nodes.
+
+---
+
+## Screenshots
+
+### Desktop Workspace
+![Desktop Workspace](frontend/public/screenshots/desktop_workspace.png)
+
+### Terminal
+![Terminal](frontend/public/screenshots/terminal.png)
+
+### Mission Console
+![Mission Console](frontend/public/screenshots/mission_console.png)
+
+### Equation Racers
+![Equation Racers](frontend/public/screenshots/equation_racers.png)
+
+---
+
+## Run Locally
+
+Initialize and run the dev server locally:
 
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+
 Open **[http://localhost:3000](http://localhost:3000)** in your browser.
-
----
-
-## 🚀 Key Features
-
-*   **Custom Shell Interpreter**: A functional terminal shell supporting POSIX-like file operations (`ls`, `cd`, `cat`, `mkdir`, `zip`), environment variables, and pipes.
-*   **Procedural Audio Synthesizer**: Immersive audio generated on-the-fly via the Web Audio API (zero static audio assets).
-*   **Virtual Filesystem (VFS)**: A custom directory tree structures state engine synced directly to your browser's local storage.
-*   **Equation Racers Arcade**: An educational canvas math racing game with custom physics and dynamic skin customization shops.
-*   **Math whiteboard & solver**: Draw math expressions on the canvas and get step-by-step guidance directly from our custom parser layout.
-
----
-
-## 🛠️ How It Works
-
-### 1. The Virtual Filesystem (VFS)
-Unlike basic mocked terminals, ARESOS uses a tree node map to represent files and folders. The state is fully reactive, managed via a React Context, and serialized to `localStorage` on any modification. This ensures your code files, custom drawings, and scripts survive page refreshes.
-
-### 2. Procedural Audio Engine
-To keep bundle sizes small and avoid loading lag, ARESOS generates all chimes, ticks, and sonar sweeps procedurally. Using the browser's native `AudioContext`, we stack oscillator nodes, apply low-pass filters, and schedule exponential frequency ramps to produce rich retro sci-fi soundscapes.
-
-### 3. Shell Parser
-The terminal parses commands using a custom lexical scanner that resolves pipes (`|`), logical combinations (`&&`, `||`), and input redirection. Commands like `neofetch`, `htop`, and `matrix` operate on system states computed in real-time.
-
----
-
-## ⚙️ Local Configuration
-
-ARESOS loads configuration through standard environment variables. To change defaults:
-
-1. Create a `frontend/.env` file.
-2. Override variables:
-   ```env
-   NEXT_PUBLIC_LOGIN_PASSWORD="your_custom_password"
-   ```
-
----
-
-## 💎 Credits & Libraries
-
-*   **Next.js & React**: Core application structure and rendering layer.
-*   **Framer Motion**: Fluid window minimization, desktop magnification dock, and boot animations.
-*   **Phaser**: High-performance rendering pipeline for the Equation Racers game canvas.
-*   **Satellite.js**: Real-time orbital projection logic.
-*   **Hack Club Stardance**: Providing the platform to ship this prototype!
 
 ---
 

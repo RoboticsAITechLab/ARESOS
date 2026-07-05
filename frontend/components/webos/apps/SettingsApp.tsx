@@ -68,6 +68,10 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
 
   const wallpapers = [
     {
+      name: "ARES Default",
+      value: "url('/wallpapers/default_wallpaper.png')",
+    },
+    {
       name: "Aurora Glow",
       value: "linear-gradient(135deg, #022c22 0%, #059669 45%, #0d9488 80%, #0f172a 100%)",
     },

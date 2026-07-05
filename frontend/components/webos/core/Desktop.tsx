@@ -12,6 +12,20 @@ export const Desktop: React.FC = () => {
   const { listDirectory, createDirectory, writeFile, clipboard, copyNode, pasteNode, renameNode, deleteNode, changeDirectory } = useFileSystem();
   
   const [desktopFiles, setDesktopFiles] = useState<{ name: string; type: string }[]>([]);
+  const [hudStats, setHudStats] = useState({ cpu: 12, ram: 1.84, temp: 42.5, lat: 24, power: 98, sector: "AURION-7" });
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setHudStats((prev) => {
+        const nextCpu = Math.max(8, Math.min(24, prev.cpu + Math.floor(Math.random() * 5) - 2));
+        const nextRam = Math.max(1.80, Math.min(1.92, prev.ram + (Math.random() * 0.04) - 0.02));
+        const nextTemp = Math.max(41.8, Math.min(43.5, prev.temp + parseFloat(((Math.random() * 0.4) - 0.2).toFixed(1))));
+        const nextLat = Math.max(18, Math.min(32, prev.lat + Math.floor(Math.random() * 3) - 1));
+        const nextPower = Math.max(97, Math.min(99, prev.power + (Math.random() > 0.85 ? Math.floor(Math.random() * 3) - 1 : 0)));
+        return { cpu: nextCpu, ram: nextRam, temp: nextTemp, lat: nextLat, power: nextPower, sector: "AURION-7" };
+      });
+    }, 2000);
+    return () => clearInterval(timer);
+  }, []);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -259,6 +273,7 @@ export const Desktop: React.FC = () => {
           icon: "🎨",
           action: () => {
             const gradients = [
+              "url('/wallpapers/default_wallpaper.png')",
               "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)",
               "linear-gradient(135deg, #180828 0%, #280818 50%, #081828 100%)",
               "linear-gradient(135deg, #050508 0%, #0b1528 70%, #1e1b4b 100%)",
@@ -362,7 +377,7 @@ export const Desktop: React.FC = () => {
     <div
       id="desktop-backdrop"
       onContextMenu={(e) => handleContextMenu(e, null)}
-      className="flex-1 w-full h-full relative overflow-hidden p-6 select-none bg-zinc-950"
+      className="relative h-full w-full overflow-hidden select-none bg-[#050607] p-6"
     >
       {/* Exclusive wallpaper background layer with brightness filter */}
       <div 
@@ -375,23 +390,84 @@ export const Desktop: React.FC = () => {
         }}
       />
 
+      <div className="orbital-grid" />
+      <div className="orbital-radar" />
+      <div className="orbital-scanlines" />
+
+      {/* PERMANENT ORBITAL MISSION HUD OVERLAYS */}
+      <div className="absolute inset-0 z-0 flex flex-col justify-between p-8 font-mono select-none pointer-events-none text-red-500/25">
+        {/* Top Section */}
+        <div className="flex justify-between w-full">
+          {/* Top Left: Diagnostics */}
+          <div className="hidden sm:block space-y-1 border border-[rgba(214,58,58,0.18)] bg-black/25 p-3 text-[9px] uppercase tracking-widest">
+            <div className="font-extrabold text-red-500/40 pb-1 border-b border-red-500/10 mb-1">SYSTEM_TELEMETRY</div>
+            <div>CPU LOAD: <span className="text-red-500/50">{hudStats.cpu}%</span></div>
+            <div>SYS TEMP: <span className="text-red-500/50">{hudStats.temp.toFixed(1)}°C</span></div>
+            <div>PATH RESOLVER: <span className="text-emerald-500/50">STABLE</span></div>
+          </div>
+
+          {/* Top Right: Uplink Coordinates */}
+          <div className="hidden md:block space-y-1 border border-[rgba(214,58,58,0.18)] bg-black/25 p-3 text-right text-[9px] uppercase tracking-widest">
+            <div className="font-extrabold text-red-500/40 pb-1 border-b border-red-500/10 mb-1">TARGETING_RADAR</div>
+            <div>SEC: <span className="text-red-500/50">{hudStats.sector}</span></div>
+            <div>COORD: <span className="text-red-500/50">LAT 42.18° N // LON 83.44° W</span></div>
+            <div>UPLINK STRENGTH: <span className="text-red-500/50">{100 - hudStats.lat}%</span></div>
+          </div>
+        </div>
+
+        {/* Center Target Crosshair Overlay */}
+        <div className="hidden lg:flex absolute inset-0 items-center justify-center pointer-events-none opacity-20">
+          <div className="flex h-48 w-48 items-center justify-center rounded-full border border-dashed border-red-500/50">
+            <div className="flex h-32 w-32 items-center justify-center rounded-full border border-dotted border-red-500/50">
+              <div className="h-4 w-4 rounded-full border border-red-500/70" />
+            </div>
+          </div>
+          <div className="absolute h-[1px] w-60 bg-red-500/40" />
+          <div className="absolute h-60 w-[1px] bg-red-500/40" />
+        </div>
+
+        {/* Bottom Section */}
+        <div className="flex justify-between w-full items-end">
+          {/* Bottom Left: Guidance Grid */}
+          <div className="hidden sm:block text-[8px] uppercase tracking-wider text-red-500/20">
+            <div>GRID_GUIDE: ACTIVE</div>
+            <div>ORBITAL_LINK: CONNECTED</div>
+          </div>
+
+          {/* Bottom Right: Mission Status Panel */}
+          <div className="w-56 space-y-1.5 border border-[rgba(214,58,58,0.28)] bg-black/75 p-4 text-[9px] uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,0,0.08)] scale-90 md:scale-100 origin-bottom-right">
+            <div className="font-bold text-red-500/70 pb-1 border-b border-red-500/20 mb-2 flex items-center justify-between">
+              <span>MISSION STATUS</span>
+              <span className="w-2 h-2 bg-green-500 animate-pulse rounded-full inline-block" />
+            </div>
+            <div className="flex justify-between"><span>UPLINK:</span> <span className="text-emerald-400 font-bold">STABLE</span></div>
+            <div className="flex justify-between"><span>SECTOR:</span> <span className="text-red-500/65 font-bold">{hudStats.sector}</span></div>
+            <div className="flex justify-between"><span>CPU LOAD:</span> <span className="text-red-500/65 font-bold">{hudStats.cpu}%</span></div>
+            <div className="flex justify-between"><span>RAM USED:</span> <span className="text-red-500/65 font-bold">{Math.floor(hudStats.ram * 10)}%</span></div>
+            <div className="flex justify-between items-center">
+              <span>SYS HEALTH:</span> 
+              <span className="text-green-400 font-bold bg-green-950/40 px-1 border border-green-500/20">NOMINAL</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Grid of Desktop Files/Folders Shortcuts */}
       <div
         id="desktop-grid"
-        className="absolute top-6 left-6 bottom-16 right-6 grid grid-flow-col auto-cols-[100px] grid-rows-[repeat(auto-fill,100px)] gap-4 justify-start items-start pointer-events-none z-10"
+        className="absolute top-36 left-6 bottom-24 right-6 grid grid-flow-col auto-cols-[120px] grid-rows-[repeat(auto-fill,110px)] gap-3 justify-start items-start pointer-events-none z-10"
       >
-        {/* Default App Shortcuts */}
-        {REGISTERED_APPS.map((app) => (
+        {REGISTERED_APPS.filter((app) => ["terminal", "file-manager", "mission-control", "settings", "equation-racers", "text-editor"].includes(app.id)).map((app) => (
           <div
             key={app.id}
             onDoubleClick={() => launchApp(app.id)}
             onContextMenu={(e) => handleContextMenu(e, app.id, "app")}
-            className="flex flex-col items-center justify-center p-2 rounded-xl text-zinc-100 hover:bg-white/10 active:bg-white/20 transition duration-150 cursor-pointer pointer-events-auto group select-none text-center"
+            className="flex flex-col items-center justify-center border border-[rgba(214,58,58,0.14)] bg-black/10 p-2 text-center text-[#f3dada] transition duration-150 cursor-pointer pointer-events-auto group select-none hover:border-[rgba(214,58,58,0.35)] hover:bg-[rgba(214,58,58,0.08)]"
           >
-            <div className="text-3.5xl mb-1 filter drop-shadow group-hover:scale-105 transition-transform duration-100 select-none">
+            <div className="mb-1 text-[12px] font-semibold tracking-[0.22em] text-[#ffdddd] select-none">
               {app.icon}
             </div>
-            <span className="text-xs font-medium truncate w-full filter drop-shadow-md text-shadow">
+            <span className="w-full truncate border-t border-[rgba(214,58,58,0.12)] pt-2 text-[10px] font-medium tracking-[0.22em]">
               {app.title}
             </span>
           </div>
@@ -403,12 +479,12 @@ export const Desktop: React.FC = () => {
             key={file.name}
             onDoubleClick={() => handleDoubleClickShortcut(file.name, file.type)}
             onContextMenu={(e) => handleContextMenu(e, file.name, file.type as "file" | "directory")}
-            className="flex flex-col items-center justify-center p-2 rounded-xl text-zinc-100 hover:bg-white/10 active:bg-white/20 transition duration-150 cursor-pointer pointer-events-auto group select-none text-center"
+            className="flex flex-col items-center justify-center border border-[rgba(214,58,58,0.14)] bg-black/10 p-2 text-center text-[#f3dada] transition duration-150 cursor-pointer pointer-events-auto group select-none hover:border-[rgba(214,58,58,0.35)] hover:bg-[rgba(214,58,58,0.08)]"
           >
-            <div className="text-3.5xl mb-1 filter drop-shadow group-hover:scale-105 transition-transform duration-100 select-none">
-              {file.type === "directory" ? "📁" : "📄"}
+            <div className="mb-1 text-[12px] font-semibold tracking-[0.22em] text-[#ffdddd] select-none">
+              {file.type === "directory" ? "DIR" : "DAT"}
             </div>
-            <span className="text-xs font-medium truncate w-full filter drop-shadow-md text-shadow">
+            <span className="w-full truncate border-t border-[rgba(214,58,58,0.12)] pt-2 text-[10px] font-medium tracking-[0.22em]">
               {file.name}
             </span>
           </div>
@@ -416,9 +492,7 @@ export const Desktop: React.FC = () => {
       </div>
 
       {windows.map((win) => {
-        const parts = win.pid.split("-");
-        const appId = parts.slice(0, -1).join("-");
-        const config = REGISTERED_APPS.find((app) => app.id === appId);
+        const config = REGISTERED_APPS.find((app) => win.pid.startsWith(app.id));
         if (!config) return null;
         
         const AppComponent = config.component;
