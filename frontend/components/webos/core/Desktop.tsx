@@ -259,6 +259,7 @@ export const Desktop: React.FC = () => {
           icon: "🎨",
           action: () => {
             const gradients = [
+              "url('/wallpapers/default_wallpaper.png')",
               "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)",
               "linear-gradient(135deg, #180828 0%, #280818 50%, #081828 100%)",
               "linear-gradient(135deg, #050508 0%, #0b1528 70%, #1e1b4b 100%)",

@@ -179,24 +179,22 @@ export const MenuBar: React.FC = () => {
     clockClasses += "text-teal-200 border-teal-950/40";
     dropdownBg = "bg-zinc-950/95 border-teal-900/30 text-teal-100 shadow-emerald-950/20";
   } else {
-    // dark
-    barClasses += "bg-zinc-950/75 border-zinc-800/40 text-zinc-300";
-    brandTextClasses += "text-white hover:text-cyan-400";
-    submenuClasses+= "text-zinc-400";
-    statusClasses += "text-zinc-400";
-    clockClasses += "text-white border-zinc-800";
-    dropdownBg = "bg-zinc-950/95 border-zinc-800/40 text-zinc-200 shadow-zinc-950/40";
+    // dark (default Terminal Green theme)
+    barClasses += "bg-black/85 border-emerald-500/40 text-emerald-400";
+    brandTextClasses += "text-white hover:text-emerald-300";
+    submenuClasses+= "text-emerald-600/70";
+    statusClasses += "text-emerald-600/70";
+    clockClasses += "text-emerald-300 border-emerald-950/30";
+    dropdownBg = "bg-black/95 border-emerald-500/40 text-emerald-300 shadow-emerald-950/40 rounded-none";
   }
 
   return (
     <div className={barClasses}>
       {/* Left side: System Controls, OS name, submenus */}
       <div className="flex items-center gap-4">
-        {/* macOS dot indicators */}
-        <div className="flex items-center gap-1.5 mr-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-red-500/80 shadow-[0_0_6px_rgba(239,68,68,0.4)]" />
-          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80 shadow-[0_0_6px_rgba(234,179,8,0.4)]" />
-          <div className="w-2.5 h-2.5 rounded-full bg-green-500/80 shadow-[0_0_6px_rgba(34,197,94,0.4)]" />
+        {/* Retro terminal green status tag */}
+        <div className="flex items-center gap-1 mr-1 text-[8px] text-emerald-500/60 font-mono tracking-tighter select-none">
+          <span>[SYS_ONLINE]</span>
         </div>
 
         {/* Global OS Name / Dropdown */}
@@ -209,7 +207,7 @@ export const MenuBar: React.FC = () => {
             ARES
           </span>
           {activeMenu === "system" && (
-            <div className={`absolute top-6 left-0 w-48 rounded-lg border p-1 shadow-2xl z-[99999] flex flex-col font-medium animate-in fade-in slide-in-from-top-1 duration-150 ${dropdownBg}`}>
+            <div className={`absolute top-6 left-0 w-48 rounded-none border p-1 shadow-2xl z-[99999] flex flex-col font-medium animate-in fade-in slide-in-from-top-1 duration-150 ${dropdownBg}`}>
               <button onClick={triggerAboutNotification} className="w-full text-left px-3 py-1.5 hover:bg-white/10 rounded flex items-center gap-2 transition duration-100">
                 <span>💻</span> About ARESOS
               </button>
@@ -239,7 +237,7 @@ export const MenuBar: React.FC = () => {
               File
             </span>
             {activeMenu === "file" && (
-              <div className={`absolute top-6 left-0 w-48 rounded-lg border p-1 shadow-2xl z-[99999] flex flex-col font-medium animate-in fade-in slide-in-from-top-1 duration-150 ${dropdownBg}`}>
+              <div className={`absolute top-6 left-0 w-48 rounded-none border p-1 shadow-2xl z-[99999] flex flex-col font-medium animate-in fade-in slide-in-from-top-1 duration-150 ${dropdownBg}`}>
                 <button onClick={() => launchApp("terminal")} className="w-full text-left px-3 py-1.5 hover:bg-white/10 rounded flex items-center gap-2 transition duration-100">
                   <span>💻</span> Launch Terminal
                 </button>
@@ -263,7 +261,7 @@ export const MenuBar: React.FC = () => {
               Edit
             </span>
             {activeMenu === "edit" && (
-              <div className={`absolute top-6 left-0 w-48 rounded-lg border p-1 shadow-2xl z-[99999] flex flex-col font-medium animate-in fade-in slide-in-from-top-1 duration-150 ${dropdownBg}`}>
+              <div className={`absolute top-6 left-0 w-48 rounded-none border p-1 shadow-2xl z-[99999] flex flex-col font-medium animate-in fade-in slide-in-from-top-1 duration-150 ${dropdownBg}`}>
                 <button onClick={clearNotifications} className="w-full text-left px-3 py-1.5 hover:bg-white/10 rounded flex items-center gap-2 transition duration-100">
                   <span>🧹</span> Clear Alerts Drawer
                 </button>
@@ -288,7 +286,7 @@ export const MenuBar: React.FC = () => {
               View
             </span>
             {activeMenu === "view" && (
-              <div className={`absolute top-6 left-0 w-48 rounded-lg border p-1 shadow-2xl z-[99999] flex flex-col font-medium animate-in fade-in slide-in-from-top-1 duration-150 ${dropdownBg}`}>
+              <div className={`absolute top-6 left-0 w-48 rounded-none border p-1 shadow-2xl z-[99999] flex flex-col font-medium animate-in fade-in slide-in-from-top-1 duration-150 ${dropdownBg}`}>
                 <button onClick={toggleFullscreen} className="w-full text-left px-3 py-1.5 hover:bg-white/10 rounded flex items-center gap-2 transition duration-100">
                   <span>🖥️</span> Toggle Fullscreen
                 </button>
@@ -309,7 +307,7 @@ export const MenuBar: React.FC = () => {
               Help
             </span>
             {activeMenu === "help" && (
-              <div className={`absolute top-6 left-0 w-52 rounded-lg border p-1 shadow-2xl z-[99999] flex flex-col font-medium animate-in fade-in slide-in-from-top-1 duration-150 ${dropdownBg}`}>
+              <div className={`absolute top-6 left-0 w-52 rounded-none border p-1 shadow-2xl z-[99999] flex flex-col font-medium animate-in fade-in slide-in-from-top-1 duration-150 ${dropdownBg}`}>
                 <button 
                   onClick={() => addNotification("ARES Help", "ARES OS shell emulator supports ls, cd, mkdir, rm, weather, ping and top commands. Tap dock icons to launch applications.", "info")}
                   className="w-full text-left px-3 py-1.5 hover:bg-white/10 rounded flex items-center gap-2 transition duration-100"

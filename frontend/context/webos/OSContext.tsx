@@ -52,7 +52,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   
   const [settings, setSettings] = useState<SystemSettings>({
     theme: "dark",
-    wallpaperUrlOrGradient: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)",
+    wallpaperUrlOrGradient: "url('/wallpapers/default_wallpaper.png')",
     volume: 80,
     brightness: 90,
     wallpaperBrightness: 80,
@@ -74,7 +74,11 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       const savedSettings = localStorage.getItem("aresos_system_settings");
       if (savedSettings) {
         try {
-          setSettings(JSON.parse(savedSettings));
+          const parsed = JSON.parse(savedSettings);
+          if (parsed.wallpaperUrlOrGradient === "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)") {
+            parsed.wallpaperUrlOrGradient = "url('/wallpapers/default_wallpaper.png')";
+          }
+          setSettings(parsed);
         } catch (e) {
           console.error("Failed to parse settings", e);
         }

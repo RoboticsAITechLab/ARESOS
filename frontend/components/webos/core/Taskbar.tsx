@@ -170,7 +170,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
 
   const theme = settings?.theme || "dark";
 
-  let dockClasses = "flex items-end gap-3 px-4 py-2.5 rounded-2xl shadow-2xl backdrop-blur-xl max-w-max border ";
+  let dockClasses = "flex items-end gap-3 px-4 py-2 rounded-none shadow-2xl backdrop-blur-md max-w-max border-2 ";
   let dividerClasses = "w-[1px] h-10 self-center ";
   let notifyHoverClass = "";
 
@@ -187,9 +187,10 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     dividerClasses += "bg-teal-950/40";
     notifyHoverClass = "hover:bg-white/10";
   } else {
-    dockClasses += "bg-zinc-950/40 border-zinc-800/40 shadow-black/40";
-    dividerClasses += "bg-zinc-850";
-    notifyHoverClass = "hover:bg-white/10";
+    // default Terminal Green theme
+    dockClasses += "bg-black/85 border-emerald-500/50 shadow-emerald-950/40";
+    dividerClasses += "bg-emerald-900/30";
+    notifyHoverClass = "hover:bg-emerald-950/40";
   }
 
   return (
@@ -216,7 +217,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
             left: `${contextMenu.x}px`,
             top: `${contextMenu.y}px`,
           }}
-          className="bg-zinc-900/95 border border-zinc-800/80 rounded-xl py-1.5 shadow-2xl backdrop-blur-md z-[1000] w-44 animate-in fade-in zoom-in-95 duration-100"
+          className="bg-black/95 border border-emerald-500/40 rounded-none py-1.5 shadow-2xl backdrop-blur-md z-[1000] w-44 animate-in fade-in zoom-in-95 duration-100"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Pin / Unpin Button */}
@@ -225,7 +226,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
               togglePinApp(contextMenu.appId);
               setContextMenu(null);
             }}
-            className="w-full text-left px-3.5 py-2 text-xs text-zinc-300 hover:bg-white/10 flex items-center gap-2 font-medium"
+            className="w-full text-left px-3.5 py-2 text-xs text-zinc-300 hover:bg-emerald-950/40 flex items-center gap-2 font-medium"
           >
             <span>📌</span>
             <span>
@@ -240,7 +241,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
                 handleCloseApp(contextMenu.appId);
                 setContextMenu(null);
               }}
-              className="w-full text-left px-3.5 py-2 text-xs text-rose-400 hover:bg-rose-500/10 border-t border-zinc-800/60 flex items-center gap-2 font-medium"
+              className="w-full text-left px-3.5 py-2 text-xs text-rose-450 hover:bg-rose-950/40 border-t border-emerald-950/30 flex items-center gap-2 font-medium"
             >
               <span>❌</span>
               <span>Close Application</span>
@@ -255,7 +256,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
           const isRunning = processes.some((p) => p.appId === app.id);
           const isFocused = processes.some((p) => p.appId === app.id && activePid === p.pid);
 
-          let buttonClasses = "w-12 h-12 rounded-xl flex items-center justify-center text-3.5xl cursor-pointer select-none transition-all duration-200 hover:scale-120 hover:-translate-y-1.5 active:scale-105 active:translate-y-0 ";
+          let buttonClasses = "w-12 h-12 rounded-none flex items-center justify-center text-3.5xl cursor-pointer select-none transition-all duration-200 hover:scale-120 hover:-translate-y-1.5 active:scale-105 active:translate-y-0 ";
           if (isFocused) {
             if (theme === "light") {
               buttonClasses += "bg-slate-300/40 border border-slate-400/50 shadow-sm";
@@ -264,13 +265,13 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
             } else if (theme === "aurora") {
               buttonClasses += "bg-teal-600/25 border border-teal-500/30 shadow-[0_0_6px_rgba(20,184,166,0.2)]";
             } else {
-              buttonClasses += "bg-indigo-600/25 border border-indigo-500/30";
+              buttonClasses += "bg-emerald-950/40 border border-emerald-500/50 shadow-[0_0_8px_rgba(0,255,102,0.25)]";
             }
           } else {
-            buttonClasses += theme === "light" ? "hover:bg-slate-200/40" : "hover:bg-white/10";
+            buttonClasses += theme === "light" ? "hover:bg-slate-200/40" : "hover:bg-emerald-950/20";
           }
 
-          let dotClasses = "w-1.5 h-1.5 rounded-full absolute -bottom-1 transition-all duration-200 ";
+          let dotClasses = "w-1.5 h-1.5 rounded-none absolute -bottom-1 transition-all duration-200 ";
           if (isRunning) {
             if (isFocused) {
               if (theme === "light") {
@@ -280,10 +281,10 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
               } else if (theme === "aurora") {
                 dotClasses += "bg-teal-400 shadow-[0_0_6px_rgba(45,212,191,0.8)] scale-110";
               } else {
-                dotClasses += "bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)] scale-110";
+                dotClasses += "bg-emerald-400 shadow-[0_0_6px_rgba(0,255,102,0.8)] scale-110";
               }
             } else {
-              dotClasses += theme === "light" ? "bg-slate-400" : "bg-zinc-500";
+              dotClasses += theme === "light" ? "bg-slate-400" : "bg-emerald-900/60";
             }
           }
 
