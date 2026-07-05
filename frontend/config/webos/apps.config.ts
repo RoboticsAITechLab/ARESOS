@@ -5,8 +5,8 @@ import { AppConfig } from "@/types/webos/process";
 export const REGISTERED_APPS: AppConfig[] = [
   {
     id: "terminal",
-    title: "Terminal",
-    icon: "💻", // Emoji or Lucide icon class
+    title: "TERMINAL",
+    icon: "TERM",
     component: dynamic(() => import("@/components/webos/apps/Terminal"), {
       ssr: false,
     }),
@@ -16,8 +16,8 @@ export const REGISTERED_APPS: AppConfig[] = [
   },
   {
     id: "file-manager",
-    title: "File Explorer",
-    icon: "📁",
+    title: "ARES FILE SYSTEM",
+    icon: "FILES",
     component: dynamic(() => import("@/components/webos/apps/FileManager"), {
       ssr: false,
     }),
@@ -27,8 +27,8 @@ export const REGISTERED_APPS: AppConfig[] = [
   },
   {
     id: "settings",
-    title: "Settings",
-    icon: "⚙️",
+    title: "SYSTEM CONFIG",
+    icon: "SYS",
     component: dynamic(() => import("@/components/webos/apps/SettingsApp"), {
       ssr: false,
     }),
@@ -38,8 +38,8 @@ export const REGISTERED_APPS: AppConfig[] = [
   },
   {
     id: "browser",
-    title: "Web Browser",
-    icon: "🌐",
+    title: "NET LINK",
+    icon: "NET",
     component: dynamic(() => import("@/components/webos/apps/Browser"), {
       ssr: false,
     }),
@@ -49,8 +49,8 @@ export const REGISTERED_APPS: AppConfig[] = [
   },
   {
     id: "text-editor",
-    title: "Notepad",
-    icon: "📝",
+    title: "MISSION LOG",
+    icon: "NOTE",
     component: dynamic(() => import("@/components/webos/apps/TextEditor"), {
       ssr: false,
     }),
@@ -60,8 +60,8 @@ export const REGISTERED_APPS: AppConfig[] = [
   },
   {
     id: "calendar",
-    title: "Calendar",
-    icon: "📅",
+    title: "SECTOR CALENDAR",
+    icon: "DATE",
     component: dynamic(() => import("@/components/webos/apps/CalendarApp"), {
       ssr: false,
     }),
@@ -71,8 +71,8 @@ export const REGISTERED_APPS: AppConfig[] = [
   },
   {
     id: "todo",
-    title: "Todo checklist",
-    icon: "✅",
+    title: "TASK BOARD",
+    icon: "TASK",
     component: dynamic(() => import("@/components/webos/apps/TodoApp"), {
       ssr: false,
     }),
@@ -82,8 +82,8 @@ export const REGISTERED_APPS: AppConfig[] = [
   },
   {
     id: "calculator",
-    title: "Calculator",
-    icon: "🧮",
+    title: "CALC CORE",
+    icon: "CALC",
     component: dynamic(() => import("@/components/webos/apps/Calculator"), {
       ssr: false,
     }),
@@ -93,8 +93,8 @@ export const REGISTERED_APPS: AppConfig[] = [
   },
   {
     id: "clock",
-    title: "System Clock",
-    icon: "⏰",
+    title: "TIME CORE",
+    icon: "TIME",
     component: dynamic(() => import("@/components/webos/apps/ClockApp"), {
       ssr: false,
     }),
@@ -104,8 +104,8 @@ export const REGISTERED_APPS: AppConfig[] = [
   },
   {
     id: "equation-realms",
-    title: "Equation Realms",
-    icon: "🔮",
+    title: "MISSION REALMS",
+    icon: "REAL",
     component: dynamic(() => import("@/components/webos/apps/EquationRealms"), {
       ssr: false,
     }),
@@ -115,8 +115,8 @@ export const REGISTERED_APPS: AppConfig[] = [
   },
   {
     id: "equation-racers",
-    title: "Equation Racers",
-    icon: "🏎️",
+    title: "EQUATION RACERS",
+    icon: "RACE",
     component: dynamic(() => import("@/components/webos/apps/EquationRacers"), {
       ssr: false,
     }),
@@ -126,8 +126,8 @@ export const REGISTERED_APPS: AppConfig[] = [
   },
   {
     id: "neon-duel",
-    title: "Neon Duel",
-    icon: "☄️",
+    title: "NEON DUEL",
+    icon: "DUEL",
     component: dynamic(() => import("@/components/webos/apps/NeonDuel"), {
       ssr: false,
     }),
@@ -137,8 +137,8 @@ export const REGISTERED_APPS: AppConfig[] = [
   },
   {
     id: "music-player",
-    title: "Synth Player",
-    icon: "🎵",
+    title: "AUDIO CORE",
+    icon: "AUDIO",
     component: dynamic(() => import("@/components/webos/apps/MusicPlayer"), {
       ssr: false,
     }),
@@ -148,8 +148,8 @@ export const REGISTERED_APPS: AppConfig[] = [
   },
   {
     id: "pixel-paint",
-    title: "Neon Paint",
-    icon: "🎨",
+    title: "FIELD PAINT",
+    icon: "PAINT",
     component: dynamic(() => import("@/components/webos/apps/PixelPaint"), {
       ssr: false,
     }),
@@ -159,8 +159,8 @@ export const REGISTERED_APPS: AppConfig[] = [
   },
   {
     id: "mission-control",
-    title: "Mission Control",
-    icon: "🛰️",
+    title: "MISSION CONSOLE",
+    icon: "MCON",
     component: dynamic(() => import("@/components/webos/apps/MissionControl"), {
       ssr: false,
     }),

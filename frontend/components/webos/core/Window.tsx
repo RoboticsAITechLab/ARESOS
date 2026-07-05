@@ -3,7 +3,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useOS } from "@/hooks/webos/useOS";
 import { WindowInstance } from "@/types/webos/window";
-import { DotGothic16 } from "next/font/google";
 
 interface WindowProps {
   windowState: WindowInstance;
@@ -74,11 +73,23 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
         const deltaX = e.clientX - dragStart.current.x;
         const deltaY = e.clientY - dragStart.current.y;
         
-        const newX = dragStart.current.winX + deltaX;
+        let newX = dragStart.current.winX + deltaX;
         let newY = dragStart.current.winY + deltaY;
 
-        // Prevent dragging above top bar (Y = 0)
-        if (newY < 0) newY = 0;
+        // Viewport boundaries constraints
+        const topbarHeight = 28;
+        const taskbarHeight = 64;
+        const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1024;
+        const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 768;
+
+        // Constraint window position
+        if (newX < 0) newX = 0;
+        if (newY < topbarHeight) newY = topbarHeight;
+        if (newX + windowState.width > viewportWidth) newX = viewportWidth - windowState.width;
+        if (newY + windowState.height > viewportHeight - taskbarHeight) newY = viewportHeight - taskbarHeight - windowState.height;
+
+        if (newX < 0) newX = 0;
+        if (newY < topbarHeight) newY = topbarHeight;
 
         updateWindowPosition(windowState.pid, newX, newY);
       }
@@ -87,8 +98,28 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
         const deltaX = e.clientX - resizeStart.current.x;
         const deltaY = e.clientY - resizeStart.current.y;
 
-        const newWidth = Math.max(300, resizeStart.current.width + deltaX);
-        const newHeight = Math.max(200, resizeStart.current.height + deltaY);
+        const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1024;
+        const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 768;
+        const topbarHeight = 28;
+        const taskbarHeight = 64;
+
+        // Max width/height rules (max-width: 90vw, max-height: 80vh)
+        const maxWidth = Math.floor(viewportWidth * 0.9);
+        const maxHeight = Math.floor(viewportHeight * 0.8);
+
+        let newWidth = Math.max(300, Math.min(maxWidth, resizeStart.current.width + deltaX));
+        let newHeight = Math.max(200, Math.min(maxHeight, resizeStart.current.height + deltaY));
+
+        // Prevent resizing outside viewport boundaries
+        if (windowState.x + newWidth > viewportWidth) {
+          newWidth = viewportWidth - windowState.x;
+        }
+        if (windowState.y + newHeight > viewportHeight - taskbarHeight) {
+          newHeight = viewportHeight - taskbarHeight - windowState.y;
+        }
+
+        newWidth = Math.max(300, newWidth);
+        newHeight = Math.max(200, newHeight);
 
         updateWindowDimensions(windowState.pid, newWidth, newHeight);
       }
@@ -118,7 +149,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
         top: 0,
         left: 0,
         right: 0,
-        bottom: "76px", // clear floating Dock/Taskbar height (with margin)
+        bottom: 0,
         zIndex: windowState.zIndex,
         transformOrigin: "bottom center",
         transition: isTransitioning
@@ -130,14 +161,14 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
       }
     : {
         position: "absolute",
-        left: `${windowState.x}px`,
-        top: `${windowState.y}px`,
-        width: `${windowState.width}px`,
-        height: `${windowState.height}px`,
+        left: `${Math.max(0, windowState.x ?? 0)}px`,
+        top: `${Math.max(28, windowState.y ?? 28)}px`,
+        width: `${Math.max(300, windowState.width ?? 300)}px`,
+        height: `${Math.max(200, windowState.height ?? 200)}px`,
         zIndex: windowState.zIndex,
         transformOrigin: "bottom center",
         transition: isTransitioning
-          ? "transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease-out, left 0.2s ease-out, top 0.2s ease-out, width 0.2s ease-out, height 0.2s ease-out"
+          ? "transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease-out, width 0.2s ease-out, height 0.2s ease-out"
           : "none",
         transform: windowState.isMinimized ? "scale(0.01) translateY(800px)" : "scale(1) translateY(0)",
         opacity: windowState.isMinimized ? 0 : 1,
@@ -146,66 +177,50 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
 
   const theme = settings?.theme || "dark";
 
-  let windowThemeClasses = "";
-  let headerThemeClasses = "";
+  const windowThemeClasses =
+    theme === "light"
+      ? isActive
+        ? "border-[rgba(214,58,58,0.65)] bg-[#f8f5f1] text-slate-900 shadow-[0_0_0_1px_rgba(214,58,58,0.2)]"
+        : "border-[rgba(214,58,58,0.22)] bg-[#fbfaf8] text-slate-700 shadow-[0_0_0_1px_rgba(214,58,58,0.08)]"
+      : isActive
+        ? "border-[rgba(214,58,58,0.75)] bg-[#050607]/96 text-[#f8d9d9] shadow-[0_0_0_1px_rgba(214,58,58,0.2),0_0_30px_rgba(214,58,58,0.08)]"
+        : "border-[rgba(214,58,58,0.3)] bg-[#050607]/90 text-[#ddb7b7] shadow-[0_0_0_1px_rgba(214,58,58,0.08)]";
 
-  if (theme === "light") {
-    windowThemeClasses = isActive
-      ? "border-emerald-600/60 shadow-emerald-200/30 bg-emerald-50/90 text-emerald-950"
-      : "border-slate-300 shadow-black/5 bg-slate-100/80 text-slate-550";
-    headerThemeClasses = isActive
-      ? "bg-emerald-100 border-emerald-200"
-      : "bg-slate-200/50 border-slate-300/40";
-  } else if (theme === "midnight") {
-    windowThemeClasses = isActive
-      ? "border-purple-500/80 shadow-purple-950/50 bg-slate-950/90 text-purple-200"
-      : "border-purple-900/30 shadow-black/30 bg-slate-950/80 text-purple-400/80";
-    headerThemeClasses = isActive
-      ? "bg-purple-950/60 border-purple-800/40"
-      : "bg-purple-950/20 border-purple-900/20";
-  } else if (theme === "aurora") {
-    windowThemeClasses = isActive
-      ? "border-cyan-500/80 shadow-cyan-950/50 bg-zinc-950/90 text-cyan-200"
-      : "border-cyan-900/30 shadow-black/30 bg-zinc-950/80 text-cyan-500/80";
-    headerThemeClasses = isActive
-      ? "bg-cyan-950/60 border-cyan-800/40"
-      : "bg-cyan-950/20 border-cyan-900/20";
-  } else {
-    // dark theme (default ARES OS Terminal Green)
-    windowThemeClasses = isActive
-      ? "border-emerald-500/80 shadow-emerald-950/50 bg-black/90 text-emerald-400"
-      : "border-emerald-900/30 shadow-black/40 bg-zinc-950/85 text-emerald-600/70";
-    headerThemeClasses = isActive
-      ? "bg-emerald-950/60 border-emerald-900/40"
-      : "bg-emerald-950/20 border-emerald-950/20";
-  }
+  const headerThemeClasses =
+    theme === "light"
+      ? isActive
+        ? "bg-[rgba(214,58,58,0.08)] border-[rgba(214,58,58,0.2)]"
+        : "bg-[rgba(214,58,58,0.03)] border-[rgba(214,58,58,0.14)]"
+      : isActive
+        ? "bg-[rgba(214,58,58,0.1)] border-[rgba(214,58,58,0.28)]"
+        : "bg-[rgba(214,58,58,0.05)] border-[rgba(214,58,58,0.12)]";
 
   return (
     <div
       ref={windowRef}
       style={style}
       onClick={() => focusWindow(windowState.pid)}
-      className={`flex flex-col rounded-none shadow-2xl border-2 transition-shadow duration-200 overflow-hidden ${windowThemeClasses}`}
+      className={`flex flex-col rounded-none border transition-shadow duration-200 overflow-hidden ${windowThemeClasses}`}
     >
       {/* Window Header (Title Bar) */}
       <div
         onMouseDown={handleHeaderMouseDown}
         onDoubleClick={() => maximizeWindow(windowState.pid)}
-        className={`flex items-center justify-between h-9 px-3 select-none cursor-default border-b font-mono ${headerThemeClasses}`}
+        className={`flex h-9 items-center justify-between border-b px-3 font-mono text-[10px] uppercase tracking-[0.22em] select-none cursor-default ${headerThemeClasses}`}
       >
-        <span className="text-xs font-bold uppercase tracking-wider truncate select-none">
-          ⚡ {windowState.title}
+        <span className="truncate font-semibold select-none">
+          {isActive ? "[LOCKED]" : "[IDLE]"} {windowState.title}
         </span>
         
         {/* Title Bar Buttons */}
-        <div className="flex items-center gap-1.5 font-mono text-xs">
+        <div className="flex items-center gap-1 font-mono text-[10px]">
           {/* Minimize */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               minimizeWindow(windowState.pid);
             }}
-            className="px-1.5 py-0.5 border border-zinc-700/50 hover:bg-zinc-800/80 transition-colors cursor-pointer text-[10px] select-none text-zinc-400 font-bold"
+            className="h-5 w-7 border border-[rgba(214,58,58,0.22)] bg-black/20 text-[#f2c1c1] transition-colors cursor-pointer select-none hover:bg-[rgba(214,58,58,0.14)]"
             title="Minimize"
           >
             _
@@ -217,7 +232,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
               e.stopPropagation();
               maximizeWindow(windowState.pid);
             }}
-            className="px-1.5 py-0.5 border border-zinc-700/50 hover:bg-zinc-800/80 transition-colors cursor-pointer text-[10px] select-none text-zinc-400 font-bold"
+            className="h-5 w-7 border border-[rgba(214,58,58,0.22)] bg-black/20 text-[#f2c1c1] transition-colors cursor-pointer select-none hover:bg-[rgba(214,58,58,0.14)]"
             title="Maximize"
           >
             ⛶
@@ -229,7 +244,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
               e.stopPropagation();
               terminateApp(windowState.pid);
             }}
-            className="px-1.5 py-0.5 border border-red-500/40 hover:bg-red-950/60 transition-colors cursor-pointer text-[10px] select-none text-red-400 font-bold"
+            className="h-5 w-7 border border-[rgba(214,58,58,0.45)] bg-black/20 text-[#ff9b9b] transition-colors cursor-pointer select-none hover:bg-[rgba(214,58,58,0.22)]"
             title="Close"
           >
             ✕
@@ -238,7 +253,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
       </div>
 
       {/* Window Content */}
-      <div className={`flex-1 overflow-auto p-0 relative ${theme === "light" ? "bg-white/70" : "bg-black/40"}`}>
+      <div className={`flex-1 overflow-auto p-0 relative ${theme === "light" ? "bg-[#fcfbfa]" : "bg-[#030405]/90"}`}>
         {children}
       </div>
 
@@ -246,7 +261,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
       {!windowState.isMaximized && (
         <div
           onMouseDown={handleResizeMouseDown}
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-end justify-end p-0.5"
+          className="absolute bottom-0 right-0 flex h-4 w-4 cursor-se-resize items-end justify-end p-0.5"
           style={{ zIndex: 100 }}
         >
           <svg
@@ -256,7 +271,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
             fill="none"
             stroke="currentColor"
             strokeWidth="1"
-            className="text-zinc-650 hover:text-zinc-400 select-none pointer-events-none"
+            className="pointer-events-none select-none text-[#cf7b7b] hover:text-[#ffb3b3]"
           >
             <line x1="6" y1="0" x2="0" y2="6" />
             <line x1="7" y1="3" x2="3" y2="7" />

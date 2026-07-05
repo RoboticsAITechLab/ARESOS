@@ -53,11 +53,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         left: `${x}px`,
         zIndex: 9999,
       }}
-      className="absolute w-48 bg-zinc-900/90 backdrop-blur-xl border border-zinc-700/50 rounded-lg shadow-xl py-1 text-zinc-200 select-none animate-in fade-in zoom-in-95 duration-100"
+      className="absolute w-48 rounded-none border border-[rgba(214,58,58,0.32)] bg-[#050607]/95 py-1 text-[#f3dada] shadow-xl backdrop-blur-xl select-none animate-in fade-in zoom-in-95 duration-100"
     >
       {items.map((item, index) => (
         <React.Fragment key={index}>
-          {item.divider && <div className="border-t border-zinc-800/80 my-1" />}
+          {item.divider && <div className="my-1 border-t border-[rgba(214,58,58,0.18)]" />}
           <button
             onClick={() => {
               if (item.disabled) return;
@@ -65,7 +65,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onClose();
             }}
             disabled={item.disabled}
-            className={`w-full text-left px-4 py-2 hover:bg-zinc-800/80 active:bg-zinc-700 text-xs flex items-center gap-2 cursor-pointer transition-colors duration-75 ${
+            className={`flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-xs transition-colors duration-75 hover:bg-[rgba(214,58,58,0.12)] active:bg-[rgba(214,58,58,0.18)] ${
               item.disabled ? "opacity-30 pointer-events-none" : ""
             }`}
           >

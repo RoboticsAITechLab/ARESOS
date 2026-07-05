@@ -29,13 +29,15 @@ function WebOSLayout() {
   return (
     <div className={isCrt ? "crt-screen relative w-screen h-screen overflow-hidden" : "relative w-screen h-screen overflow-hidden"}>
       {isCrt && <div className="crt-overlay" />}
-      <div className="cyber-grid" />
+      <div className="orbital-grid" />
+      <div className="orbital-radar" />
+      <div className="orbital-scanlines" />
       <main className="flex flex-col w-full h-full overflow-hidden select-none relative font-mono animate-in fade-in duration-500">
-        {/* macOS Top Menu Bar */}
+        {/* Mission-control status bar */}
         <MenuBar />
 
         {/* Desktop Workspace (contains wallpapers, shortcuts, open windows) */}
-        <div className="flex-1 w-full h-full relative overflow-hidden flex flex-col">
+        <div className="flex-1 w-full relative overflow-hidden flex flex-col">
           <Desktop />
         </div>
 

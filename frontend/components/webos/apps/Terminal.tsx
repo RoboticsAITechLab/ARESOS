@@ -160,13 +160,34 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
   } = useOS();
 
   const [input, setInput] = useState("");
-  const [history, setHistory] = useState<string[]>([
-    "ARESOS Command Line Shell [Version 2.0.0]",
-    "(c) 2026 Robotics AI Tech Lab. All rights reserved.",
-    "",
-    "Type 'help' to see list of available commands.",
-    "",
-  ]);
+  const [history, setHistory] = useState<string[]>([]);
+
+  useEffect(() => {
+    const bootLines = [
+      "INITIALIZING ARES CORE...",
+      "MOUNTING FILE SYSTEM...",
+      "LOADING AUDIO ENGINE...",
+      "VERIFYING SYSTEM STATE...",
+      "UPLINK ESTABLISHED...",
+      "SYSTEM READY.",
+      "",
+      "ARESOS Command Line Shell [Version 2.0.0]",
+      "(c) 2026 Robotics AI Tech Lab. All rights reserved.",
+      "",
+      "Type 'help' to see list of available commands.",
+      ""
+    ];
+
+    let currentIdx = 0;
+    const printNextLine = () => {
+      if (currentIdx < bootLines.length) {
+        setHistory((prev) => [...prev, bootLines[currentIdx]]);
+        currentIdx++;
+        setTimeout(printNextLine, 80 + Math.random() * 100);
+      }
+    };
+    printNextLine();
+  }, []);
 
   // Active sub-program state
   const [activeProgram, setActiveProgram] = useState<"none" | "ping" | "top" | "matrix">("none");
@@ -752,6 +773,9 @@ export default function Terminal({ pid: _pid }: TerminalProps) {
 
   // Formatter for stylized output render
   const renderHistoryLine = (line: string, idx: number) => {
+    if (!line || typeof line !== "string") {
+      return <div key={idx} className="min-h-[14px]" />;
+    }
     // Check if line contains ANSI escape character codes
     if (line.includes("\u001b") || line.includes("\x1b")) {
       return (

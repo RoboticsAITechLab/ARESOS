@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { useOS } from "@/hooks/webos/useOS";
 import { playClickSound } from "@/utils/webos/audio";
 import { REGISTERED_APPS } from "@/config/webos/apps.config";
-import { NextFontManifestPlugin } from "next/dist/build/webpack/plugins/next-font-manifest-plugin";
 
 interface TaskbarProps {
   onToggleNotifications: () => void;
@@ -36,26 +35,15 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const defaults = [
-        "file-manager",
-        "browser",
-        "text-editor",
-        "calendar",
-        "todo",
         "terminal",
-        "calculator",
-        "clock",
-        "settings"
+        "file-manager",
+        "mission-control",
+        "settings",
+        "music-player",
+        "equation-racers"
       ];
-      const saved = localStorage.getItem("aresos_pinned_apps");
-      if (saved) {
-        try {
-          setPinnedAppIds(JSON.parse(saved));
-        } catch (e) {
-          setPinnedAppIds(defaults);
-        }
-      } else {
-        setPinnedAppIds(defaults);
-      }
+      setPinnedAppIds(defaults);
+      localStorage.setItem("aresos_pinned_apps", JSON.stringify(defaults));
       setIsLoaded(true);
     }
   }, []);
@@ -170,42 +158,21 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
 
   const theme = settings?.theme || "dark";
 
-  let dockClasses = "flex items-end gap-3 px-4 py-2 rounded-none shadow-2xl backdrop-blur-md max-w-max border-2 ";
-  let dividerClasses = "w-[1px] h-10 self-center ";
-  let notifyHoverClass = "";
-
-  if (theme === "light") {
-    dockClasses += "bg-white/35 border-slate-200/50 shadow-slate-300/30";
-    dividerClasses += "bg-slate-300";
-    notifyHoverClass = "hover:bg-slate-200/40";
-  } else if (theme === "midnight") {
-    dockClasses += "bg-slate-950/30 border-indigo-900/30 shadow-indigo-950/30";
-    dividerClasses += "bg-indigo-950/40";
-    notifyHoverClass = "hover:bg-white/10";
-  } else if (theme === "aurora") {
-    dockClasses += "bg-zinc-950/30 border-teal-900/30 shadow-emerald-950/30";
-    dividerClasses += "bg-teal-950/40";
-    notifyHoverClass = "hover:bg-white/10";
-  } else {
-    // default Terminal Green theme
-    dockClasses += "bg-black/85 border-emerald-500/50 shadow-emerald-950/40";
-    dividerClasses += "bg-emerald-900/30";
-    notifyHoverClass = "hover:bg-emerald-950/40";
-  }
+  const dockClasses =
+    theme === "light"
+      ? "border-slate-300 bg-white/88 text-slate-800"
+      : "border-[rgba(214,58,58,0.45)] bg-[#050607]/96 text-[#f8d8d8]";
 
   return (
-    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[999] select-none pointer-events-auto">
-      {/* Sci-fi macOS Bouncing Dock Animation Keyframes */}
+    <div className="fixed bottom-3 left-1/2 z-[999] flex -translate-x-1/2 select-none items-end gap-2 px-2 pointer-events-auto">
       <style>{`
         @keyframes dock-bounce {
-          0%, 100% { transform: translateY(0) scaleY(1); }
-          30% { transform: translateY(-18px) scaleY(1.15); }
-          50% { transform: translateY(3px) scaleY(0.9); }
-          70% { transform: translateY(-7px) scaleY(1.05); }
-          90% { transform: translateY(0) scaleY(0.98); }
+          0%, 100% { transform: translateY(0) scale(1); }
+          30% { transform: translateY(-9px) scale(1.04); }
+          60% { transform: translateY(0) scale(0.98); }
         }
         .dock-bounce {
-          animation: dock-bounce 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+          animation: dock-bounce 0.7s cubic-bezier(0.22, 1, 0.36, 1);
         }
       `}</style>
 
@@ -217,7 +184,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
             left: `${contextMenu.x}px`,
             top: `${contextMenu.y}px`,
           }}
-          className="bg-black/95 border border-emerald-500/40 rounded-none py-1.5 shadow-2xl backdrop-blur-md z-[1000] w-44 animate-in fade-in zoom-in-95 duration-100"
+          className="w-48 rounded-none border border-[rgba(214,58,58,0.4)] bg-[#050607]/96 py-1.5 text-[#f4d7d7] shadow-2xl backdrop-blur-md z-[1000] animate-in fade-in zoom-in-95 duration-100"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Pin / Unpin Button */}
@@ -226,7 +193,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
               togglePinApp(contextMenu.appId);
               setContextMenu(null);
             }}
-            className="w-full text-left px-3.5 py-2 text-xs text-zinc-300 hover:bg-emerald-950/40 flex items-center gap-2 font-medium"
+            className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs font-medium text-[#d9aaaa] hover:bg-[rgba(214,58,58,0.12)]"
           >
             <span>📌</span>
             <span>
@@ -241,7 +208,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
                 handleCloseApp(contextMenu.appId);
                 setContextMenu(null);
               }}
-              className="w-full text-left px-3.5 py-2 text-xs text-rose-450 hover:bg-rose-950/40 border-t border-emerald-950/30 flex items-center gap-2 font-medium"
+              className="flex w-full items-center gap-2 border-t border-[rgba(214,58,58,0.2)] px-3.5 py-2 text-left text-xs font-medium text-[#ff9d9d] hover:bg-[rgba(214,58,58,0.12)]"
             >
               <span>❌</span>
               <span>Close Application</span>
@@ -250,89 +217,58 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
         </div>
       )}
 
-      {/* Floating glassmorphic Dock container */}
-      <div className={dockClasses}>
+      <div className={`flex items-stretch gap-2 border px-3 py-2 shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset] ${dockClasses}`}>
         {visibleApps.map((app) => {
           const isRunning = processes.some((p) => p.appId === app.id);
           const isFocused = processes.some((p) => p.appId === app.id && activePid === p.pid);
 
-          let buttonClasses = "w-12 h-12 rounded-none flex items-center justify-center text-3.5xl cursor-pointer select-none transition-all duration-200 hover:scale-120 hover:-translate-y-1.5 active:scale-105 active:translate-y-0 ";
-          if (isFocused) {
-            if (theme === "light") {
-              buttonClasses += "bg-slate-300/40 border border-slate-400/50 shadow-sm";
-            } else if (theme === "midnight") {
-              buttonClasses += "bg-indigo-600/25 border border-indigo-500/30 shadow-[0_0_6px_rgba(99,102,241,0.2)]";
-            } else if (theme === "aurora") {
-              buttonClasses += "bg-teal-600/25 border border-teal-500/30 shadow-[0_0_6px_rgba(20,184,166,0.2)]";
-            } else {
-              buttonClasses += "bg-emerald-950/40 border border-emerald-500/50 shadow-[0_0_8px_rgba(0,255,102,0.25)]";
-            }
-          } else {
-            buttonClasses += theme === "light" ? "hover:bg-slate-200/40" : "hover:bg-emerald-950/20";
-          }
+          const buttonClasses = `flex min-w-[5rem] flex-col items-center justify-center gap-1 rounded-none border px-3 py-2 text-[10px] tracking-[0.24em] transition-all duration-150 ${
+            isFocused
+              ? "border-[rgba(214,58,58,0.55)] bg-[rgba(214,58,58,0.12)] text-[#fff2f2]"
+              : "border-[rgba(214,58,58,0.18)] bg-transparent text-inherit hover:border-[rgba(214,58,58,0.4)] hover:bg-[rgba(214,58,58,0.08)]"
+          }`;
 
-          let dotClasses = "w-1.5 h-1.5 rounded-none absolute -bottom-1 transition-all duration-200 ";
-          if (isRunning) {
-            if (isFocused) {
-              if (theme === "light") {
-                dotClasses += "bg-indigo-650 shadow-[0_0_6px_rgba(79,70,229,0.8)] scale-110";
-              } else if (theme === "midnight") {
-                dotClasses += "bg-indigo-400 shadow-[0_0_6px_rgba(129,140,248,0.8)] scale-110";
-              } else if (theme === "aurora") {
-                dotClasses += "bg-teal-400 shadow-[0_0_6px_rgba(45,212,191,0.8)] scale-110";
-              } else {
-                dotClasses += "bg-emerald-400 shadow-[0_0_6px_rgba(0,255,102,0.8)] scale-110";
-              }
-            } else {
-              dotClasses += theme === "light" ? "bg-slate-400" : "bg-emerald-900/60";
-            }
-          }
+          const dotClasses = `mt-[-1px] h-1 w-full rounded-none ${isRunning ? (isFocused ? "bg-[#ef4444]" : "bg-[rgba(214,58,58,0.3)]") : "bg-transparent"}`;
 
           return (
             <div
               key={app.id}
-              className="flex flex-col items-center justify-end relative group"
+              className="group relative flex flex-col items-center justify-end"
               onContextMenu={(e) => handleContextMenu(e, app.id)}
             >
-              {/* App Title tooltip on hover */}
-              <div className="absolute bottom-16 bg-zinc-950/90 text-white border border-zinc-850 px-2.5 py-1 rounded-lg text-[10px] font-semibold tracking-wide shadow-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none select-none">
+              <div className="absolute bottom-14 border border-[rgba(214,58,58,0.22)] bg-[#050607]/95 px-2.5 py-1 text-[10px] font-semibold tracking-[0.2em] text-[#f6d7d7] opacity-0 shadow-md whitespace-nowrap transition-opacity duration-150 pointer-events-none select-none group-hover:opacity-100">
                 {app.title}
               </div>
 
-              {/* Bouncing wrapper for the button */}
               <div className={bouncingAppId === app.id ? "dock-bounce" : ""}>
-                {/* Dock Icon Button */}
                 <button
                   onClick={() => handleIconClick(app.id)}
                   className={buttonClasses}
                 >
-                  <span className="filter drop-shadow select-none leading-none">
+                  <span className="select-none leading-none">
                     {app.icon}
                   </span>
+                  <span className="text-[9px] leading-none">{app.title}</span>
                 </button>
               </div>
 
-              {/* Bottom status dot indicator (macOS style) */}
-              {isRunning && (
-                <div className={dotClasses} />
-              )}
+              <div className={dotClasses} />
             </div>
           );
         })}
 
-        {/* Divider separator */}
-        <div className={dividerClasses} />
+        <div className="mx-1 h-10 w-px bg-[rgba(214,58,58,0.3)]" />
 
-        {/* Notifications Tray Icon */}
         <button
           onClick={() => {
             playClickSound((settings?.volume ?? 80) / 100);
             onToggleNotifications();
           }}
-          className={`w-12 h-12 rounded-xl flex items-center justify-center text-3xl cursor-pointer transition-all duration-200 hover:scale-120 hover:-translate-y-1.5 active:scale-105 active:translate-y-0 ${notifyHoverClass}`}
-          title="Notification Center"
+          className="flex min-w-[5rem] flex-col items-center justify-center gap-1 rounded-none border border-[rgba(214,58,58,0.18)] px-3 py-2 text-[10px] tracking-[0.24em] text-inherit transition-all duration-150 hover:border-[rgba(214,58,58,0.4)] hover:bg-[rgba(214,58,58,0.08)]"
+          title="Mission Alerts"
         >
-          🔔
+          <span>ALERT</span>
+          <span className="text-[9px]">CENTER</span>
         </button>
       </div>
     </div>
