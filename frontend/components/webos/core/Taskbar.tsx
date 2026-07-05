@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useOS } from "@/hooks/webos/useOS";
 import { playClickSound } from "@/utils/webos/audio";
 import { REGISTERED_APPS } from "@/config/webos/apps.config";
+import { NextFontManifestPlugin } from "next/dist/build/webpack/plugins/next-font-manifest-plugin";
 
 interface TaskbarProps {
   onToggleNotifications: () => void;
@@ -336,3 +337,5 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     </div>
   );
 };
+
+

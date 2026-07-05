@@ -151,33 +151,33 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
 
   if (theme === "light") {
     windowThemeClasses = isActive
-      ? "border-slate-350 shadow-slate-200/50 bg-slate-100/90 backdrop-blur-xl text-slate-800"
-      : "border-slate-200 shadow-black/5 bg-slate-200/70 backdrop-blur-md text-slate-500";
+      ? "border-emerald-600/60 shadow-emerald-200/30 bg-emerald-50/90 text-emerald-950"
+      : "border-slate-300 shadow-black/5 bg-slate-100/80 text-slate-550";
     headerThemeClasses = isActive
-      ? "bg-slate-200/60 border-slate-350/50"
-      : "bg-slate-300/30 border-slate-200/35";
+      ? "bg-emerald-100 border-emerald-200"
+      : "bg-slate-200/50 border-slate-300/40";
   } else if (theme === "midnight") {
     windowThemeClasses = isActive
-      ? "border-indigo-500/40 shadow-indigo-950/40 bg-slate-900/85 backdrop-blur-xl text-indigo-100"
-      : "border-indigo-900/20 shadow-black/25 bg-slate-950/75 backdrop-blur-md text-indigo-400";
+      ? "border-purple-500/80 shadow-purple-950/50 bg-slate-950/90 text-purple-200"
+      : "border-purple-900/30 shadow-black/30 bg-slate-950/80 text-purple-400/80";
     headerThemeClasses = isActive
-      ? "bg-indigo-950/40 border-indigo-850"
-      : "bg-indigo-950/20 border-indigo-950/35";
+      ? "bg-purple-950/60 border-purple-800/40"
+      : "bg-purple-950/20 border-purple-900/20";
   } else if (theme === "aurora") {
     windowThemeClasses = isActive
-      ? "border-teal-500/40 shadow-emerald-950/40 bg-zinc-900/85 backdrop-blur-xl text-teal-100"
-      : "border-teal-900/20 shadow-black/25 bg-zinc-950/75 backdrop-blur-md text-teal-500/80";
+      ? "border-cyan-500/80 shadow-cyan-950/50 bg-zinc-950/90 text-cyan-200"
+      : "border-cyan-900/30 shadow-black/30 bg-zinc-950/80 text-cyan-500/80";
     headerThemeClasses = isActive
-      ? "bg-teal-950/40 border-teal-800"
-      : "bg-teal-950/20 border-teal-950/35";
+      ? "bg-cyan-950/60 border-cyan-800/40"
+      : "bg-cyan-950/20 border-cyan-900/20";
   } else {
-    // dark theme (default)
+    // dark theme (default ARES OS Terminal Green)
     windowThemeClasses = isActive
-      ? "border-zinc-500/50 shadow-zinc-950/40 bg-zinc-900/85 backdrop-blur-xl text-zinc-50"
-      : "border-zinc-700/30 shadow-black/20 bg-zinc-950/75 backdrop-blur-md text-zinc-400";
+      ? "border-emerald-500/80 shadow-emerald-950/50 bg-black/90 text-emerald-400"
+      : "border-emerald-900/30 shadow-black/40 bg-zinc-950/85 text-emerald-600/70";
     headerThemeClasses = isActive
-      ? "bg-zinc-800/40 border-zinc-700/50"
-      : "bg-zinc-900/20 border-zinc-800/35";
+      ? "bg-emerald-950/60 border-emerald-900/40"
+      : "bg-emerald-950/20 border-emerald-950/20";
   }
 
   return (
@@ -185,30 +185,30 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
       ref={windowRef}
       style={style}
       onClick={() => focusWindow(windowState.pid)}
-      className={`flex flex-col rounded-t-lg shadow-2xl border transition-shadow duration-200 overflow-hidden ${windowThemeClasses}`}
+      className={`flex flex-col rounded-none shadow-2xl border-2 transition-shadow duration-200 overflow-hidden ${windowThemeClasses}`}
     >
       {/* Window Header (Title Bar) */}
       <div
         onMouseDown={handleHeaderMouseDown}
         onDoubleClick={() => maximizeWindow(windowState.pid)}
-        className={`flex items-center justify-between h-10 px-4 select-none cursor-default border-b ${headerThemeClasses}`}
+        className={`flex items-center justify-between h-9 px-3 select-none cursor-default border-b font-mono ${headerThemeClasses}`}
       >
-        <span className="text-sm font-semibold truncate select-none">
-          {windowState.title}
+        <span className="text-xs font-bold uppercase tracking-wider truncate select-none">
+          ⚡ {windowState.title}
         </span>
         
         {/* Title Bar Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 font-mono text-xs">
           {/* Minimize */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               minimizeWindow(windowState.pid);
             }}
-            className="w-3.5 h-3.5 rounded-full bg-yellow-500/80 hover:bg-yellow-500 flex items-center justify-center transition-colors cursor-pointer text-[9px] text-yellow-950 font-bold select-none"
+            className="px-1.5 py-0.5 border border-zinc-700/50 hover:bg-zinc-800/80 transition-colors cursor-pointer text-[10px] select-none text-zinc-400 font-bold"
             title="Minimize"
           >
-            –
+            _
           </button>
           
           {/* Maximize */}
@@ -217,10 +217,10 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
               e.stopPropagation();
               maximizeWindow(windowState.pid);
             }}
-            className="w-3.5 h-3.5 rounded-full bg-green-500/80 hover:bg-green-500 flex items-center justify-center transition-colors cursor-pointer text-[8px] text-green-950 font-bold select-none"
+            className="px-1.5 py-0.5 border border-zinc-700/50 hover:bg-zinc-800/80 transition-colors cursor-pointer text-[10px] select-none text-zinc-400 font-bold"
             title="Maximize"
           >
-            ⤢
+            ⛶
           </button>
 
           {/* Close */}
@@ -229,7 +229,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
               e.stopPropagation();
               terminateApp(windowState.pid);
             }}
-            className="w-3.5 h-3.5 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center transition-colors cursor-pointer text-[9px] text-red-950 font-bold select-none"
+            className="px-1.5 py-0.5 border border-red-500/40 hover:bg-red-950/60 transition-colors cursor-pointer text-[10px] select-none text-red-400 font-bold"
             title="Close"
           >
             ✕
@@ -238,7 +238,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
       </div>
 
       {/* Window Content */}
-      <div className={`flex-1 overflow-auto p-0 relative ${theme === "light" ? "bg-white/70" : "bg-zinc-900/60"}`}>
+      <div className={`flex-1 overflow-auto p-0 relative ${theme === "light" ? "bg-white/70" : "bg-black/40"}`}>
         {children}
       </div>
 
@@ -256,7 +256,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
             fill="none"
             stroke="currentColor"
             strokeWidth="1"
-            className="text-zinc-600 hover:text-zinc-400 select-none pointer-events-none"
+            className="text-zinc-650 hover:text-zinc-400 select-none pointer-events-none"
           >
             <line x1="6" y1="0" x2="0" y2="6" />
             <line x1="7" y1="3" x2="3" y2="7" />
