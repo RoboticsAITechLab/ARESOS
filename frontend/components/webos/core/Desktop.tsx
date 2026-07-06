@@ -395,7 +395,7 @@ export const Desktop: React.FC = () => {
       <div className="orbital-scanlines" />
 
       {/* PERMANENT ORBITAL MISSION HUD OVERLAYS */}
-      <div className="absolute inset-0 z-0 flex flex-col justify-between p-8 font-mono select-none pointer-events-none text-red-500/25">
+      <div className="hidden md:flex absolute inset-0 z-0 flex-col justify-between p-8 font-mono select-none pointer-events-none text-red-500/25">
         {/* Top Section */}
         <div className="flex justify-between w-full">
           {/* Top Left: Diagnostics */}
@@ -455,14 +455,14 @@ export const Desktop: React.FC = () => {
       {/* Grid of Desktop Files/Folders Shortcuts */}
       <div
         id="desktop-grid"
-        className="absolute top-36 left-6 bottom-24 right-6 grid grid-flow-col auto-cols-[120px] grid-rows-[repeat(auto-fill,110px)] gap-3 justify-start items-start pointer-events-none z-10"
+        className="absolute top-16 md:top-36 left-4 right-4 md:left-6 md:right-6 bottom-24 grid grid-cols-3 sm:grid-cols-4 md:grid-flow-col md:auto-cols-[120px] md:grid-rows-[repeat(auto-fill,110px)] md:grid-cols-none gap-3 justify-items-center md:justify-start items-start pointer-events-none z-10 overflow-y-auto md:overflow-y-visible"
       >
         {REGISTERED_APPS.filter((app) => ["terminal", "file-manager", "mission-control", "settings", "equation-racers", "text-editor"].includes(app.id)).map((app) => (
           <div
             key={app.id}
             onDoubleClick={() => launchApp(app.id)}
             onContextMenu={(e) => handleContextMenu(e, app.id, "app")}
-            className="flex flex-col items-center justify-center border border-[rgba(214,58,58,0.14)] bg-black/10 p-2 text-center text-[#f3dada] transition duration-150 cursor-pointer pointer-events-auto group select-none hover:border-[rgba(214,58,58,0.35)] hover:bg-[rgba(214,58,58,0.08)]"
+            className="flex flex-col items-center justify-center w-full max-w-[100px] h-[96px] md:max-w-none md:h-auto border border-[rgba(214,58,58,0.14)] bg-black/10 p-2 text-center text-[#f3dada] transition duration-150 cursor-pointer pointer-events-auto group select-none hover:border-[rgba(214,58,58,0.35)] hover:bg-[rgba(214,58,58,0.08)]"
           >
             <div className="mb-1 text-[12px] font-semibold tracking-[0.22em] text-[#ffdddd] select-none">
               {app.icon}
@@ -479,7 +479,7 @@ export const Desktop: React.FC = () => {
             key={file.name}
             onDoubleClick={() => handleDoubleClickShortcut(file.name, file.type)}
             onContextMenu={(e) => handleContextMenu(e, file.name, file.type as "file" | "directory")}
-            className="flex flex-col items-center justify-center border border-[rgba(214,58,58,0.14)] bg-black/10 p-2 text-center text-[#f3dada] transition duration-150 cursor-pointer pointer-events-auto group select-none hover:border-[rgba(214,58,58,0.35)] hover:bg-[rgba(214,58,58,0.08)]"
+            className="flex flex-col items-center justify-center w-full max-w-[100px] h-[96px] md:max-w-none md:h-auto border border-[rgba(214,58,58,0.14)] bg-black/10 p-2 text-center text-[#f3dada] transition duration-150 cursor-pointer pointer-events-auto group select-none hover:border-[rgba(214,58,58,0.35)] hover:bg-[rgba(214,58,58,0.08)]"
           >
             <div className="mb-1 text-[12px] font-semibold tracking-[0.22em] text-[#ffdddd] select-none">
               {file.type === "directory" ? "DIR" : "DAT"}

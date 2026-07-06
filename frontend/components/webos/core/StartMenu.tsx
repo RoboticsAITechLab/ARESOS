@@ -73,7 +73,7 @@ export const StartMenu: React.FC = () => {
   return (
     <div
       onClick={() => setStartMenuOpen(false)}
-      className={`fixed inset-0 z-[9999] flex h-screen w-screen flex-col select-none p-8 md:p-16 animate-in fade-in duration-200 ${bgOverlayClasses}`}
+      className={`fixed inset-0 z-[9999] flex h-[100dvh] w-full flex-col select-none px-4 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] md:p-16 animate-in fade-in duration-200 ${bgOverlayClasses}`}
     >
       <style>{`
         @keyframes launchpad-pop {
@@ -89,22 +89,22 @@ export const StartMenu: React.FC = () => {
       {/* Centered Top Floating Search Bar */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className="mx-auto mb-12 w-full max-w-sm flex-shrink-0 animate-in slide-in-from-top-4 duration-300"
+        className="mx-auto mb-6 md:mb-12 w-full max-w-sm flex-shrink-0 animate-in slide-in-from-top-4 duration-300"
       >
         <div className="relative group">
-          <span className="absolute left-4 top-3 text-sm text-[#b78b8b]">SEARCH</span>
+          <span className="absolute left-4 top-3.5 text-xs text-[#b78b8b]">SEARCH</span>
           <input
             ref={inputRef}
             type="text"
             placeholder="Search mission modules..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className={`w-full rounded-none py-2.5 pl-20 pr-4 text-xs font-semibold uppercase tracking-[0.22em] outline-none transition-all shadow-xl ${searchInputClasses}`}
+            className={`w-full rounded-none py-3.5 pl-20 pr-4 text-xs font-semibold uppercase tracking-[0.22em] outline-none transition-all shadow-xl ${searchInputClasses}`}
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-4 top-3 text-xs font-bold text-[#b78b8b] transition hover:text-white"
+              className="absolute right-4 top-3.5 text-xs font-bold text-[#b78b8b] transition hover:text-white"
             >
               ✕
             </button>

@@ -24,14 +24,26 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
   const windowRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
   
   const dragStart = useRef({ x: 0, y: 0, winX: 0, winY: 0 });
   const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
   const isActive = activePid === windowState.pid;
+  const isVisible = isActive && !windowState.isMinimized;
 
   // Handle Drag Start
   const handleHeaderMouseDown = (e: React.MouseEvent) => {
+    if (isMobile) return;
     if (windowState.isMaximized) return;
     
     // Focus window
@@ -54,6 +66,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
 
   // Handle Resize Start
   const handleResizeMouseDown = (e: React.MouseEvent) => {
+    if (isMobile) return;
     focusWindow(windowState.pid);
     setIsResizing(true);
     resizeStart.current = {
@@ -69,6 +82,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
   // Global mousemove/mouseup handlers
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
+      if (isMobile) return;
       if (isDragging) {
         const deltaX = e.clientX - dragStart.current.x;
         const deltaY = e.clientY - dragStart.current.y;
@@ -139,11 +153,25 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, isResizing, windowState.pid, updateWindowPosition, updateWindowDimensions, windowState.x, windowState.y, windowState.width, windowState.height]);
+  }, [isDragging, isResizing, windowState.pid, updateWindowPosition, updateWindowDimensions, windowState.x, windowState.y, windowState.width, windowState.height, isMobile]);
 
   const isTransitioning = !isDragging && !isResizing;
 
-  const style: React.CSSProperties = windowState.isMaximized
+  const style: React.CSSProperties = isMobile
+    ? {
+        position: "absolute",
+        left: 0,
+        right: 0,
+        top: "var(--menubar-height)",
+        bottom: "var(--taskbar-height)",
+        zIndex: windowState.zIndex,
+        transition: isTransitioning
+          ? "transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease-out"
+          : "none",
+        display: isVisible ? "flex" : "none",
+        pointerEvents: isVisible ? "auto" : "none",
+      }
+    : windowState.isMaximized
     ? {
         position: "absolute",
         top: 0,

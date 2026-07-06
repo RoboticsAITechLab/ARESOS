@@ -10,6 +10,8 @@
   --accent-orange: #ff6b35;
   --border-color: rgba(255, 68, 68, 0.3);
   --glow-color: rgba(255, 34, 34, 0.5);
+  --menubar-height: calc(2rem + env(safe-area-inset-top, 0px));
+  --taskbar-height: calc(4.5rem + env(safe-area-inset-bottom, 0px));
 }
 
 @theme inline {
@@ -30,6 +32,8 @@ body {
   font-family: var(--font-mono), monospace;
   overflow: hidden;
   letter-spacing: 0.02em;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Premium Sci-Fi Custom Scrollbar */

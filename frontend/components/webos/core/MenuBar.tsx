@@ -42,7 +42,7 @@ export const MenuBar: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const barClasses = "h-8 w-full flex items-center justify-between px-4 select-none z-[999] text-[10px] font-mono border-b bg-black/95 border-red-500/40 text-red-500 shadow-[0_0_10px_rgba(255,0,0,0.15)] relative";
+  const barClasses = "h-[var(--menubar-height)] pt-[env(safe-area-inset-top,0px)] w-full flex items-center justify-between px-4 select-none z-[999] text-[10px] font-mono border-b bg-black/95 border-red-500/40 text-red-500 shadow-[0_0_10px_rgba(255,0,0,0.15)] relative";
 
   return (
     <div className={barClasses}>
@@ -52,35 +52,35 @@ export const MenuBar: React.FC = () => {
           <span className="w-1.5 h-1.5 bg-red-650 animate-pulse inline-block" />
           <span>[SYS:ONLINE]</span>
         </div>
-        <div className="text-zinc-400 font-extrabold tracking-wider">
+        <div className="hidden xs:block text-zinc-400 font-extrabold tracking-wider">
           ARESOS // ORBITAL COMMAND
         </div>
-        <div className="hidden sm:inline text-red-600/70">
+        <div className="hidden md:inline text-red-600/70">
           SEC:AURION-7
         </div>
-        <div className="hidden md:inline text-red-600/70">
+        <div className="hidden lg:inline text-red-600/70">
           UPLINK:STABLE
         </div>
-        <div className="hidden lg:inline text-red-600/70">
+        <div className="hidden xl:inline text-red-600/70">
           NET:ACTIVE
         </div>
       </div>
 
       {/* Right side: Realtime Telemetry Stats */}
       <div className="flex items-center gap-6 font-mono text-zinc-300">
-        <div className="flex items-center gap-1">
+        <div className="hidden md:flex items-center gap-1">
           <span className="text-red-500/60">CPU:</span>
           <span className="text-red-500 font-bold">{cpu}%</span>
         </div>
-        <div className="hidden sm:flex items-center gap-1">
+        <div className="hidden md:flex items-center gap-1">
           <span className="text-red-500/60">RAM:</span>
           <span className="text-red-500 font-bold">{ram}%</span>
         </div>
-        <div className="hidden md:flex items-center gap-1">
+        <div className="hidden lg:flex items-center gap-1">
           <span className="text-red-500/60">TEMP:</span>
           <span className="text-red-500 font-bold">{temp}°C</span>
         </div>
-        <div className="hidden lg:flex items-center gap-1">
+        <div className="hidden xl:flex items-center gap-1">
           <span className="text-red-500/60">UPLINK:</span>
           <span className="text-emerald-400 font-bold">STABLE</span>
         </div>

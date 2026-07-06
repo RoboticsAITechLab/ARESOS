@@ -164,7 +164,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
       : "border-[rgba(214,58,58,0.45)] bg-[#050607]/96 text-[#f8d8d8]";
 
   return (
-    <div className="fixed bottom-3 left-1/2 z-[999] flex -translate-x-1/2 select-none items-end gap-2 px-2 pointer-events-auto">
+    <div className="fixed bottom-0 left-0 right-0 w-full translate-x-0 px-0 md:bottom-3 md:left-1/2 md:-translate-x-1/2 md:w-auto md:px-2 z-[999] flex md:items-end select-none pointer-events-auto">
       <style>{`
         @keyframes dock-bounce {
           0%, 100% { transform: translateY(0) scale(1); }
@@ -173,6 +173,14 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
         }
         .dock-bounce {
           animation: dock-bounce 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        /* Hide scrollbar utility */
+        .scrollbar-none::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-none {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
 
@@ -217,23 +225,23 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
         </div>
       )}
 
-      <div className={`flex items-stretch gap-2 border px-3 py-2 shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset] ${dockClasses}`}>
+      <div className={`flex items-center justify-start gap-1.5 md:items-stretch md:gap-2 border w-full md:w-auto overflow-x-auto md:overflow-x-visible scrollbar-none px-3 py-2 h-[var(--taskbar-height)] md:h-auto pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] md:pb-2 border-l-0 border-r-0 border-b-0 md:border-l md:border-r md:border-b shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset] ${dockClasses}`}>
         {visibleApps.map((app) => {
           const isRunning = processes.some((p) => p.appId === app.id);
           const isFocused = processes.some((p) => p.appId === app.id && activePid === p.pid);
 
-          const buttonClasses = `flex min-w-[5rem] flex-col items-center justify-center gap-1 rounded-none border px-3 py-2 text-[10px] tracking-[0.24em] transition-all duration-150 ${
+          const buttonClasses = `flex min-w-[5rem] flex-col items-center justify-center gap-1 rounded-none border px-3 py-2.5 md:py-2 text-[10px] tracking-[0.24em] transition-all duration-150 min-h-[44px] md:min-h-0 flex-shrink-0 ${
             isFocused
               ? "border-[rgba(214,58,58,0.55)] bg-[rgba(214,58,58,0.12)] text-[#fff2f2]"
               : "border-[rgba(214,58,58,0.18)] bg-transparent text-inherit hover:border-[rgba(214,58,58,0.4)] hover:bg-[rgba(214,58,58,0.08)]"
           }`;
 
-          const dotClasses = `mt-[-1px] h-1 w-full rounded-none ${isRunning ? (isFocused ? "bg-[#ef4444]" : "bg-[rgba(214,58,58,0.3)]") : "bg-transparent"}`;
+          const dotClasses = `mt-[-1px] h-1 w-full rounded-none flex-shrink-0 ${isRunning ? (isFocused ? "bg-[#ef4444]" : "bg-[rgba(214,58,58,0.3)]") : "bg-transparent"}`;
 
           return (
             <div
               key={app.id}
-              className="group relative flex flex-col items-center justify-end"
+              className="group relative flex flex-col items-center justify-end flex-shrink-0"
               onContextMenu={(e) => handleContextMenu(e, app.id)}
             >
               <div className="absolute bottom-14 border border-[rgba(214,58,58,0.22)] bg-[#050607]/95 px-2.5 py-1 text-[10px] font-semibold tracking-[0.2em] text-[#f6d7d7] opacity-0 shadow-md whitespace-nowrap transition-opacity duration-150 pointer-events-none select-none group-hover:opacity-100">
@@ -257,14 +265,14 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
           );
         })}
 
-        <div className="mx-1 h-10 w-px bg-[rgba(214,58,58,0.3)]" />
+        <div className="mx-1 h-10 w-px bg-[rgba(214,58,58,0.3)] flex-shrink-0" />
 
         <button
           onClick={() => {
             playClickSound((settings?.volume ?? 80) / 100);
             onToggleNotifications();
           }}
-          className="flex min-w-[5rem] flex-col items-center justify-center gap-1 rounded-none border border-[rgba(214,58,58,0.18)] px-3 py-2 text-[10px] tracking-[0.24em] text-inherit transition-all duration-150 hover:border-[rgba(214,58,58,0.4)] hover:bg-[rgba(214,58,58,0.08)]"
+          className="flex min-w-[5rem] flex-col items-center justify-center gap-1 rounded-none border border-[rgba(214,58,58,0.18)] px-3 py-2.5 md:py-2 text-[10px] tracking-[0.24em] text-inherit transition-all duration-150 hover:border-[rgba(214,58,58,0.4)] hover:bg-[rgba(214,58,58,0.08)] min-h-[44px] md:min-h-0 flex-shrink-0"
           title="Mission Alerts"
         >
           <span>ALERT</span>

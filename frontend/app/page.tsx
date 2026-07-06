@@ -27,12 +27,12 @@ function WebOSLayout() {
   const isCrt = settings?.crtFilterEnabled ?? false;
 
   return (
-    <div className={isCrt ? "crt-screen relative w-screen h-screen overflow-hidden" : "relative w-screen h-screen overflow-hidden"}>
+    <div className={isCrt ? "crt-screen relative w-screen h-[100dvh] overflow-hidden" : "relative w-screen h-[100dvh] overflow-hidden"}>
       {isCrt && <div className="crt-overlay" />}
       <div className="orbital-grid" />
       <div className="orbital-radar" />
       <div className="orbital-scanlines" />
-      <main className="flex flex-col w-full h-full overflow-hidden select-none relative font-mono animate-in fade-in duration-500">
+      <main className="flex flex-col w-full h-[100dvh] overflow-hidden select-none relative font-mono animate-in fade-in duration-500">
         {/* Mission-control status bar */}
         <MenuBar />
 
