@@ -59,7 +59,7 @@ I used AI as a tool during development, but building the project, solving proble
 
 ### Math Notes
 
-![Math Notes](./screenshots/math-notes.png)
+![Math Notes](./screenshots/sadfasdf.png)
 
 
 ### Music Player
