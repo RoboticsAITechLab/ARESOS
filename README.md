@@ -161,7 +161,7 @@ ARESOS is still an ongoing project and there are many things I want to improve i
 ## Running Locally
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/RoboticsAITechLab/ARESOS.git
 
 cd frontend
 
