@@ -1,70 +1,172 @@
-# ARESOS 🌌
+# ARESOS
 
-ARESOS is a browser-based mission-control workspace inspired by spacecraft consoles, operating systems, and retro-futuristic interfaces. It combines a terminal, virtual filesystem, procedural audio engine, and custom applications inside a desktop environment built with Next.js.
+A browser-based WebOS with a red-themed desktop environment.
 
-👉 **[Launch ARESOS Live Dashboard](https://aresos.vercel.app/)**
+ARESOS is an experiment to see how much of an operating system experience can be recreated inside a browser and what that experience feels like.
+
+![ARESOS Desktop](./screenshots/desktop.png)
+
+## Live Demo
+
+👉 https://aresos-red.vercel.app/
 
 ---
 
-## Why I Built This
+## Why I Built It
 
-I wanted to explore how far a browser could be pushed toward feeling like a real operating system. ARESOS started as a terminal experiment and gradually evolved into a mission-control workspace with a virtual filesystem, procedural audio, custom applications, and interactive learning tools.
+I wanted to make something more than a desktop with a wallpaper.
+
+I wanted users to actually interact with applications, files, games, and tools inside the browser instead of just looking at a static UI.
+
+I wanted to understand how complex software systems work:
+
+- How applications communicate with each other
+- How files are managed
+- How state is stored
+- How different parts of a system work together
+
+I also wanted to learn something new by building a larger project instead of following tutorials.
+
+I used AI as a tool during development, but building the project, solving problems, making decisions, debugging issues, and learning from mistakes was still part of the process.
 
 ---
 
 ## Features
 
-- **Terminal with custom commands**: Supports directory traversal, environment variables, piping, and interactive shell utilities.
-- **Persistent virtual filesystem**: Structured tree state node architecture synced directly to browser localStorage.
-- **Procedural audio engine**: Generates chimes, clicks, static, and alarms on-the-fly via the Web Audio API without static assets.
-- **Multi-window desktop environment**: Dynamic draggable, resizable window frames with automatic tiling grid positioning constraints.
-- **Equation Racers arcade game**: 2D canvas space racer game built with custom physics and mathematical expression solving gameplay.
-- **Whiteboard and math workspace**: Canvas area for drawing math equations, converting drawings to text, and resolving steps.
-- **Theme system**: Custom aesthetics featuring crimson command HUD styles, scanlines, and dot grid backgrounds.
-
----
-
-## How It Works
-
-### Virtual Filesystem
-ARESOS implements a custom reactive directory tree node map. Every directory operation (`mkdir`, `cd`, `write`, `rm`) updates the global React state and serializes automatically to local storage, securing files across page refreshes.
-
-### Procedural Audio Engine
-Oscillator nodes are initialized, filtered, and scheduled dynamically via the browser's Web Audio API. Exponential frequency and gain ramps simulate analog sweeps, static, and button clicks without loading heavy static media assets.
-
-### Shell Parser
-A custom lexical scanner parses user input to execute commands. The parser resolves sequential piping (`|`), logical combinations (`&&`, `||`), and redirection operations on the virtual filesystem directory tree nodes.
+- Desktop-style workspace
+- Multi-window application system
+- Custom terminal
+- Virtual file system
+- Math Notes application
+- Music player with playlist storage and audio visualization
+- Equation Racers game
+- Neon Duel game
+- Persistent browser storage
+- Custom red-themed interface
+- Responsive desktop, tablet, and mobile support
 
 ---
 
 ## Screenshots
 
-### Desktop Workspace
-![Desktop Workspace](frontend/public/screenshots/desktop_workspace.png)
+### Desktop
+
+![Desktop](./screenshots/desktop.png)
 
 ### Terminal
-![Terminal](frontend/public/screenshots/terminal.png)
 
-### Mission Console
-![Mission Console](frontend/public/screenshots/mission_console.png)
+![Terminal](./screenshots/terminal.png)
+
+### Math Notes
+
+![Math Notes](./screenshots/math-notes.png)
+
+### Music Player
+
+![Music Player](./screenshots/music-player.png)
 
 ### Equation Racers
-![Equation Racers](frontend/public/screenshots/equation_racers.png)
+
+![Equation Racers](./screenshots/equation-racers.png)
 
 ---
 
-## Run Locally
+## How It Works
 
-Initialize and run the dev server locally:
+### Virtual File System
+
+ARESOS includes a custom virtual file system that stores files and folders directly inside the browser using local storage. Files remain available even after refreshing the page.
+
+### Window System
+
+Applications run inside movable and resizable windows. Window state, size, position, and focus are managed through a centralized system.
+
+### Music Player
+
+The music player supports saved playlists and animated audio visualization.
+
+### Terminal
+
+The terminal uses a custom command engine that can interact with the virtual file system and execute simulated shell commands.
+
+---
+
+## Challenges
+
+Some of the biggest challenges during development were:
+
+- Building a virtual file system
+- Managing application state across multiple windows
+- Creating games without external assets
+- Designing a UI that feels like a desktop environment
+- Making the project work across different screen sizes
+- Keeping the system stable while adding new features
+- Fixing regressions caused during development
+
+Another challenge was working with AI tools.
+
+Sometimes AI would get stuck in loops, introduce bugs, or break working features. I had to learn when to trust suggestions and when to debug problems myself.
+
+---
+
+## What I Learned
+
+- State management
+- Browser storage
+- Window management
+- Game development
+- Working with AI tools
+- Debugging large codebases
+- Project architecture
+
+---
+
+## Current Status
+
+ARESOS is an experimental project and is still under active development.
+
+Some applications are complete, while others are still being improved. The terminal currently supports many commands, but some behavior is simulated and not yet fully implemented.
+
+---
+
+## Future Plans
+
+ARESOS is still an ongoing project and there are many things I want to improve in the future.
+
+- Move parts of ARESOS to a cloud-based architecture
+- Reduce browser limitations where possible
+- Add AI-powered features and assistants
+- Support more applications and tools
+- Improve the terminal and virtual file system
+- Better mobile and cross-device support
+- Expand the overall ARESOS ecosystem
+
+---
+
+## Tech Stack
+
+### Frontend
+
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+
+### Browser APIs
+
+- LocalStorage
+- Canvas API
+- Web Audio API
+
+---
+
+## Running Locally
 
 ```bash
+git clone <repository-url>
+
 cd frontend
+
 npm install
+
 npm run dev
-```
-
-Open **[http://localhost:3000](http://localhost:3000)** in your browser.
-
----
-
-*Made with passion by Ankit Kumar.*
