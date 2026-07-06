@@ -8,7 +8,7 @@ ARESOS is an experiment to see how much of an operating system experience can be
 
 ## Live Demo
 
-👉 https://aresos-red.vercel.app/
+**Try ARESOS:** https://aresos-red.vercel.app/
 
 ---
 
@@ -49,9 +49,6 @@ I used AI as a tool during development, but building the project, solving proble
 
 ## Screenshots
 
-### Desktop
-
-![Desktop](./screenshots/desktop.png)
 
 ### Terminal
 
