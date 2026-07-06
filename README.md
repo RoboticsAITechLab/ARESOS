@@ -61,6 +61,7 @@ I used AI as a tool during development, but building the project, solving proble
 
 ![Math Notes](./screenshots/math-notes.png)
 
+
 ### Music Player
 
 ![Music Player](./screenshots/music-player.png)
