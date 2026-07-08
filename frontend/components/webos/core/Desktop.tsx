@@ -7,6 +7,8 @@ import { Window } from "./Window";
 import { ContextMenu, ContextMenuItem } from "./ContextMenu";
 import { REGISTERED_APPS } from "@/config/webos/apps.config";
 
+const MODAL_Z_INDEX = 99999;
+
 interface PropertyNode {
   name: string;
   type: string;
@@ -21,12 +23,22 @@ interface PropertyNode {
   };
 }
 
+
+const DESKTOP_SYSTEM_APPS = [
+  "terminal",
+  "file-manager",
+  "mission-control",
+  "settings",
+  "equation-racers",
+  "text-editor",
+];
+
 export const Desktop: React.FC = () => {
   const { windows, launchApp, settings, updateSettings, addNotification } = useOS();
   const { listDirectory, createDirectory, writeFile, clipboard, copyNode, pasteNode, renameNode, deleteNode, changeDirectory } = useFileSystem();
 
   const [desktopFiles, setDesktopFiles] = useState<{ name: string; type: string }[]>([]);
-  
+
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -44,21 +56,9 @@ export const Desktop: React.FC = () => {
   // Desktop file operations
   const [renameModal, setRenameModal] = useState({ isOpen: false, targetName: "", newName: "" });
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, targetName: "" });
-  interface PropertyNode {
-    name: string;
-    type: string;
-    path: string;
-    size: number;
-    createdAt: number;
-    updatedAt: number;
-    permissions: {
-      read: boolean;
-      write: boolean;
-      execute: boolean;
-    };
-  }
 
-    const [propertiesModal, setPropertiesModal] =
+
+  const [propertiesModal, setPropertiesModal] =
     useState<{
       isOpen: boolean;
       targetNode: PropertyNode | null;
@@ -67,10 +67,14 @@ export const Desktop: React.FC = () => {
       targetNode: null,
     });
 
+
+  // get desktop path 
+  const DESKTOP_PATH = "/home/user/Desktop";
+
   // Load files from virtual desktop 
   const refreshDesktopFiles = React.useCallback(() => {
     try {
-      const files = listDirectory("/home/user/Desktop");
+      const files = listDirectory(DESKTOP_PATH);
       setDesktopFiles(
         files.map((f) => ({
           name: f.name,
@@ -115,13 +119,16 @@ export const Desktop: React.FC = () => {
     });
   };
 
+
+  const fullPath = `${DESKTOP_PATH}/${name}`;
+
   // Handle double clicking desktop shortcut
   const handleDoubleClickShortcut = (name: string, type: string) => {
     if (type === "directory") {
-      launchApp("file-manager", { startPath: `/home/user/Desktop/${name}` });
+      launchApp("file-manager", { startPath: `${fullPath}` });
     } else {
       if (name.endsWith(".txt") || name.endsWith(".md")) {
-        launchApp("text-editor", { filePath: `/home/user/Desktop/${name}` });
+        launchApp("text-editor", { filePath: `${fullPath}` });
       } else {
         addNotification("Open File", `No default app handler for this file type.`, "warning");
       }
@@ -145,11 +152,11 @@ export const Desktop: React.FC = () => {
         }
       });
     } else {
-      const fullPath = `/home/user/Desktop/${name}`;
-      const items = listDirectory("/home/user/Desktop");
+      const fullPath = `fullPath`;
+      const items = listDirectory(DESKTOP_PATH);
       const found = items.find((i) => i.name === name);
       if (found) {
-       
+
         setPropertiesModal({
           isOpen: true,
           targetNode: {
@@ -175,7 +182,7 @@ export const Desktop: React.FC = () => {
       return;
     }
 
-    const oldFullPath = `/home/user/Desktop/${oldName}`;
+    const oldFullPath = `${DESKTOP_PATH}/${oldName}`;
     const ok = renameNode(oldFullPath, newName);
     if (ok) {
       refreshDesktopFiles();
@@ -189,7 +196,7 @@ export const Desktop: React.FC = () => {
   const executeDelete = () => {
     const name = deleteConfirmModal.targetName;
     if (!name) return;
-    const fullPath = `/home/user/Desktop/${name}`;
+    const fullPath = `${DESKTOP_PATH}/${name}`;
     const ok = deleteNode(fullPath);
     if (ok) {
       refreshDesktopFiles();
@@ -223,7 +230,7 @@ export const Desktop: React.FC = () => {
             let fileName = baseName;
             let counter = 2;
             try {
-              const existing = listDirectory("/home/user/Desktop");
+              const existing = listDirectory(DESKTOP_PATH);
               const existingNames = new Set(existing.map((item) => item.name));
               while (existingNames.has(fileName)) {
                 fileName = `New Text Document (${counter}).txt`;
@@ -232,7 +239,7 @@ export const Desktop: React.FC = () => {
             } catch (e) {
               console.error(e);
             }
-            const path = `/home/user/Desktop/${fileName}`;
+            const path = `${DESKTOP_PATH}/${fileName}`;
             const ok = writeFile(path, "");
             if (ok) {
               refreshDesktopFiles();
@@ -248,7 +255,7 @@ export const Desktop: React.FC = () => {
             let folderName = baseName;
             let counter = 2;
             try {
-              const existing = listDirectory("/home/user/Desktop");
+              const existing = listDirectory(DESKTOP_PATH);
               const existingNames = new Set(existing.map((item) => item.name));
               while (existingNames.has(folderName)) {
                 folderName = `${baseName} (${counter})`;
@@ -257,7 +264,7 @@ export const Desktop: React.FC = () => {
             } catch (e) {
               console.error(e);
             }
-            const ok = createDirectory("/home/user/Desktop", folderName);
+            const ok = createDirectory(DESKTOP_PATH, folderName);
             if (ok) {
               refreshDesktopFiles();
               addNotification("Folder Created", `Created folder "${folderName}" on Desktop.`, "success");
@@ -271,7 +278,7 @@ export const Desktop: React.FC = () => {
           disabled: !clipboard,
           action: () => {
             if (clipboard) {
-              const ok = pasteNode("/home/user/Desktop");
+              const ok = pasteNode(DESKTOP_PATH);
               if (ok) {
                 refreshDesktopFiles();
                 addNotification("Clipboard", "Pasted items on Desktop.", "success");
@@ -283,7 +290,7 @@ export const Desktop: React.FC = () => {
           label: "Open in Terminal",
           icon: "💻",
           action: () => {
-            changeDirectory("/home/user/Desktop");
+            changeDirectory(DESKTOP_PATH);
             launchApp("terminal");
           },
         },
@@ -340,7 +347,7 @@ export const Desktop: React.FC = () => {
         label: "Copy",
         icon: "📄",
         action: () => {
-          copyNode([`/home/user/Desktop/${targetName}`], "copy");
+          copyNode([`${DESKTOP_PATH}/${targetName}`], "copy");
           addNotification("Clipboard", `Copied "${targetName}" to VFS clipboard.`, "info");
         },
       },
@@ -348,7 +355,7 @@ export const Desktop: React.FC = () => {
         label: "Cut",
         icon: "✂️",
         action: () => {
-          copyNode([`/home/user/Desktop/${targetName}`], "cut");
+          copyNode([`${DESKTOP_PATH}/${targetName}`], "cut");
           addNotification("Clipboard", `Cut "${targetName}" to VFS clipboard.`, "info");
         },
       },
@@ -373,7 +380,7 @@ export const Desktop: React.FC = () => {
         label: "Open in Terminal",
         icon: "💻",
         action: () => {
-          changeDirectory(`/home/user/Desktop/${targetName}`);
+          changeDirectory(`${DESKTOP_PATH}/${targetName}`);
           launchApp("terminal");
         },
       });
@@ -411,16 +418,16 @@ export const Desktop: React.FC = () => {
 
       <div className="orbital-grid" />
       <div className="orbital-radar" />
-      
+
 
       {/* PERMANENT ORBITAL MISSION HUD OVERLAYS */}
       <div className="hidden md:flex absolute inset-0 z-0 flex-col justify-between p-8 font-mono select-none pointer-events-none text-red-500/25">
         {/* Top Section */}
         <div className="flex justify-between w-full">
-        
-          </div>
 
-         
+        </div>
+
+
 
         {/* Center Target Crosshair Overlay */}
         <div className="hidden lg:flex absolute inset-0 items-center justify-center pointer-events-none opacity-20">
@@ -432,7 +439,7 @@ export const Desktop: React.FC = () => {
           <div className="absolute h-[1px] w-60 bg-red-500/40" />
           <div className="absolute h-60 w-[1px] bg-red-500/40" />
         </div>
-        
+
       </div>
 
       {/* Grid of Desktop Files/Folders Shortcuts */}
@@ -440,21 +447,28 @@ export const Desktop: React.FC = () => {
         id="desktop-grid"
         className="absolute top-16 md:top-36 left-4 right-4 md:left-6 md:right-6 bottom-24 grid grid-cols-3 sm:grid-cols-4 md:grid-flow-col md:auto-cols-[120px] md:grid-rows-[repeat(auto-fill,110px)] md:grid-cols-none gap-3 justify-items-center md:justify-start items-start pointer-events-none z-10 overflow-y-auto md:overflow-y-visible"
       >
-        {REGISTERED_APPS.filter((app) => ["terminal", "file-manager", "mission-control", "settings", "equation-racers", "text-editor"].includes(app.id)).map((app) => (
-          <div
-            key={app.id}
-            onDoubleClick={() => launchApp(app.id)}
-            onContextMenu={(e) => handleContextMenu(e, app.id, "app")}
-            className="flex flex-col items-center justify-center w-full max-w-[100px] h-[96px] md:max-w-none md:h-auto border border-[rgba(214,58,58,0.14)] bg-black/10 p-2 text-center text-[#f3dada] transition duration-150 cursor-pointer pointer-events-auto group select-none hover:border-[rgba(214,58,58,0.35)] hover:bg-[rgba(214,58,58,0.08)]"
-          >
-            <div className="mb-1 text-[12px] font-semibold tracking-[0.22em] text-[#ffdddd] select-none">
-              {app.icon}
+
+
+        {/* System Apps shortcuts */}
+        {DESKTOP_SYSTEM_APPS.map((appId) => {
+          const app = REGISTERED_APPS.find((a) => a.id === appId);
+          if (!app) return null;
+          return (
+            <div
+              key={app.id}
+              onDoubleClick={() => launchApp(app.id)}
+              onContextMenu={(e) => handleContextMenu(e, app.id, "app")}
+              className="flex flex-col items-center justify-center w-full max-w-[100px] h-[96px] md:max-w-none md:h-auto border border-[rgba(214,58,58,0.14)] bg-black/10 p-2 text-center text-[#f3dada] transition duration-150 cursor-pointer pointer-events-auto group select-none hover:border-[rgba(214,58,58,0.35)] hover:bg-[rgba(214,58,58,0.08)]"
+            >
+              <div className="mb-1 text-[12px] font-semibold tracking-[0.22em] text-[#ffdddd] select-none">
+                {app.icon}
+              </div>
+              <span className="w-full truncate border-t border-[rgba(214,58,58,0.12)] pt-2 text-[10px] font-medium tracking-[0.22em]">
+                {app.title}
+              </span>
             </div>
-            <span className="w-full truncate border-t border-[rgba(214,58,58,0.12)] pt-2 text-[10px] font-medium tracking-[0.22em]">
-              {app.title}
-            </span>
-          </div>
-        ))}
+          );
+        })}
 
         {/* VFS Desktop files & folders */}
         {desktopFiles.map((file) => (
@@ -496,9 +510,10 @@ export const Desktop: React.FC = () => {
         items={contextMenuItems}
       />
 
+
       {/* Modals for Desktop file operations */}
       {renameModal.isOpen && (
-        <div className="absolute inset-0 bg-zinc-950/65 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
+        <div className="absolute inset-0 bg-zinc-950/65 backdrop-blur-sm flex items-center justify-center z-99999 p-4">
           <form
             onSubmit={executeRename}
             className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 w-80 max-w-full space-y-4 shadow-2xl animate-in zoom-in-95 duration-150"
@@ -534,8 +549,12 @@ export const Desktop: React.FC = () => {
         </div>
       )}
 
+
       {deleteConfirmModal.isOpen && (
-        <div className="absolute inset-0 bg-zinc-950/65 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
+        <div
+          style={{ zIndex: MODAL_Z_INDEX }}
+          className="absolute inset-0 bg-zinc-950/65 backdrop-blur-sm flex items-center justify-center p-4"
+        >
           <div className="bg-zinc-900 border border-rose-900/35 rounded-2xl p-5 w-80 max-w-full space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
             <div className="space-y-1">
               <h2 className="text-sm font-bold text-rose-400 flex items-center gap-1.5 font-sans">
@@ -564,7 +583,9 @@ export const Desktop: React.FC = () => {
       )}
 
       {propertiesModal.isOpen && propertiesModal.targetNode && (
-        <div className="absolute inset-0 bg-zinc-950/65 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
+        <div
+          style={{ zIndex: MODAL_Z_INDEX }}
+          className="absolute inset-0 bg-zinc-950/65 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 w-80 max-w-full space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 font-mono text-[10px] text-zinc-400">
             <div className="space-y-1 font-sans">
               <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
@@ -602,7 +623,7 @@ export const Desktop: React.FC = () => {
                 <span className="text-zinc-500">Timestamp Modified:</span>
                 <span className="text-white">{new Date(propertiesModal.targetNode.updatedAt).toLocaleString()}</span>
               </div>
-              
+
 
               <div className="space-y-1">
                 <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider block font-sans">Permissions flags</span>
