@@ -25,10 +25,11 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
 
   const [bouncingAppId, setBouncingAppId] = useState<string | null>(null);
   
-  // Custom right-click context menu state
+// Context menu
   const [contextMenu, setContextMenu] = useState<{ appId: string; x: number; y: number } | null>(null);
 
-  // Initialize pinned apps from localStorage or system defaults
+  // Pinned apps
+
   const [pinnedAppIds, setPinnedAppIds] = useState<string[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -48,14 +49,14 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     }
   }, []);
 
-  // Save pinned apps to localStorage on change
+  // Persist pinned apps
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
       localStorage.setItem("aresos_pinned_apps", JSON.stringify(pinnedAppIds));
     }
   }, [pinnedAppIds, isLoaded]);
 
-  // Click handler to close context menu
+  // Close menu on outside click
   useEffect(() => {
     const handleWindowClick = () => {
       setContextMenu(null);
@@ -64,6 +65,8 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     return () => window.removeEventListener("click", handleWindowClick);
   }, []);
 
+
+  // Launch / focus app
   const handleIconClick = (appId: string) => {
     playClickSound((settings?.volume ?? 80) / 100);
 
@@ -84,7 +87,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
         }
       }
     } else {
-      // Trigger bouncing icon animation for 1 second
+      
       setBouncingAppId(appId);
       setTimeout(() => {
         setBouncingAppId((current) => (current === appId ? null : current));
@@ -94,11 +97,12 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     }
   };
 
+  // Right click menu
   const handleContextMenu = (e: React.MouseEvent, appId: string) => {
     e.preventDefault();
-    if (appId === "start") return; // start menu cannot be pinned/unpinned
+    if (appId === "start") return;
     
-    // Open context menu near mouse coordinates, offset to render above the taskbar
+    
     setContextMenu({
       appId,
       x: Math.min(e.clientX, window.innerWidth - 180),
@@ -106,16 +110,9 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     });
   };
 
-  const togglePinApp = (appId: string) => {
-    setPinnedAppIds((prev) => {
-      if (prev.includes(appId)) {
-        return prev.filter((id) => id !== appId);
-      } else {
-        return [...prev, appId];
-      }
-    });
-  };
 
+
+  // Close all windows for an app
   const handleCloseApp = (appId: string) => {
     const runningProcs = processes.filter((p) => p.appId === appId);
     runningProcs.forEach((p) => {
@@ -123,13 +120,12 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     });
   };
 
-  // Compile active visible taskbar apps list:
-  // Special Home (start) + Pinned Apps + Running Unpinned Apps
+ 
   const visibleApps: { id: string; title: string; icon: string }[] = [
     { id: "start", title: "ARES Menu", icon: "🏠" }
   ];
 
-  // Add all pinned apps configurations
+  // Pinned apps
   pinnedAppIds.forEach((appId) => {
     const config = REGISTERED_APPS.find((app) => app.id === appId);
     if (config) {
@@ -141,7 +137,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     }
   });
 
-  // Find running apps not already in pinned list
+// Running apps
   processes.forEach((proc) => {
     const alreadyVisible = visibleApps.some((app) => app.id === proc.appId);
     if (!alreadyVisible) {
@@ -174,7 +170,8 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
         .dock-bounce {
           animation: dock-bounce 0.7s cubic-bezier(0.22, 1, 0.36, 1);
         }
-        /* Hide scrollbar utility */
+        
+
         .scrollbar-none::-webkit-scrollbar {
           display: none;
         }
@@ -184,7 +181,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
         }
       `}</style>
 
-      {/* Dynamic Right-Click Context Menu */}
+      
       {contextMenu && (
         <div
           style={{
@@ -195,21 +192,9 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
           className="w-48 rounded-none border border-[rgba(214,58,58,0.4)] bg-[#050607]/96 py-1.5 text-[#f4d7d7] shadow-2xl backdrop-blur-md z-[1000] animate-in fade-in zoom-in-95 duration-100"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Pin / Unpin Button */}
-          <button
-            onClick={() => {
-              togglePinApp(contextMenu.appId);
-              setContextMenu(null);
-            }}
-            className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs font-medium text-[#d9aaaa] hover:bg-[rgba(214,58,58,0.12)]"
-          >
-            <span>📌</span>
-            <span>
-              {pinnedAppIds.includes(contextMenu.appId) ? "Unpin from Taskbar" : "Pin to Taskbar"}
-            </span>
-          </button>
+         
 
-          {/* Close App option (if app is running) */}
+          {/* Close app */}
           {processes.some((p) => p.appId === contextMenu.appId) && (
             <button
               onClick={() => {

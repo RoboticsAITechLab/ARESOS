@@ -10,7 +10,7 @@ import { REGISTERED_APPS } from "@/config/webos/apps.config";
 export const Desktop: React.FC = () => {
   const { windows, launchApp, settings, updateSettings, addNotification } = useOS();
   const { listDirectory, createDirectory, writeFile, clipboard, copyNode, pasteNode, renameNode, deleteNode, changeDirectory } = useFileSystem();
-  
+
   const [desktopFiles, setDesktopFiles] = useState<{ name: string; type: string }[]>([]);
   const [hudStats, setHudStats] = useState({ cpu: 12, ram: 1.84, temp: 42.5, lat: 24, power: 98, sector: "AURION-7" });
   useEffect(() => {
@@ -380,7 +380,7 @@ export const Desktop: React.FC = () => {
       className="relative h-full w-full overflow-hidden select-none bg-[#050607] p-6"
     >
       {/* Exclusive wallpaper background layer with brightness filter */}
-      <div 
+      <div
         className="absolute inset-0 z-0 transition-all duration-300 pointer-events-none"
         style={{
           backgroundImage: settings.wallpaperUrlOrGradient,
@@ -445,7 +445,7 @@ export const Desktop: React.FC = () => {
             <div className="flex justify-between"><span>CPU LOAD:</span> <span className="text-red-500/65 font-bold">{hudStats.cpu}%</span></div>
             <div className="flex justify-between"><span>RAM USED:</span> <span className="text-red-500/65 font-bold">{Math.floor(hudStats.ram * 10)}%</span></div>
             <div className="flex justify-between items-center">
-              <span>SYS HEALTH:</span> 
+              <span>SYS HEALTH:</span>
               <span className="text-green-400 font-bold bg-green-950/40 px-1 border border-green-500/20">NOMINAL</span>
             </div>
           </div>
@@ -494,9 +494,9 @@ export const Desktop: React.FC = () => {
       {windows.map((win) => {
         const config = REGISTERED_APPS.find((app) => win.pid.startsWith(app.id));
         if (!config) return null;
-        
+
         const AppComponent = config.component;
-  
+
         return (
           <Window key={win.id} windowState={win}>
             <AppComponent pid={win.pid} />
@@ -516,7 +516,7 @@ export const Desktop: React.FC = () => {
       {/* Modals for Desktop file operations */}
       {renameModal.isOpen && (
         <div className="absolute inset-0 bg-zinc-950/65 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
-          <form 
+          <form
             onSubmit={executeRename}
             className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 w-80 max-w-full space-y-4 shadow-2xl animate-in zoom-in-95 duration-150"
           >
@@ -625,7 +625,7 @@ export const Desktop: React.FC = () => {
                   <span className="text-white tracking-tighter truncate max-w-[150px] select-all">{propertiesModal.targetNode.checksum}</span>
                 </div>
               )}
-              
+
               <div className="space-y-1">
                 <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider block font-sans">Permissions flags</span>
                 <div className="grid grid-cols-3 gap-1 bg-zinc-950 p-2 border border-zinc-800 rounded-lg">

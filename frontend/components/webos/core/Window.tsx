@@ -21,19 +21,23 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
     settings,
   } = useOS();
 
-  const windowRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+const windowRef = useRef<HTMLDivElement>(null);
+const [isDragging, setIsDragging] = useState(false);
+const [isResizing, setIsResizing] = useState(false);
+const [isMobile, setIsMobile] = useState(false);
 
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
+const MOBILE_BREAKPOINT = 768;
+
+useEffect(() => {
+  const checkMobile = () => {
+    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+  };
+
+  checkMobile();
+  window.addEventListener("resize", checkMobile);
+
+  return () => window.removeEventListener("resize", checkMobile);
+}, []);
   
   const dragStart = useRef({ x: 0, y: 0, winX: 0, winY: 0 });
   const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0 });
@@ -41,7 +45,8 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
   const isActive = activePid === windowState.pid;
   const isVisible = isActive && !windowState.isMinimized;
 
-  // Handle Drag Start
+
+  // start drag 
   const handleHeaderMouseDown = (e: React.MouseEvent) => {
     if (isMobile) return;
     if (windowState.isMaximized) return;
@@ -64,7 +69,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
     e.preventDefault();
   };
 
-  // Handle Resize Start
+  // start resize 
   const handleResizeMouseDown = (e: React.MouseEvent) => {
     if (isMobile) return;
     focusWindow(windowState.pid);
@@ -79,7 +84,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
     e.stopPropagation();
   };
 
-  // Global mousemove/mouseup handlers
+  //handel mouse movment
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isMobile) return;
@@ -90,21 +95,17 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
         let newX = dragStart.current.winX + deltaX;
         let newY = dragStart.current.winY + deltaY;
 
-        // Viewport boundaries constraints
+        // Viewport boundaries
         const topbarHeight = 28;
         const taskbarHeight = 64;
         const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1024;
         const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 768;
 
-        // Constraint window position
+        // window position
         if (newX < 0) newX = 0;
         if (newY < topbarHeight) newY = topbarHeight;
         if (newX + windowState.width > viewportWidth) newX = viewportWidth - windowState.width;
         if (newY + windowState.height > viewportHeight - taskbarHeight) newY = viewportHeight - taskbarHeight - windowState.height;
-
-        if (newX < 0) newX = 0;
-        if (newY < topbarHeight) newY = topbarHeight;
-
         updateWindowPosition(windowState.pid, newX, newY);
       }
 
@@ -114,17 +115,16 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
 
         const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1024;
         const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 768;
-        const topbarHeight = 28;
         const taskbarHeight = 64;
 
-        // Max width/height rules (max-width: 90vw, max-height: 80vh)
+        // Max width/height 
         const maxWidth = Math.floor(viewportWidth * 0.9);
         const maxHeight = Math.floor(viewportHeight * 0.8);
 
         let newWidth = Math.max(300, Math.min(maxWidth, resizeStart.current.width + deltaX));
         let newHeight = Math.max(200, Math.min(maxHeight, resizeStart.current.height + deltaY));
 
-        // Prevent resizing outside viewport boundaries
+        // resizing outside viewport boundaries
         if (windowState.x + newWidth > viewportWidth) {
           newWidth = viewportWidth - windowState.x;
         }
@@ -230,7 +230,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
       onClick={() => focusWindow(windowState.pid)}
       className={`flex flex-col rounded-none border transition-shadow duration-200 overflow-hidden ${windowThemeClasses}`}
     >
-      {/* Window Header (Title Bar) */}
+      {/*Title Bar*/}
       <div
         onMouseDown={handleHeaderMouseDown}
         onDoubleClick={() => maximizeWindow(windowState.pid)}
@@ -286,7 +286,7 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
       </div>
 
       {/* Window Resize Handle */}
-      {!windowState.isMaximized && (
+      {!isMobile && !windowState.isMaximized && (
         <div
           onMouseDown={handleResizeMouseDown}
           className="absolute bottom-0 right-0 flex h-4 w-4 cursor-se-resize items-end justify-end p-0.5"
@@ -310,10 +310,3 @@ export const Window: React.FC<WindowProps> = ({ windowState, children }) => {
     </div>
   );
 };
-
-
-
-
-// ===========================================================
-
-

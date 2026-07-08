@@ -36,7 +36,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Premium Sci-Fi Custom Scrollbar */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -57,93 +57,17 @@ body {
   box-shadow: 0 0 12px rgba(255, 68, 68, 0.6), inset 0 0 6px rgba(255, 107, 53, 0.4);
 }
 
-/* Cyber Matrix Dot Grid Background Overlay */
-.cyber-grid {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    radial-gradient(rgba(255, 68, 68, 0.06) 1.5px, transparent 1.5px),
-    linear-gradient(to right, rgba(255, 68, 68, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 68, 68, 0.03) 1px, transparent 1px);
-  background-size: 30px 30px, 120px 120px, 120px 120px;
-  background-position: center;
-  z-index: 0;
-}
 
-/* CRT and Scanlines Retro Effect */
-.crt-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  pointer-events: none;
-  z-index: 99999;
-  background: linear-gradient(rgba(20, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%);
-  background-size: 100% 4px;
-  animation: scanline-drift 8s linear infinite;
-}
 
-.crt-overlay::after {
-  content: " ";
-  display: block;
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  background: radial-gradient(circle at center, rgba(20, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 150%);
-  z-index: 100000;
-  pointer-events: none;
-}
 
-/* Screen Flicker & Glow */
-@keyframes crt-flicker {
-  0% { opacity: 0.97; filter: brightness(1.02); }
-  50% { opacity: 1.0; filter: brightness(1.0); }
-  100% { opacity: 0.97; filter: brightness(1.02); }
-}
 
-@keyframes scanline-drift {
-  0% { background-position: 0 0; }
-  100% { background-position: 0 10px; }
-}
 
-@keyframes text-glow {
-  0% { text-shadow: 0 0 4px rgba(255, 68, 68, 0.4), 0 0 10px rgba(255, 68, 68, 0.1); }
-  50% { text-shadow: 0 0 8px rgba(255, 68, 68, 0.6), 0 0 15px rgba(255, 68, 68, 0.3); }
-  100% { text-shadow: 0 0 4px rgba(255, 68, 68, 0.4), 0 0 10px rgba(255, 68, 68, 0.1); }
-}
 
-@keyframes neon-pulse {
-  0% { box-shadow: 0 0 5px rgba(255, 68, 68, 0.3), inset 0 0 5px rgba(255, 68, 68, 0.1); }
-  50% { box-shadow: 0 0 15px rgba(255, 68, 68, 0.6), inset 0 0 10px rgba(255, 68, 68, 0.2); }
-  100% { box-shadow: 0 0 5px rgba(255, 68, 68, 0.3), inset 0 0 5px rgba(255, 68, 68, 0.1); }
-}
 
-.crt-screen {
-  animation: crt-flicker 0.15s infinite;
-  filter: contrast(1.15) brightness(1.05) saturate(1.1);
-}
 
-/* Unique Panel Styling */
-.panel, [class*="panel"], [class*="card"], [class*="container"] {
-  border: 1px solid var(--border-color);
-  background: linear-gradient(135deg, 
-    rgba(26, 15, 15, 0.6) 0%, 
-    rgba(16, 8, 8, 0.8) 100%);
-  box-shadow: 0 0 10px rgba(255, 68, 68, 0.1), inset 0 0 10px rgba(255, 68, 68, 0.05);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
 
-.panel:hover, [class*="panel"]:hover, [class*="card"]:hover, [class*="container"]:hover {
-  border-color: rgba(255, 68, 68, 0.6);
-  box-shadow: 0 0 20px rgba(255, 68, 68, 0.25), inset 0 0 15px rgba(255, 68, 68, 0.1);
-  transform: translateY(-2px);
-}
 
-/* Button Styling */
+/* Button */
 button, [role="button"], input[type="button"], input[type="submit"] {
   background: linear-gradient(135deg, rgba(255, 68, 68, 0.2), rgba(255, 107, 53, 0.15));
   border: 1.5px solid var(--accent-red);
@@ -192,7 +116,7 @@ button:disabled {
   box-shadow: none;
 }
 
-/* Input Styling */
+/* Input */
 input[type="text"], input[type="password"], input[type="email"], textarea, select {
   background: rgba(10, 6, 6, 0.7);
   border: 1px solid var(--border-color);
@@ -220,13 +144,7 @@ select:focus {
   color: var(--foreground);
 }
 
-/* Unique Heading Styles */
-h1, h2, h3, h4, h5, h6 {
-  letter-spacing: 0.1em;
-  font-weight: 700;
-  text-transform: uppercase;
-  animation: text-glow 3s ease-in-out infinite;
-}
+/* heading */
 
 h1 {
   font-size: 2.5rem;
@@ -240,23 +158,23 @@ h2 {
 }
 
 /* Status Indicators */
-.status-online, .status-active, [class*="online"], [class*="active"] {
+.status-online, .status-active {
   color: var(--accent-red);
   text-shadow: 0 0 8px rgba(255, 68, 68, 0.7);
 }
 
-.status-offline, .status-inactive, [class*="offline"], [class*="inactive"] {
+.status-offline, .status-inactive {
   color: #666666;
   text-shadow: none;
 }
 
-.status-warning, [class*="warning"] {
+.status-warning {
   color: var(--accent-orange);
   text-shadow: 0 0 8px rgba(255, 107, 53, 0.7);
 }
 
-/* Retro Terminal Feel */
-.terminal, [class*="terminal"], code {
+/* terminal */
+.terminal, code {
   font-family: var(--font-mono), monospace;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 68, 68, 0.2);
@@ -266,7 +184,7 @@ h2 {
   letter-spacing: 0.02em;
 }
 
-/* Smooth Transitions Throughout */
+/*  Transitions */
 a {
   color: var(--accent-red);
   text-decoration: none;
@@ -280,7 +198,7 @@ a:hover {
   text-shadow: 0 0 8px rgba(255, 68, 68, 0.4);
 }
 
-/* Data Display Styling */
+/* Data Display  */
 table {
   border-collapse: collapse;
   width: 100%;
@@ -308,10 +226,7 @@ table tr:hover td {
 
 /* Responsive Grid Adjustments */
 @media (max-width: 768px) {
-  .cyber-grid {
-    background-size: 20px 20px, 80px 80px, 80px 80px;
-  }
-  
+ 
   body {
     font-size: 0.95rem;
   }
@@ -320,3 +235,6 @@ table tr:hover td {
     font-size: 2rem;
   }
 }
+
+
+
