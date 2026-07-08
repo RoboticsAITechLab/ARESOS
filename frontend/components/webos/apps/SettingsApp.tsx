@@ -247,7 +247,7 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
               <div className="space-y-2">
                 <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Themes Manager</span>
                 <div className="grid grid-cols-2 gap-2">
-                  {(["dark", "light", "midnight", "aurora"] as const).map((t) => {
+                  {(["dark", "light"] as const).map((t) => {
                     const isActive = settings.theme === t;
                     return (
                       <button
@@ -271,26 +271,10 @@ export default function SettingsApp({ pid: _pid }: SettingsAppProps) {
               </div>
 
               <div className={`space-y-2 pt-4 border-t ${theme === "light" ? "border-slate-200" : "border-zinc-850/60"}`}>
-                <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider block">Retro Aesthetics</span>
+               
                 <div className={`flex items-center justify-between p-3.5 rounded-lg border ${theme === "light" ? "bg-slate-50 border-slate-200" : "bg-zinc-955/20 border-zinc-800/60"}`}>
-                  <div>
-                    <div className={`text-xs font-semibold ${theme === "light" ? "text-slate-800" : "text-zinc-300"}`}>CRT & Scanline Monitor Filter</div>
-                    <div className="text-[10px] text-zinc-500">Toggle retro scanlines and curvature simulation across the desktop</div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const nextState = !settings.crtFilterEnabled;
-                      updateSettings({ crtFilterEnabled: nextState });
-                      addNotification("Retro Aesthetics", nextState ? "CRT monitor filter enabled" : "CRT monitor filter disabled", "info");
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      settings.crtFilterEnabled
-                        ? "bg-emerald-600/30 text-emerald-300 border border-emerald-500/30"
-                        : (theme === "light" ? "bg-slate-200 text-slate-600 border border-slate-300" : "bg-zinc-800 text-zinc-400 border border-zinc-700")
-                    }`}
-                  >
-                    {settings.crtFilterEnabled ? "ENABLED" : "DISABLED"}
-                  </button>
+                  
+          
                 </div>
               </div>
 

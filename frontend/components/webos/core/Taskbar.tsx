@@ -24,8 +24,8 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
   } = useOS();
 
   const [bouncingAppId, setBouncingAppId] = useState<string | null>(null);
-  
-// Context menu
+
+  // Context menu
   const [contextMenu, setContextMenu] = useState<{ appId: string; x: number; y: number } | null>(null);
 
   // Pinned apps
@@ -87,7 +87,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
         }
       }
     } else {
-      
+
       setBouncingAppId(appId);
       setTimeout(() => {
         setBouncingAppId((current) => (current === appId ? null : current));
@@ -101,8 +101,8 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
   const handleContextMenu = (e: React.MouseEvent, appId: string) => {
     e.preventDefault();
     if (appId === "start") return;
-    
-    
+
+
     setContextMenu({
       appId,
       x: Math.min(e.clientX, window.innerWidth - 180),
@@ -120,7 +120,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     });
   };
 
- 
+
   const visibleApps: { id: string; title: string; icon: string }[] = [
     { id: "start", title: "ARES Menu", icon: "🏠" }
   ];
@@ -137,7 +137,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
     }
   });
 
-// Running apps
+  // Running apps
   processes.forEach((proc) => {
     const alreadyVisible = visibleApps.some((app) => app.id === proc.appId);
     if (!alreadyVisible) {
@@ -181,7 +181,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
         }
       `}</style>
 
-      
+
       {contextMenu && (
         <div
           style={{
@@ -192,7 +192,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
           className="w-48 rounded-none border border-[rgba(214,58,58,0.4)] bg-[#050607]/96 py-1.5 text-[#f4d7d7] shadow-2xl backdrop-blur-md z-[1000] animate-in fade-in zoom-in-95 duration-100"
           onClick={(e) => e.stopPropagation()}
         >
-         
+
 
           {/* Close app */}
           {processes.some((p) => p.appId === contextMenu.appId) && (
@@ -215,11 +215,10 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onToggleNotifications }) => {
           const isRunning = processes.some((p) => p.appId === app.id);
           const isFocused = processes.some((p) => p.appId === app.id && activePid === p.pid);
 
-          const buttonClasses = `flex min-w-[5rem] flex-col items-center justify-center gap-1 rounded-none border px-3 py-2.5 md:py-2 text-[10px] tracking-[0.24em] transition-all duration-150 min-h-[44px] md:min-h-0 flex-shrink-0 ${
-            isFocused
+          const buttonClasses = `flex min-w-[5rem] flex-col items-center justify-center gap-1 rounded-none border px-3 py-2.5 md:py-2 text-[10px] tracking-[0.24em] transition-all duration-150 min-h-[44px] md:min-h-0 flex-shrink-0 ${isFocused
               ? "border-[rgba(214,58,58,0.55)] bg-[rgba(214,58,58,0.12)] text-[#fff2f2]"
               : "border-[rgba(214,58,58,0.18)] bg-transparent text-inherit hover:border-[rgba(214,58,58,0.4)] hover:bg-[rgba(214,58,58,0.08)]"
-          }`;
+            }`;
 
           const dotClasses = `mt-[-1px] h-1 w-full rounded-none flex-shrink-0 ${isRunning ? (isFocused ? "bg-[#ef4444]" : "bg-[rgba(214,58,58,0.3)]") : "bg-transparent"}`;
 

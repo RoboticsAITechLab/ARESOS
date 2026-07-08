@@ -31,7 +31,7 @@ function WebOSLayout() {
       {isCrt && <div className="crt-overlay" />}
       <div className="orbital-grid" />
       <div className="orbital-radar" />
-      <div className="orbital-scanlines" />
+      
       <main className="flex flex-col w-full h-[100dvh] overflow-hidden select-none relative font-mono animate-in fade-in duration-500">
         {/* Mission-control status bar */}
         <MenuBar />

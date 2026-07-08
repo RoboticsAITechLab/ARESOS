@@ -7,25 +7,26 @@ import { Window } from "./Window";
 import { ContextMenu, ContextMenuItem } from "./ContextMenu";
 import { REGISTERED_APPS } from "@/config/webos/apps.config";
 
+interface PropertyNode {
+  name: string;
+  type: string;
+  path: string;
+  size: number;
+  createdAt: number;
+  updatedAt: number;
+  permissions: {
+    read: boolean;
+    write: boolean;
+    execute: boolean;
+  };
+}
+
 export const Desktop: React.FC = () => {
   const { windows, launchApp, settings, updateSettings, addNotification } = useOS();
   const { listDirectory, createDirectory, writeFile, clipboard, copyNode, pasteNode, renameNode, deleteNode, changeDirectory } = useFileSystem();
 
   const [desktopFiles, setDesktopFiles] = useState<{ name: string; type: string }[]>([]);
-  const [hudStats, setHudStats] = useState({ cpu: 12, ram: 1.84, temp: 42.5, lat: 24, power: 98, sector: "AURION-7" });
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setHudStats((prev) => {
-        const nextCpu = Math.max(8, Math.min(24, prev.cpu + Math.floor(Math.random() * 5) - 2));
-        const nextRam = Math.max(1.80, Math.min(1.92, prev.ram + (Math.random() * 0.04) - 0.02));
-        const nextTemp = Math.max(41.8, Math.min(43.5, prev.temp + parseFloat(((Math.random() * 0.4) - 0.2).toFixed(1))));
-        const nextLat = Math.max(18, Math.min(32, prev.lat + Math.floor(Math.random() * 3) - 1));
-        const nextPower = Math.max(97, Math.min(99, prev.power + (Math.random() > 0.85 ? Math.floor(Math.random() * 3) - 1 : 0)));
-        return { cpu: nextCpu, ram: nextRam, temp: nextTemp, lat: nextLat, power: nextPower, sector: "AURION-7" };
-      });
-    }, 2000);
-    return () => clearInterval(timer);
-  }, []);
+  
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -40,12 +41,33 @@ export const Desktop: React.FC = () => {
     targetType: null,
   });
 
-  // Modals for Desktop file operations
+  // Desktop file operations
   const [renameModal, setRenameModal] = useState({ isOpen: false, targetName: "", newName: "" });
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, targetName: "" });
-  const [propertiesModal, setPropertiesModal] = useState({ isOpen: false, targetNode: null as any | null });
+  interface PropertyNode {
+    name: string;
+    type: string;
+    path: string;
+    size: number;
+    createdAt: number;
+    updatedAt: number;
+    permissions: {
+      read: boolean;
+      write: boolean;
+      execute: boolean;
+    };
+  }
 
-  // Load files from virtual desktop directory
+    const [propertiesModal, setPropertiesModal] =
+    useState<{
+      isOpen: boolean;
+      targetNode: PropertyNode | null;
+    }>({
+      isOpen: false,
+      targetNode: null,
+    });
+
+  // Load files from virtual desktop 
   const refreshDesktopFiles = React.useCallback(() => {
     try {
       const files = listDirectory("/home/user/Desktop");
@@ -65,10 +87,9 @@ export const Desktop: React.FC = () => {
       refreshDesktopFiles();
     }, 0);
     // Refresh desktop icons every time a filesystem change might occur
-    const interval = setInterval(refreshDesktopFiles, 1500);
+    refreshDesktopFiles();
     return () => {
       clearTimeout(timer);
-      clearInterval(interval);
     };
   }, [refreshDesktopFiles]);
 
@@ -107,7 +128,7 @@ export const Desktop: React.FC = () => {
     }
   };
 
-  // Modals trigger methods
+  // Modals trigger 
   const triggerProperties = (name: string, type: "file" | "directory" | "app") => {
     if (type === "app") {
       const config = REGISTERED_APPS.find((app) => app.id === name);
@@ -118,9 +139,8 @@ export const Desktop: React.FC = () => {
           type: "System Application Shortcut",
           path: `aresos://apps/${name}`,
           size: 0,
-          createdAt: Date.now() - 36000000,
-          updatedAt: Date.now() - 36000000,
-          checksum: "-",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
           permissions: { read: true, write: false, execute: true }
         }
       });
@@ -129,17 +149,16 @@ export const Desktop: React.FC = () => {
       const items = listDirectory("/home/user/Desktop");
       const found = items.find((i) => i.name === name);
       if (found) {
-        const mockHash = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+       
         setPropertiesModal({
           isOpen: true,
           targetNode: {
             name: found.name,
             type: found.node.type,
             path: fullPath,
-            size: found.node.type === "file" ? (found.node as any).size : 0,
-            createdAt: (found.node as any).createdAt || Date.now(),
-            updatedAt: (found.node as any).updatedAt || Date.now(),
-            checksum: found.node.type === "file" ? mockHash : "-",
+            size: found.node.type === "file" ? (found.node).size : 0,
+            createdAt: (found.node).createdAt || Date.now(),
+            updatedAt: (found.node).updatedAt || Date.now(),
             permissions: { read: true, write: true, execute: found.node.type === "directory" }
           }
         });
@@ -282,7 +301,7 @@ export const Desktop: React.FC = () => {
             const currentIdx = gradients.indexOf(settings.wallpaperUrlOrGradient);
             const nextIdx = (currentIdx + 1) % gradients.length;
             updateSettings({ wallpaperUrlOrGradient: gradients[nextIdx] });
-            addNotification("System Settings", "Desktop wallpaper updated successfully.", "info");
+            addNotification("System Settings", "Wallpaper changed", "info");
           },
         },
       ];
@@ -392,28 +411,16 @@ export const Desktop: React.FC = () => {
 
       <div className="orbital-grid" />
       <div className="orbital-radar" />
-      <div className="orbital-scanlines" />
+      
 
       {/* PERMANENT ORBITAL MISSION HUD OVERLAYS */}
       <div className="hidden md:flex absolute inset-0 z-0 flex-col justify-between p-8 font-mono select-none pointer-events-none text-red-500/25">
         {/* Top Section */}
         <div className="flex justify-between w-full">
-          {/* Top Left: Diagnostics */}
-          <div className="hidden sm:block space-y-1 border border-[rgba(214,58,58,0.18)] bg-black/25 p-3 text-[9px] uppercase tracking-widest">
-            <div className="font-extrabold text-red-500/40 pb-1 border-b border-red-500/10 mb-1">SYSTEM_TELEMETRY</div>
-            <div>CPU LOAD: <span className="text-red-500/50">{hudStats.cpu}%</span></div>
-            <div>SYS TEMP: <span className="text-red-500/50">{hudStats.temp.toFixed(1)}°C</span></div>
-            <div>PATH RESOLVER: <span className="text-emerald-500/50">STABLE</span></div>
+        
           </div>
 
-          {/* Top Right: Uplink Coordinates */}
-          <div className="hidden md:block space-y-1 border border-[rgba(214,58,58,0.18)] bg-black/25 p-3 text-right text-[9px] uppercase tracking-widest">
-            <div className="font-extrabold text-red-500/40 pb-1 border-b border-red-500/10 mb-1">TARGETING_RADAR</div>
-            <div>SEC: <span className="text-red-500/50">{hudStats.sector}</span></div>
-            <div>COORD: <span className="text-red-500/50">LAT 42.18° N // LON 83.44° W</span></div>
-            <div>UPLINK STRENGTH: <span className="text-red-500/50">{100 - hudStats.lat}%</span></div>
-          </div>
-        </div>
+         
 
         {/* Center Target Crosshair Overlay */}
         <div className="hidden lg:flex absolute inset-0 items-center justify-center pointer-events-none opacity-20">
@@ -425,31 +432,7 @@ export const Desktop: React.FC = () => {
           <div className="absolute h-[1px] w-60 bg-red-500/40" />
           <div className="absolute h-60 w-[1px] bg-red-500/40" />
         </div>
-
-        {/* Bottom Section */}
-        <div className="flex justify-between w-full items-end">
-          {/* Bottom Left: Guidance Grid */}
-          <div className="hidden sm:block text-[8px] uppercase tracking-wider text-red-500/20">
-            <div>GRID_GUIDE: ACTIVE</div>
-            <div>ORBITAL_LINK: CONNECTED</div>
-          </div>
-
-          {/* Bottom Right: Mission Status Panel */}
-          <div className="w-56 space-y-1.5 border border-[rgba(214,58,58,0.28)] bg-black/75 p-4 text-[9px] uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,0,0.08)] scale-90 md:scale-100 origin-bottom-right">
-            <div className="font-bold text-red-500/70 pb-1 border-b border-red-500/20 mb-2 flex items-center justify-between">
-              <span>MISSION STATUS</span>
-              <span className="w-2 h-2 bg-green-500 animate-pulse rounded-full inline-block" />
-            </div>
-            <div className="flex justify-between"><span>UPLINK:</span> <span className="text-emerald-400 font-bold">STABLE</span></div>
-            <div className="flex justify-between"><span>SECTOR:</span> <span className="text-red-500/65 font-bold">{hudStats.sector}</span></div>
-            <div className="flex justify-between"><span>CPU LOAD:</span> <span className="text-red-500/65 font-bold">{hudStats.cpu}%</span></div>
-            <div className="flex justify-between"><span>RAM USED:</span> <span className="text-red-500/65 font-bold">{Math.floor(hudStats.ram * 10)}%</span></div>
-            <div className="flex justify-between items-center">
-              <span>SYS HEALTH:</span>
-              <span className="text-green-400 font-bold bg-green-950/40 px-1 border border-green-500/20">NOMINAL</span>
-            </div>
-          </div>
-        </div>
+        
       </div>
 
       {/* Grid of Desktop Files/Folders Shortcuts */}
@@ -521,8 +504,8 @@ export const Desktop: React.FC = () => {
             className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 w-80 max-w-full space-y-4 shadow-2xl animate-in zoom-in-95 duration-150"
           >
             <div className="space-y-1">
-              <h2 className="text-sm font-bold text-white">Rename Node Element</h2>
-              <p className="text-[10px] text-zinc-500 font-sans">Provide a new unique label naming for <span className="text-indigo-400 font-mono select-all">"{renameModal.targetName}"</span>.</p>
+              <h2 className="text-sm font-bold text-white">Rename File</h2>
+              <p className="text-[10px] text-zinc-500 font-sans">Rename File <span className="text-indigo-400 font-mono select-all">"{renameModal.targetName}"</span>.</p>
             </div>
             <input
               type="text"
@@ -556,7 +539,7 @@ export const Desktop: React.FC = () => {
           <div className="bg-zinc-900 border border-rose-900/35 rounded-2xl p-5 w-80 max-w-full space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
             <div className="space-y-1">
               <h2 className="text-sm font-bold text-rose-400 flex items-center gap-1.5 font-sans">
-                ⚠️ Confirm Node Purge
+                ⚠️ Delete File
               </h2>
               <p className="text-[10px] text-zinc-500 leading-normal font-sans">
                 Are you sure you want to permanently delete the shortcut <span className="text-white font-bold font-mono">"{deleteConfirmModal.targetName}"</span> from your Desktop?
@@ -585,9 +568,9 @@ export const Desktop: React.FC = () => {
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 w-80 max-w-full space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 font-mono text-[10px] text-zinc-400">
             <div className="space-y-1 font-sans">
               <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
-                ⚙️ Detailed Properties
+                ⚙️ Properties
               </h2>
-              <p className="text-[9.5px] text-zinc-500">Virtual File System diagnostic metadata stats.</p>
+              <p className="text-[9.5px] text-zinc-500">File Information.</p>
             </div>
 
             <div className="h-px bg-zinc-800 my-2" />
@@ -619,12 +602,7 @@ export const Desktop: React.FC = () => {
                 <span className="text-zinc-500">Timestamp Modified:</span>
                 <span className="text-white">{new Date(propertiesModal.targetNode.updatedAt).toLocaleString()}</span>
               </div>
-              {propertiesModal.targetNode.checksum !== "-" && (
-                <div className="flex justify-between border-b border-zinc-800/35 pb-1">
-                  <span className="text-zinc-500">MD5 Checksum:</span>
-                  <span className="text-white tracking-tighter truncate max-w-[150px] select-all">{propertiesModal.targetNode.checksum}</span>
-                </div>
-              )}
+              
 
               <div className="space-y-1">
                 <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider block font-sans">Permissions flags</span>

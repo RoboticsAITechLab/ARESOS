@@ -1,4 +1,5 @@
 "use client";
+const CONTEXT_MENU_Z_INDEX = 9999;
 
 import React, { useEffect, useRef } from "react";
 
@@ -27,7 +28,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close context menu if clicked outside
+  // Close menu when user clicks outside
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -51,12 +52,12 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       style={{
         top: `${y}px`,
         left: `${x}px`,
-        zIndex: 9999,
+        zIndex: CONTEXT_MENU_Z_INDEX,
       }}
       className="absolute w-48 rounded-none border border-[rgba(214,58,58,0.32)] bg-[#050607]/95 py-1 text-[#f3dada] shadow-xl backdrop-blur-xl select-none animate-in fade-in zoom-in-95 duration-100"
     >
       {items.map((item, index) => (
-        <React.Fragment key={index}>
+        <React.Fragment key={`${item.label}-${index}`}>
           {item.divider && <div className="my-1 border-t border-[rgba(214,58,58,0.18)]" />}
           <button
             onClick={() => {
