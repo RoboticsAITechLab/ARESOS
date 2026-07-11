@@ -53,16 +53,10 @@ export const MenuBar: React.FC = () => {
           <span>[SYS:ONLINE]</span>
         </div>
         <div className="hidden xs:block text-zinc-400 font-extrabold tracking-wider">
-          ARESOS // ORBITAL COMMAND
+          ARESOS
         </div>
         <div className="hidden md:inline text-red-600/70">
-          SEC:AURION-7
-        </div>
-        <div className="hidden lg:inline text-red-600/70">
-          UPLINK:STABLE
-        </div>
-        <div className="hidden xl:inline text-red-600/70">
-          NET:ACTIVE
+          SEC:ARES-7
         </div>
       </div>
 

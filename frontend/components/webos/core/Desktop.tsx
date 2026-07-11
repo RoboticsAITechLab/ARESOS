@@ -6,22 +6,12 @@ import { useFileSystem } from "@/hooks/webos/useFileSystem";
 import { Window } from "./Window";
 import { ContextMenu, ContextMenuItem } from "./ContextMenu";
 import { REGISTERED_APPS } from "@/config/webos/apps.config";
+import { RenameModal } from "@/components/webos/RenameModal";
+import { DeleteConfirmModal } from "./DeleteConfirmModel";
+import { PropertiesModal } from "./PropertiesModal";
+import { PropertyNode } from "@/types/webos/property";
 
 const MODAL_Z_INDEX = 99999;
-
-interface PropertyNode {
-  name: string;
-  type: string;
-  path: string;
-  size: number;
-  createdAt: number;
-  updatedAt: number;
-  permissions: {
-    read: boolean;
-    write: boolean;
-    execute: boolean;
-  };
-}
 
 
 const DESKTOP_SYSTEM_APPS = [
@@ -512,150 +502,48 @@ export const Desktop: React.FC = () => {
 
 
       {/* Modals for Desktop file operations */}
-      {renameModal.isOpen && (
-        <div className="absolute inset-0 bg-zinc-950/65 backdrop-blur-sm flex items-center justify-center z-99999 p-4">
-          <form
-            onSubmit={executeRename}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 w-80 max-w-full space-y-4 shadow-2xl animate-in zoom-in-95 duration-150"
-          >
-            <div className="space-y-1">
-              <h2 className="text-sm font-bold text-white">Rename File</h2>
-              <p className="text-[10px] text-zinc-500 font-sans">Rename File <span className="text-indigo-400 font-mono select-all">"{renameModal.targetName}"</span>.</p>
-            </div>
-            <input
-              type="text"
-              value={renameModal.newName}
-              onChange={(e) => setRenameModal((prev) => ({ ...prev, newName: e.target.value }))}
-              autoFocus
-              required
-              className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 rounded-xl px-3 py-1.5 text-xs text-white outline-none transition"
-            />
-            <div className="flex justify-end gap-2 text-xs pt-1.5">
-              <button
-                type="button"
-                onClick={() => setRenameModal({ isOpen: false, targetName: "", newName: "" })}
-                className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-750 text-zinc-400 font-semibold rounded-lg transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition shadow-md shadow-indigo-600/10 cursor-pointer"
-              >
-                Rename
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+     <RenameModal
+     isOpen={renameModal.isOpen}
+     targetName={renameModal.targetName}
+     value={renameModal.newName}
+     onChange={(value) =>
+      setRenameModal((prev) => ({
+        ...prev,
+        newName: value,
+      }))
+    }
+    onClose={() =>
+      setRenameModal({
+        isOpen: false,
+        targetName: "",
+        newName: "",
+      })
+    }
+    onSubmit={executeRename}
+  />
+  
+  <DeleteConfirmModal
+  isOpen={deleteConfirmModal.isOpen}
+  targetName={deleteConfirmModal.targetName}
+  onClose={() =>
+    setDeleteConfirmModal({
+      isOpen: false,
+      targetName: "",
+    })
+  }
+  onDelete={executeDelete}
+/>
 
-
-      {deleteConfirmModal.isOpen && (
-        <div
-          style={{ zIndex: MODAL_Z_INDEX }}
-          className="absolute inset-0 bg-zinc-950/65 backdrop-blur-sm flex items-center justify-center p-4"
-        >
-          <div className="bg-zinc-900 border border-rose-900/35 rounded-2xl p-5 w-80 max-w-full space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
-            <div className="space-y-1">
-              <h2 className="text-sm font-bold text-rose-400 flex items-center gap-1.5 font-sans">
-                ⚠️ Delete File
-              </h2>
-              <p className="text-[10px] text-zinc-500 leading-normal font-sans">
-                Are you sure you want to permanently delete the shortcut <span className="text-white font-bold font-mono">"{deleteConfirmModal.targetName}"</span> from your Desktop?
-              </p>
-            </div>
-            <div className="flex justify-end gap-2 text-xs pt-1.5">
-              <button
-                onClick={() => setDeleteConfirmModal({ isOpen: false, targetName: "" })}
-                className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-750 text-zinc-400 font-semibold rounded-lg transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={executeDelete}
-                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg transition cursor-pointer shadow-md shadow-rose-600/10"
-              >
-                Delete Permanently
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {propertiesModal.isOpen && propertiesModal.targetNode && (
-        <div
-          style={{ zIndex: MODAL_Z_INDEX }}
-          className="absolute inset-0 bg-zinc-950/65 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 w-80 max-w-full space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 font-mono text-[10px] text-zinc-400">
-            <div className="space-y-1 font-sans">
-              <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
-                ⚙️ Properties
-              </h2>
-              <p className="text-[9.5px] text-zinc-500">File Information.</p>
-            </div>
-
-            <div className="h-px bg-zinc-800 my-2" />
-
-            <div className="space-y-2.5">
-              <div className="flex justify-between border-b border-zinc-800/35 pb-1">
-                <span className="text-zinc-500">Object Name:</span>
-                <span className="text-white font-bold truncate max-w-[150px]">{propertiesModal.targetNode.name}</span>
-              </div>
-              <div className="flex justify-between border-b border-zinc-800/35 pb-1">
-                <span className="text-zinc-500">VFS Path:</span>
-                <span className="text-indigo-400 font-bold truncate max-w-[160px] select-all">{propertiesModal.targetNode.path}</span>
-              </div>
-              <div className="flex justify-between border-b border-zinc-800/35 pb-1">
-                <span className="text-zinc-500">Node Type:</span>
-                <span className="text-white capitalize">{propertiesModal.targetNode.type}</span>
-              </div>
-              {propertiesModal.targetNode.type !== "System Application Shortcut" && (
-                <div className="flex justify-between border-b border-zinc-800/35 pb-1">
-                  <span className="text-zinc-500">Sector Size:</span>
-                  <span className="text-white font-bold">{propertiesModal.targetNode.size} bytes</span>
-                </div>
-              )}
-              <div className="flex justify-between border-b border-zinc-800/35 pb-1">
-                <span className="text-zinc-500">Timestamp Initial:</span>
-                <span className="text-white">{new Date(propertiesModal.targetNode.createdAt).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between border-b border-zinc-800/35 pb-1">
-                <span className="text-zinc-500">Timestamp Modified:</span>
-                <span className="text-white">{new Date(propertiesModal.targetNode.updatedAt).toLocaleString()}</span>
-              </div>
-
-
-              <div className="space-y-1">
-                <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider block font-sans">Permissions flags</span>
-                <div className="grid grid-cols-3 gap-1 bg-zinc-950 p-2 border border-zinc-800 rounded-lg">
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="checkbox" checked={propertiesModal.targetNode.permissions.read} readOnly className="accent-indigo-600 scale-90" />
-                    <span>Read</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="checkbox" checked={propertiesModal.targetNode.permissions.write} readOnly className="accent-indigo-600 scale-90" />
-                    <span>Write</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="checkbox" checked={propertiesModal.targetNode.permissions.execute} readOnly className="accent-indigo-600 scale-90" />
-                    <span>Exec</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setPropertiesModal({ isOpen: false, targetNode: null })}
-                className="px-4 py-1.5 bg-zinc-800 hover:bg-zinc-750 text-white font-bold rounded-lg transition font-sans text-xs cursor-pointer"
-              >
-                Close properties
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PropertiesModal
+        isOpen={propertiesModal.isOpen}
+        node={propertiesModal.targetNode}
+        onClose={() =>
+          setPropertiesModal({
+            isOpen: false,
+            targetNode: null,
+          })
+        }
+      />
     </div>
   );
 };
-
